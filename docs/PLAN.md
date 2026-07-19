@@ -1,6 +1,6 @@
-# matchpoint — Implementation Plan (v2: cross-platform)
+# matchpoint — Implementation Plan (v3: cross-platform + locations/date-night)
 
-Tinder-style swipe app for pairs (couples/friends). Five categories: food, vacations, activities, date nights, shows/movies. Both partners swipe; only mutual rights become matches. No accounts — pair via 6-char invite code (Supabase anonymous auth).
+Tinder-style swipe app for pairs (couples/friends). Categories: food (general), restaurants (location-catered), vacations, activities, date nights, shows/movies. Both partners swipe; only mutual rights become matches. Matches accumulate into a shared "match bank" of common interests; Date Night mode then builds a shortlist from that bank plus fresh suggestions. No accounts — pair via 6-char invite code (Supabase anonymous auth).
 
 **Platforms: iOS + Android + web from one codebase — Expo (React Native + TypeScript + expo-router).** Web build ships to GitHub Pages via `npx expo export --platform web`. Native runs via Expo Go / dev builds (store shipping out of scope for MVP).
 
@@ -94,13 +94,32 @@ Enforce DESIGN.md: hard stops (Two-Color/No-Beige/Muted-Floor/Calm-Surface), dar
 
 **Verify:** `grep -rn "#[0-9a-fA-F]\{6\}" app/ components/ --include="*.tsx"` → zero hits outside `lib/theme/tokens.ts`; contrast spot-check muted text ≥4.5:1.
 
-## T6: Deploy web (needs T4)
+## T6: Deploy web (needs T4) — MVP1 gate
+
+**MVP1 definition: site live and functional at https://rchhatwal3.github.io/matchpoint/.** Works in offline demo mode until Supabase manual steps done. Mobile shells exist from T1 (Expo targets iOS/Android natively); device setup steps tracked in MANUAL_TODOS.md (sibling-repo convention) — no store shipping in MVP1. Deploy workflow + MANUAL_TODOS.md already written by orchestrator; remaining: baseUrl, README, merge, live verify.
 
 - `.github/workflows/deploy.yml`: adapt portfolio workflow — on push to `main`: npm ci, `npx expo export --platform web`, publish `./dist` via peaceiris/actions-gh-pages@v3, env from repo secrets `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`
 - expo-router web base path for project pages (`https://rchhatwal3.github.io/matchpoint/`): set `experiments.baseUrl: "/matchpoint"` in app.json
 - README: what it is, run commands, Supabase setup pointer, deploy notes
 
 **Verify:** workflow YAML valid; local `expo export` output opens correctly with baseUrl.
+
+## T7: Locations settings + restaurants deck (needs T4)
+
+- Settings screen: multiselect of locations the pair is in / willing to travel to (curated metro list + free-text add). Stored as `rooms.locations text[]`; either member edits; realtime-synced.
+- Restaurants category deck: `items where category='restaurants' and location = any(room.locations)`. General `food` category stays location-independent.
+- Restaurant sourcing: Supabase Edge Function `get-restaurants(location)` — server-side call to a places API (Google Places Text Search "popular restaurants in {location}"; server-side key, never in app). Upserts results into `items` with `location`, so swipes reference stable rows and repeat requests hit cache-first (skip API if ≥30 items already stored for that location). Frontend calls only the edge function. Mirrors recipe-pantry-app hard stop: scraping/API work lives in edge functions, never the frontend.
+- Manual step (surface to user): places API key as edge function secret (`supabase secrets set`). Until key exists, deck falls back to any statically seeded restaurant rows / empty-state explaining setup.
+
+**Verify:** RLS still holds (locations editable only by room members); edge function deploys (`supabase functions deploy` dry check or code review); deck filters correctly with two locations selected.
+
+## T8: Date Night mode (needs T4, T7)
+
+- New screen "Date Night": builds a shortlist from the match bank — room_matches across restaurants, date_nights, activities, shows — plus 2-3 wildcard unseen items per section.
+- Pair picks the plan: tap-to-shortlist then a final quick swipe-off (reuse deck component) on the shortlist; the winner becomes "tonight's pick" (raspberry match-reveal treatment).
+- Empty state when match bank thin: prompt to go swipe categories first (lagoon waiting-state styling).
+
+**Verify:** with seeded matches, shortlist renders per section; final pick flow completes; empty state when no matches.
 
 ## Final: Verification sweep (orchestrator)
 

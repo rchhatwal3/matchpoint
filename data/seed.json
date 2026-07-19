@@ -1,0 +1,1352 @@
+[
+  {
+    "category": "food",
+    "title": "Neapolitan pizza",
+    "subtitle": "Blistered crust, San Marzano tomatoes, a fold-and-go classic.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Sushi night",
+    "subtitle": "Fresh nigiri and rolls for a light, celebratory dinner.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Tacos al pastor",
+    "subtitle": "Spit-roasted pork, pineapple, and a squeeze of lime.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Tonkotsu ramen",
+    "subtitle": "Rich pork broth, springy noodles, cure for a cold night.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Pad Thai",
+    "subtitle": "Sweet, tangy, and quick — the takeout everyone agrees on.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Butter chicken",
+    "subtitle": "Creamy tomato curry that wants extra naan on the side.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Smash burgers",
+    "subtitle": "Crispy-edged patties and melty cheese, no fuss.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Texas BBQ brisket",
+    "subtitle": "Low-and-slow smoke with a peppery bark, worth the drive.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Beef pho",
+    "subtitle": "Star-anise broth and rice noodles for a cozy slurp.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Pork dumplings",
+    "subtitle": "Pan-fried or steamed, made for sharing off one plate.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Korean fried chicken",
+    "subtitle": "Double-fried, glossy with gochujang glaze, dangerously crunchy.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Fish and chips",
+    "subtitle": "Beer-battered cod and vinegar-splashed fries, pub comfort.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Falafel wraps",
+    "subtitle": "Crispy chickpea fritters with tahini, an easy meatless win.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Spaghetti carbonara",
+    "subtitle": "Egg, pecorino, and guanciale — Roman comfort in one pan.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Baked lasagna",
+    "subtitle": "Layered, bubbling, and better as leftovers tomorrow.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Burrito bowls",
+    "subtitle": "Build-your-own rice, beans, and toppings for picky pairs.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Poke bowls",
+    "subtitle": "Cubed raw fish over rice, fresh and endlessly customizable.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Shakshuka brunch",
+    "subtitle": "Eggs poached in spiced tomato, scoop it up with bread.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Lamb gyros",
+    "subtitle": "Warm pita, seasoned meat, tzatziki dripping down your wrist.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Chicken tikka masala",
+    "subtitle": "Charred, saucy, and reliably crowd-pleasing.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Dim sum spread",
+    "subtitle": "A parade of little baskets and endless tea refills.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Bibimbap",
+    "subtitle": "Rice, veggies, egg, and gochujang mixed at the table.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Peking duck",
+    "subtitle": "Crackling skin wrapped in thin pancakes with scallion.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Seafood paella",
+    "subtitle": "Saffron rice with a golden crust, a weekend showpiece.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Croissants and coffee",
+    "subtitle": "Flaky, buttery, and best eaten warm from the bakery.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Chicken and waffles",
+    "subtitle": "Sweet-and-savory brunch with syrup and hot sauce.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Loaded nachos",
+    "subtitle": "A shareable mountain of chips, cheese, and jalapenos.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Chicken shawarma",
+    "subtitle": "Spit-roasted, garlicky, and stuffed into warm flatbread.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Buffalo wings",
+    "subtitle": "Spicy, saucy, and made for a game-night spread.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Mac and cheese",
+    "subtitle": "The ultimate creamy carb hug, baked till golden.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Ceviche",
+    "subtitle": "Citrus-cured fish, bright and refreshing on a hot day.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Beef empanadas",
+    "subtitle": "Flaky hand pies, perfect for grabbing on the go.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Banh mi",
+    "subtitle": "Crackly baguette with pate, pickles, and cilantro.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Laksa",
+    "subtitle": "Coconut-curry noodle soup with a spicy, fragrant kick.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Chicken biryani",
+    "subtitle": "Fragrant layered rice with warm spices and tender meat.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Weekend pancakes",
+    "subtitle": "Fluffy stacks with butter and syrup, no rush required.",
+    "source": "Popular Takeout Lists"
+  },
+  {
+    "category": "food",
+    "title": "Steak frites",
+    "subtitle": "Seared steak and crisp fries, a bistro standby.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Gnocchi",
+    "subtitle": "Pillowy potato dumplings in butter, sage, or red sauce.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Enchiladas",
+    "subtitle": "Rolled tortillas smothered in sauce and melted cheese.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Thai green curry",
+    "subtitle": "Coconut-rich and herbaceous with a slow-building heat.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Pork bao buns",
+    "subtitle": "Soft steamed buns folded around sweet-savory filling.",
+    "source": "TasteAtlas Best Dishes"
+  },
+  {
+    "category": "food",
+    "title": "Gelato run",
+    "subtitle": "A scoop-and-stroll dessert stop on a warm evening.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Hot pot",
+    "subtitle": "Simmer your own broth at the table, dip and repeat.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Mezze platter",
+    "subtitle": "A grazing spread of hummus, olives, and warm pita.",
+    "source": "TasteAtlas Best Cuisines"
+  },
+  {
+    "category": "food",
+    "title": "Souvlaki plate",
+    "subtitle": "Grilled skewers with lemon, oregano, and a side of fries.",
+    "source": "TasteAtlas 100 Best Dishes"
+  },
+  {
+    "category": "vacations",
+    "title": "London, England",
+    "subtitle": "Museums, markets, and West End nights in a walkable capital.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Paris, France",
+    "subtitle": "Cafe mornings, riverside strolls, and a skyline of icons.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Rome, Italy",
+    "subtitle": "Ancient ruins and gelato on every cobblestone corner.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Tokyo, Japan",
+    "subtitle": "Neon districts, quiet shrines, and unforgettable food.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Barcelona, Spain",
+    "subtitle": "Gaudi architecture, beach afternoons, and late tapas.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Lisbon, Portugal",
+    "subtitle": "Pastel hills, tram rides, and seafood by the Atlantic.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Amsterdam, Netherlands",
+    "subtitle": "Canals, bikes, and world-class museums in a compact city.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Bali, Indonesia",
+    "subtitle": "Rice terraces, temples, and beaches for slow days.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Dubai, UAE",
+    "subtitle": "Skyscrapers, desert safaris, and glossy luxury.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Sicily, Italy",
+    "subtitle": "Volcanoes, ruins, and some of Italy's best street food.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Kyoto, Japan",
+    "subtitle": "Golden temples, bamboo groves, and geisha districts.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Osaka, Japan",
+    "subtitle": "A food-lover's playground with buzzing night streets.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Marrakech, Morocco",
+    "subtitle": "Labyrinth souks, rooftop mint tea, and desert edges.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Istanbul, Turkey",
+    "subtitle": "Where continents meet over bazaars and grand mosques.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Santorini, Greece",
+    "subtitle": "Whitewashed cliffs and sunsets over a caldera.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Prague, Czech Republic",
+    "subtitle": "Fairy-tale spires, cozy pubs, and a storied old town.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Vienna, Austria",
+    "subtitle": "Grand palaces, coffeehouse culture, and classical music.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Reykjavik, Iceland",
+    "subtitle": "Base camp for waterfalls, geysers, and northern lights.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Queenstown, New Zealand",
+    "subtitle": "Alpine lakes and adventure sports at every turn.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Cape Town, South Africa",
+    "subtitle": "Table Mountain, penguin beaches, and nearby wine country.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Buenos Aires, Argentina",
+    "subtitle": "Tango nights, steak dinners, and grand old boulevards.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Rio de Janeiro, Brazil",
+    "subtitle": "Beaches, samba, and a mountain-framed skyline.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Bangkok, Thailand",
+    "subtitle": "Street food, gilded temples, and buzzing night markets.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Hanoi, Vietnam",
+    "subtitle": "Old-quarter chaos, lakeside calm, and endless pho.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Machu Picchu, Peru",
+    "subtitle": "A misty Inca citadel reached through the Andes.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Banff, Canada",
+    "subtitle": "Turquoise lakes and jagged peaks in the Rockies.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Mexico City, Mexico",
+    "subtitle": "Murals, markets, and one of the world's great food scenes.",
+    "source": "Lonely Planet Best Destinations"
+  },
+  {
+    "category": "vacations",
+    "title": "Tulum, Mexico",
+    "subtitle": "Jungle cenotes and Caribbean beaches beside Mayan ruins.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "New York City, USA",
+    "subtitle": "Nonstop energy, iconic sights, and every cuisine at once.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "New Orleans, Louisiana",
+    "subtitle": "Jazz, beignets, and French Quarter revelry.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Charleston, South Carolina",
+    "subtitle": "Cobblestone charm, Southern cooking, and coastal breeze.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Savannah, Georgia",
+    "subtitle": "Oak-shaded squares and a walkable historic heart.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "San Francisco, California",
+    "subtitle": "Foggy hills, the Golden Gate, and eclectic neighborhoods.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Maui, Hawaii",
+    "subtitle": "Volcanic sunrises, waterfalls, and easy beach days.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Sedona, Arizona",
+    "subtitle": "Red-rock canyons and desert trails at golden hour.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Grand Canyon, Arizona",
+    "subtitle": "A mile-deep gorge that swallows the horizon.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Yellowstone, Wyoming",
+    "subtitle": "Geysers, bison, and wild backcountry in America's first park.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Yosemite, California",
+    "subtitle": "Granite giants, waterfalls, and giant sequoias.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Aspen, Colorado",
+    "subtitle": "Powder slopes in winter, wildflower hikes in summer.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Key West, Florida",
+    "subtitle": "End-of-the-road island vibes and technicolor sunsets.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Nashville, Tennessee",
+    "subtitle": "Honky-tonks, hot chicken, and live music nightly.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Asheville, North Carolina",
+    "subtitle": "Mountain breweries, art galleries, and Blue Ridge views.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "San Diego, California",
+    "subtitle": "Easygoing beaches, tacos, and near-perfect weather.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Portland, Oregon",
+    "subtitle": "Food carts, coffee, and forests a short drive away.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "vacations",
+    "title": "Glacier National Park, Montana",
+    "subtitle": "Alpine lakes and a jaw-dropping road over the peaks.",
+    "source": "Tripadvisor Travelers' Choice"
+  },
+  {
+    "category": "activities",
+    "title": "Sunrise hike",
+    "subtitle": "Beat the crowds to a summit view and morning quiet.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Board game night",
+    "subtitle": "Snacks, a stack of games, and friendly rivalry.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Cooking class",
+    "subtitle": "Learn a new dish together and eat your homework.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Escape room",
+    "subtitle": "Race the clock and test how well you two team up.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Pottery class",
+    "subtitle": "Get your hands messy shaping something wobbly and yours.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Rock climbing gym",
+    "subtitle": "Belay each other up the wall for a low-key thrill.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Kayaking",
+    "subtitle": "Paddle a calm lake or river at your own pace.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Farmers market morning",
+    "subtitle": "Wander the stalls and cook with what you find.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Bike ride",
+    "subtitle": "An easy loop through the park or along the water.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Mini golf",
+    "subtitle": "Windmills, tiny bridges, and bragging rights on the line.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Bowling",
+    "subtitle": "Rent the shoes, split the lane, keep it silly.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Paint and sip",
+    "subtitle": "Follow along to a canvas with a glass in hand.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Camping trip",
+    "subtitle": "Tent, campfire, and a night under real stars.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Weekend road trip",
+    "subtitle": "Pick a direction, make a playlist, and just drive.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Museum afternoon",
+    "subtitle": "Wander galleries and debate your favorites over coffee.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Botanical garden stroll",
+    "subtitle": "A slow, green walk with plenty to point at.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Bouldering",
+    "subtitle": "Short problem-solving climbs, no ropes required.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Ice skating",
+    "subtitle": "Wobble around the rink and catch each other laughing.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Yoga class",
+    "subtitle": "Stretch it out together and leave a little calmer.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Thrift store hunt",
+    "subtitle": "Dig for treasure and dare each other into weird outfits.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Beach day",
+    "subtitle": "Towels, waves, and absolutely nowhere to be.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Apple picking",
+    "subtitle": "Fill a basket at the orchard, then bake something.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Trampoline park",
+    "subtitle": "Bounce until your legs give out, guaranteed giggles.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Go-kart racing",
+    "subtitle": "Full-throttle laps and a photo finish.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Axe throwing",
+    "subtitle": "Surprisingly satisfying, oddly competitive.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "City scavenger hunt",
+    "subtitle": "A checklist, a timer, and your own downtown.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Volunteer together",
+    "subtitle": "Give a few hours to a cause you both care about.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Home workout challenge",
+    "subtitle": "Push through a sweaty circuit side by side.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Photo walk",
+    "subtitle": "Wander with a camera and hunt for good light.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Stand-up paddleboarding",
+    "subtitle": "Balance on calm water and try not to fall in.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Fishing trip",
+    "subtitle": "Cast a line, wait, and enjoy the quiet.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Aquarium visit",
+    "subtitle": "Drift past glowing tanks and giant tanks of sharks.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Zoo day",
+    "subtitle": "Stroll the exhibits and pick your spirit animals.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Indoor skydiving",
+    "subtitle": "Float in a wind tunnel for a rush without the plane.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Batting cages",
+    "subtitle": "Take swings and settle who's got the better arm.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Disc golf",
+    "subtitle": "A relaxed walk-and-throw around a wooded course.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Rollerblading",
+    "subtitle": "Cruise a smooth path and pretend it's the nineties.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Snorkeling",
+    "subtitle": "Float over reefs and spot fish in clear shallows.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Ski day",
+    "subtitle": "Carve some runs and warm up over lodge cocoa.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Horseback riding",
+    "subtitle": "A gentle trail ride through open country.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Geocaching",
+    "subtitle": "Follow GPS coordinates to hidden little caches.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Puzzle marathon",
+    "subtitle": "Spread out a thousand pieces and lose the afternoon.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Plant a garden",
+    "subtitle": "Dig in the dirt and grow something together.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Brewery tour",
+    "subtitle": "Sample local pours and learn how it's made.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "activities",
+    "title": "Dance class",
+    "subtitle": "Learn a few steps and step on a few toes.",
+    "source": "Couples Activity Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Sunset picnic",
+    "subtitle": "Blanket, snacks, and golden-hour light on your faces.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Stargazing",
+    "subtitle": "Drive somewhere dark and find constellations together.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Wine tasting",
+    "subtitle": "Swirl, sip, and pretend you can tell the notes apart.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Karaoke night",
+    "subtitle": "Belt a duet badly and love every second of it.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Movie marathon at home",
+    "subtitle": "Pajamas, popcorn, and a trilogy you never finished.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Candlelit dinner",
+    "subtitle": "Dress up a little and linger over a slow meal.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Live music show",
+    "subtitle": "Catch a local band and dance where you're standing.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Comedy club",
+    "subtitle": "Laugh in the dark and hope you don't get heckled.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Drive-in movie",
+    "subtitle": "Back seat, blankets, and a double feature under the stars.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Rooftop bar",
+    "subtitle": "A cocktail with a skyline view as the sun drops.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Cook a new recipe",
+    "subtitle": "Tackle something ambitious and clean up together.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Home spa night",
+    "subtitle": "Face masks, candles, and zero reason to leave the couch.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Sunset beach walk",
+    "subtitle": "Bare feet, cool sand, and the sky doing its best work.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Ice cream date",
+    "subtitle": "A cone, a slow stroll, and a stolen bite of theirs.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Bookstore browse",
+    "subtitle": "Wander the aisles and pick a read for each other.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Coffee shop date",
+    "subtitle": "Two drinks, a corner table, and a long conversation.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Game night for two",
+    "subtitle": "Cards or a two-player board game with real stakes.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Blanket fort",
+    "subtitle": "Build a cozy fort and watch movies inside it.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Couples massage",
+    "subtitle": "Book a side-by-side treatment and fully unwind.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Dinner and a play",
+    "subtitle": "A nice meal followed by a night at the theater.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Arcade night",
+    "subtitle": "Trade tokens for tickets and a plastic prize.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Night market food crawl",
+    "subtitle": "Split small bites from stall to glowing stall.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Sunrise coffee",
+    "subtitle": "Wake early, grab drinks, and watch the day start.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Paint night at home",
+    "subtitle": "Two canvases, one bottle, and questionable art.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Fondue night",
+    "subtitle": "Dip bread and fruit into a warm pot of cheese or chocolate.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Jazz bar",
+    "subtitle": "Low light, a smooth set, and drinks in hand.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Dancing out",
+    "subtitle": "Hit a floor and move until your feet complain.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Trivia night",
+    "subtitle": "Team up at the bar and defend your useless knowledge.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Breakfast for dinner",
+    "subtitle": "Pancakes and eggs at night, because the rules are fake.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Watch the sunrise",
+    "subtitle": "Set an early alarm and greet the day together.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Late-night diner run",
+    "subtitle": "Milkshakes and fries in a booth at midnight.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Cocktails at home",
+    "subtitle": "Shake up two new drinks and rate each other's.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Themed dinner night",
+    "subtitle": "Pick a country and cook, dress, and eat the part.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Puzzle and wine night",
+    "subtitle": "A quiet jigsaw, good music, and a glass each.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Ferris wheel ride",
+    "subtitle": "A slow loop up for a view and a nervous laugh.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Ghost tour",
+    "subtitle": "A spooky guided walk through the old part of town.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Fireplace evening",
+    "subtitle": "Warm drinks, low light, and nowhere else to be.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Food festival",
+    "subtitle": "Graze your way through a street full of vendors.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Rent a rowboat",
+    "subtitle": "Paddle around the pond and let someone else steer.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Sunset drive",
+    "subtitle": "Roll the windows down and chase the horizon.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Bake together",
+    "subtitle": "Flour everywhere, cookies at the end, worth it.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Photo booth date",
+    "subtitle": "Cram in for four goofy frames to keep forever.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "At-home pedicures",
+    "subtitle": "Foot soak, polish, and a movie playing in the back.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Slow dance in the kitchen",
+    "subtitle": "One song, no audience, just the two of you.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "date_nights",
+    "title": "Write letters to each other",
+    "subtitle": "Trade handwritten notes to open and keep.",
+    "source": "Date Night Idea Lists"
+  },
+  {
+    "category": "shows",
+    "title": "Breaking Bad",
+    "subtitle": "A chemistry teacher's slow slide into a meth kingpin.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "The Sopranos",
+    "subtitle": "A mob boss juggles the family and the Family in therapy.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "The Wire",
+    "subtitle": "Baltimore's streets and institutions seen from all sides.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Game of Thrones",
+    "subtitle": "Warring houses scheme for a throne as winter looms.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Stranger Things",
+    "subtitle": "Kids, a monster, and eighties nostalgia in a small town.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "The Office",
+    "subtitle": "Mockumentary chaos at a very ordinary paper company.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Friends",
+    "subtitle": "Six pals, one couch, and a decade of New York hangouts.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "The Last of Us",
+    "subtitle": "A hardened survivor escorts a girl across a broken country.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Succession",
+    "subtitle": "A media dynasty tears itself apart over who's next.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Ted Lasso",
+    "subtitle": "An upbeat coach wins over English football with kindness.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "The Bear",
+    "subtitle": "A fine-dining chef fights to save a chaotic sandwich shop.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Severance",
+    "subtitle": "Office workers split their memories between work and home.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Better Call Saul",
+    "subtitle": "How a small-time lawyer becomes a slippery legend.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Chernobyl",
+    "subtitle": "The 1986 nuclear disaster and the people who faced it.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Fleabag",
+    "subtitle": "A sharp, funny woman narrates her messy life to you.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "The Crown",
+    "subtitle": "Decades of royal duty, scandal, and family behind palace walls.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Wednesday",
+    "subtitle": "A deadpan Addams teen solves mysteries at a strange school.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "The Mandalorian",
+    "subtitle": "A lone bounty hunter and a tiny green ward roam the galaxy.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "House of the Dragon",
+    "subtitle": "A civil war splits the dragon-riding Targaryens.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Shogun",
+    "subtitle": "A stranded English sailor navigates feudal Japanese politics.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "True Detective",
+    "subtitle": "Two detectives, one haunting case, told across time.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Peaky Blinders",
+    "subtitle": "A ruthless Birmingham gang claws its way up post-war England.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Dark",
+    "subtitle": "A missing child unravels time travel across a German town.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Squid Game",
+    "subtitle": "Desperate players risk everything in deadly kids' games.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Only Murders in the Building",
+    "subtitle": "Three neighbors podcast their way through a real murder.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Silo",
+    "subtitle": "Thousands live underground, forbidden to ask why.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "The Godfather",
+    "subtitle": "A reluctant son inherits his family's crime empire.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "The Shawshank Redemption",
+    "subtitle": "A wrongly jailed banker quietly plots his freedom.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Pulp Fiction",
+    "subtitle": "Interwoven L.A. crime stories told wildly out of order.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Inception",
+    "subtitle": "A thief steals secrets by diving into people's dreams.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "The Dark Knight",
+    "subtitle": "Batman faces a city-shaking agent of chaos in the Joker.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Parasite",
+    "subtitle": "A poor family cons its way into a wealthy household.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Everything Everywhere All at Once",
+    "subtitle": "A weary mom saves the multiverse mid-tax-audit.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Interstellar",
+    "subtitle": "Explorers chase humanity's future through a wormhole.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Spirited Away",
+    "subtitle": "A girl works in a spirit bathhouse to free her parents.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Oppenheimer",
+    "subtitle": "The tense story of the man behind the atomic bomb.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Barbie",
+    "subtitle": "A doll's existential road trip out of a perfect plastic world.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Dune: Part Two",
+    "subtitle": "A desert prophecy, a rebellion, and revenge on a spice planet.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "La La Land",
+    "subtitle": "A jazz pianist and an actress chase dreams and each other.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Get Out",
+    "subtitle": "A meet-the-parents weekend curdles into pure horror.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Whiplash",
+    "subtitle": "A drummer and a brutal mentor push each other to the edge.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "The Grand Budapest Hotel",
+    "subtitle": "A concierge and a bellhop caper through a pastel Europe.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Spider-Man: Into the Spider-Verse",
+    "subtitle": "A teen meets his multiverse in a comic-book-come-alive.",
+    "source": "IMDb Top 250"
+  },
+  {
+    "category": "shows",
+    "title": "Knives Out",
+    "subtitle": "A gentleman detective untangles a very rich family's lies.",
+    "source": "Rotten Tomatoes Popular"
+  },
+  {
+    "category": "shows",
+    "title": "Past Lives",
+    "subtitle": "Two childhood friends reunite decades and continents later.",
+    "source": "Rotten Tomatoes Popular"
+  }
+]
