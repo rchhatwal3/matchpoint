@@ -155,7 +155,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .channel(`swipes-${partner.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'swipes', filter: `member_id=eq.${partner.id}` },
+        // '*' not INSERT: a pass->like change arrives as UPDATE via upsert.
+        { event: '*', schema: 'public', table: 'swipes', filter: `member_id=eq.${partner.id}` },
         async (payload) => {
           const row = payload.new as { item_id: string; liked: boolean };
           if (!row.liked) return;
@@ -190,12 +191,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setMember({ id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
         return OFFLINE_ROOM.code;
       }
+      if (!userId) throw new Error('session not ready');
       const { data: code, error } = await supabase.rpc('create_room', { p_name: name });
       if (error) throw error;
       const { data: me } = await supabase
         .from('members')
         .select('id, room_id, display_name, joined_at')
-        .eq('id', userId as string)
+        .eq('id', userId)
         .maybeSingle();
       if (me) {
         setMember(me as Member);
