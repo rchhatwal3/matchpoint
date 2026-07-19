@@ -12,6 +12,8 @@ import {
   Nunito_800ExtraBold,
 } from '@expo-google-fonts/nunito';
 import { useTheme } from '@/lib/theme';
+import { SessionProvider } from '@/providers/SessionProvider';
+import { MatchOverlay } from '@/components/MatchOverlay';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,17 +36,20 @@ export default function RootLayout() {
     return null;
   }
 
-  // Providers (session, realtime) mount here in T4.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.bg },
-          }}
-        />
+        <SessionProvider>
+          <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+            }}
+          />
+          {/* Match reveal surfaces from wherever a mutual like is detected */}
+          <MatchOverlay />
+        </SessionProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
