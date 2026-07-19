@@ -94,7 +94,9 @@ Enforce DESIGN.md: hard stops (Two-Color/No-Beige/Muted-Floor/Calm-Surface), dar
 
 **Verify:** `grep -rn "#[0-9a-fA-F]\{6\}" app/ components/ --include="*.tsx"` → zero hits outside `lib/theme/tokens.ts`; contrast spot-check muted text ≥4.5:1.
 
-## T6: Deploy web (needs T4)
+## T6: Deploy web (needs T4) — MVP1 gate
+
+**MVP1 definition: site live and functional at https://rchhatwal3.github.io/matchpoint/.** Works in offline demo mode until Supabase manual steps done. Mobile shells exist from T1 (Expo targets iOS/Android natively); device setup steps tracked in MANUAL_TODOS.md (sibling-repo convention) — no store shipping in MVP1. Deploy workflow + MANUAL_TODOS.md already written by orchestrator; remaining: baseUrl, README, merge, live verify.
 
 - `.github/workflows/deploy.yml`: adapt portfolio workflow — on push to `main`: npm ci, `npx expo export --platform web`, publish `./dist` via peaceiris/actions-gh-pages@v3, env from repo secrets `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY`
 - expo-router web base path for project pages (`https://rchhatwal3.github.io/matchpoint/`): set `experiments.baseUrl: "/matchpoint"` in app.json
