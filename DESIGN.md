@@ -130,13 +130,13 @@ product: *the other person* — their presence, their turn, their half of the
 match. Backgrounds stay near-neutral and quiet so card imagery, state color,
 and text stay legible mid-swipe.
 
-This is a **product-register** web app, mobile-first. Carried over from prior
+This is a **product-register** adaptive app (Expo: iOS + Android + web), mobile-first. Carried over from prior
 project hard stops: the Two-Color Rule, No-Beige Rule, Muted-Floor Rule, and
 Calm-Surface Rule all apply verbatim.
 
 **Key Characteristics:**
 - Two working colors: raspberry (identity + actions + "like") and lagoon (partner presence).
-- Near-neutral surfaces, first-class dark theme via CSS variables.
+- Near-neutral surfaces, first-class dark theme via `lib/theme` tokens + `useTheme()`.
 - One button vocabulary; every touch target ≥ 48px.
 - Motion confirms state — card spring, match reveal — and nothing else. All gated on `prefers-reduced-motion`.
 
@@ -168,8 +168,7 @@ and the type, never in a cream, sand, or parchment body fill.
 
 ## 3. Typography
 
-**Type family:** Nunito (Google Fonts, self-hosted via `@fontsource`), system-ui
-fallback. One family, multiple weights — rounded terminals give the playful voice
+**Type family:** Nunito (`@expo-google-fonts/nunito`), system-ui fallback. One family, multiple weights — rounded terminals give the playful voice
 without a decorative display face.
 
 ### Named Rules
@@ -214,10 +213,10 @@ the swipe deck rises to Level 2. If everything is elevated, nothing is.
 ## 6. Do's and Don'ts
 
 ### Do:
-- Route every color through CSS variables (`--color-primary` etc.); light/dark resolve automatically.
+- Route every color through `lib/theme` tokens and `useTheme()`; light/dark resolve automatically.
 - Keep raspberry for actions/likes and lagoon for partner state; leave everything else neutral.
 - Give every touch target ≥ 48px and gesture actions button equivalents.
-- Gate every animation on `prefers-reduced-motion`.
+- Gate every animation on `useReducedMotion()` (maps to `prefers-reduced-motion` on web).
 
 ### Don't:
 - Use cream/sand/parchment/warm-tinted backgrounds. (No-Beige)
