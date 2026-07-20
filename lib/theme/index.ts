@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { AccessibilityInfo, useColorScheme } from 'react-native';
 import {
   darkColors,
@@ -10,6 +10,7 @@ import {
   spacing,
   typeScale,
 } from './tokens';
+import { ThemeContext } from './ThemeProvider';
 
 export type Theme = {
   scheme: 'light' | 'dark';
@@ -22,11 +23,15 @@ export type Theme = {
 };
 
 /**
- * Single hook for resolved theme. Follows the OS light/dark setting via
- * useColorScheme; no provider needed since the token sets are static.
+ * Single hook for resolved theme. Resolves the scheme from ThemeProvider
+ * context (honouring an explicit light/dark preference); falls back to the OS
+ * setting via useColorScheme when there's no provider or preference = system.
+ * Return shape is unchanged, so no call site needs to change.
  */
 export function useTheme(): Theme {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const ctx = useContext(ThemeContext);
+  const systemScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const scheme = ctx ? ctx.scheme : systemScheme;
   return {
     scheme,
     colors: scheme === 'dark' ? darkColors : lightColors,
@@ -56,3 +61,4 @@ export function useReducedMotion(): boolean {
 }
 
 export * from './tokens';
+export * from './ThemeProvider';
