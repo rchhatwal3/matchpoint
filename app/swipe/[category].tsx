@@ -7,6 +7,7 @@ import { useSession } from '@/providers/SessionProvider';
 import { CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
+import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard';
 
@@ -63,20 +64,7 @@ export default function SwipeDeck() {
 
   return (
     <Screen>
-      <View style={[styles.header, { paddingHorizontal: spacing['2xl'], paddingVertical: spacing.md }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back to lobby"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text variant="title" color={colors.primary}>
-            ←
-          </Text>
-        </Pressable>
-        <Text variant="title">{label}</Text>
-        <View style={styles.backButton} />
-      </View>
+      <Header title={label} onBack={() => router.back()} />
 
       {deck === null ? (
         // Card-shaped skeleton, never a spinner (DESIGN.md).
@@ -171,20 +159,10 @@ export default function SwipeDeck() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   deckArea: { flex: 1, justifyContent: 'center' },
-  cardStack: { flex: 1 },
-  skeletonCard: { flex: 1 },
+  // Portrait lock: the deck never stretches landscape at any viewport.
+  cardStack: { width: '100%', maxWidth: 400, aspectRatio: 0.62, alignSelf: 'center' },
+  skeletonCard: { width: '100%', maxWidth: 400, aspectRatio: 0.62, alignSelf: 'center' },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',

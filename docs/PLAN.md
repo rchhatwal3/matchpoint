@@ -121,6 +121,17 @@ Enforce DESIGN.md: hard stops (Two-Color/No-Beige/Muted-Floor/Calm-Surface), dar
 
 **Verify:** with seeded matches, shortlist renders per section; final pick flow completes; empty state when no matches.
 
+## MVP2: Authentication (T9)
+
+Keep anonymous-first onboarding; add optional account upgrade. Supabase Auth (no new vendor): anonymous user converts to permanent via `updateUser` (email magic link) or `linkIdentity` (OAuth) — room/swipes/matches survive because `auth.uid()` is unchanged.
+
+**Confirmed providers (all three):**
+1. **Email** — magic link / OTP via Supabase (no password). Works all platforms, zero OAuth setup.
+2. **Google** — PKCE OAuth via expo-auth-session on native, `signInWithOAuth` on web. Copy `recipe-pantry-app/providers/AuthProvider.tsx:59-74`.
+3. **Apple** — native `expo-apple-authentication` + SHA256 nonce + `signInWithIdToken` (copy `AuthProvider.tsx:36-57`); web gets Sign in with Apple JS via Supabase provider. **Mandatory on iOS since Google is offered** (App Store rule).
+
+Manual steps (add to MANUAL_TODOS at T9 time): Google Cloud OAuth client IDs (iOS/Android/web), Apple Developer Sign-in-with-Apple capability + Services ID, both configured in Supabase Auth providers dashboard. Unlocks: push notifications for matches, multi-device sync, room recovery. Alternative considered: Clerk (prebuilt UI, Supabase third-party-auth support) — rejected to avoid second vendor + RLS rewiring.
+
 ## Final: Verification sweep (orchestrator)
 
 1. `npm run typecheck && npm run lint && npx expo export --platform web` all clean

@@ -22,6 +22,7 @@ export default function Home() {
 
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [showJoin, setShowJoin] = useState(false);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +98,7 @@ export default function Home() {
         style={styles.body}
       >
         <ScrollView
-          contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['2xl'] }}
+          contentContainerStyle={{ padding: spacing['2xl'] }}
           keyboardShouldPersistTaps="handled"
         >
           <View style={{ gap: spacing.sm, marginTop: spacing['4xl'] }}>
@@ -114,48 +115,56 @@ export default function Home() {
             ) : null}
           </View>
 
-          <View style={{ gap: spacing.sm }}>
-            <Text variant="label">Your name</Text>
-            <TextInput
-              accessibilityLabel="Your name"
-              value={name}
-              onChangeText={setName}
-              placeholder="e.g. Sam"
-              placeholderTextColor={colors.inkMuted}
-              autoCorrect={false}
-              style={[
-                styles.nameInput,
-                {
-                  backgroundColor: colors.surface,
-                  color: colors.ink,
-                  borderColor: colors.outline,
-                  borderRadius: radii.md,
-                  paddingHorizontal: spacing.xl,
-                },
-              ]}
-            />
-          </View>
-
-          <View style={{ gap: spacing.md }}>
-            <Text variant="title">Start a new room</Text>
+          {/* Create room — the single dominant primary flow */}
+          <View style={{ marginTop: spacing['3xl'], gap: spacing.md }}>
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="label">Your name</Text>
+              <TextInput
+                accessibilityLabel="Your name"
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g. Sam"
+                placeholderTextColor={colors.inkMuted}
+                autoCorrect={false}
+                style={[
+                  styles.nameInput,
+                  {
+                    backgroundColor: colors.surface,
+                    color: colors.ink,
+                    borderColor: colors.outline,
+                    borderRadius: radii.md,
+                    paddingHorizontal: spacing.xl,
+                  },
+                ]}
+              />
+            </View>
             <Button label={busy ? 'Creating…' : 'Create room'} onPress={handleCreate} disabled={!canSubmit} />
           </View>
 
-          <View style={[styles.divider, { backgroundColor: colors.outline }]} />
-
-          <View style={{ gap: spacing.md }}>
-            <Text variant="title">Join with a code</Text>
-            <CodeInput value={code} onChangeText={setCode} />
-            <Button
-              label={busy ? 'Joining…' : 'Join room'}
-              variant="tonal"
-              onPress={handleJoin}
-              disabled={!canSubmit || code.length !== 6}
-            />
+          {/* Join — demoted, progressively revealed */}
+          <View style={{ marginTop: spacing['4xl'] }}>
+            {showJoin ? (
+              <View style={{ gap: spacing.md }}>
+                <Text variant="label">Join your partner</Text>
+                <CodeInput value={code} onChangeText={setCode} />
+                <Button
+                  label={busy ? 'Joining…' : 'Join room'}
+                  variant="tonal"
+                  onPress={handleJoin}
+                  disabled={!canSubmit || code.length !== 6}
+                />
+              </View>
+            ) : (
+              <Button
+                label="Have a code? Join your partner"
+                variant="outlined"
+                onPress={() => setShowJoin(true)}
+              />
+            )}
           </View>
 
           {error ? (
-            <Text variant="label" color={colors.danger}>
+            <Text variant="label" color={colors.danger} style={{ marginTop: spacing.lg }}>
               {error}
             </Text>
           ) : null}
@@ -170,7 +179,6 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center' },
   textCenter: { textAlign: 'center' },
   stretch: { alignSelf: 'stretch' },
-  divider: { height: 1 },
   nameInput: { height: 56, fontSize: 16, fontFamily: 'Nunito_400Regular', borderWidth: 1 },
   skeletonTitle: { height: 40, width: '60%', marginTop: 40 },
   skeletonField: { height: 56, width: '100%' },

@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { TOUCH_TARGET, useTheme } from '@/lib/theme';
+import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS } from '@/lib/types';
 import { Screen } from '@/components/Screen';
@@ -19,7 +19,7 @@ export default function Lobby() {
 
   return (
     <Screen>
-      <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['2xl'] }}>
+      <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
         <View style={{ gap: spacing.xs }}>
           <Text variant="headline">
             {member ? `Hey, ${member.display_name}` : 'Lobby'}
@@ -56,7 +56,7 @@ export default function Lobby() {
               {
                 backgroundColor: colors.secondaryContainer,
                 borderRadius: radii.lg,
-                padding: spacing.xl,
+                padding: spacing.lg,
                 gap: spacing.sm,
               },
             ]}
@@ -76,28 +76,38 @@ export default function Lobby() {
           </View>
         )}
 
-        {/* Category chips */}
+        {/* Category picker — the screen's primary action, a 2-up tile grid */}
         <View style={{ gap: spacing.md }}>
           <Text variant="title">Pick a category</Text>
-          <View style={[styles.chips, { gap: spacing.md }]}>
+          <View style={[styles.grid, { gap: spacing.md }]}>
             {CATEGORIES.map((c) => (
               <Pressable
                 key={c}
                 accessibilityRole="button"
                 accessibilityLabel={`Swipe ${CATEGORY_LABELS[c]}`}
                 onPress={() => router.push(`/swipe/${c}`)}
-                style={[
-                  styles.chip,
+                style={({ pressed }) => [
+                  styles.tile,
                   {
-                    backgroundColor: colors.surfaceVariant,
-                    borderRadius: radii.full,
-                    paddingHorizontal: spacing.lg,
+                    backgroundColor: pressed ? colors.primaryContainer : colors.surface,
+                    borderRadius: radii.lg,
+                    borderWidth: 1,
+                    borderColor: pressed ? colors.primaryContainer : colors.outline,
+                    padding: spacing.md,
                     gap: spacing.sm,
                   },
                 ]}
               >
-                <Text accessibilityElementsHidden>{CATEGORY_EMOJI[c]}</Text>
-                <Text variant="label">{CATEGORY_LABELS[c]}</Text>
+                {({ pressed }) => (
+                  <>
+                    <Text style={styles.tileGlyph} accessibilityElementsHidden>
+                      {CATEGORY_EMOJI[c]}
+                    </Text>
+                    <Text variant="label" color={pressed ? colors.onPrimaryContainer : colors.ink}>
+                      {CATEGORY_LABELS[c]}
+                    </Text>
+                  </>
+                )}
               </Pressable>
             ))}
           </View>
@@ -113,10 +123,13 @@ const styles = StyleSheet.create({
   presenceRow: { flexDirection: 'row', alignItems: 'center' },
   waiting: { alignItems: 'stretch' },
   dot: { width: 12, height: 12 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap' },
-  chip: {
-    flexDirection: 'row',
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  tile: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minHeight: 72,
     alignItems: 'center',
-    minHeight: TOUCH_TARGET,
+    justifyContent: 'center',
   },
+  tileGlyph: { fontSize: 26, lineHeight: 32 },
 });

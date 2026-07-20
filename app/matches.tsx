@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { Redirect, useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, type Category, type MatchRow } from '@/lib/types';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
+import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 
 export default function Matches() {
@@ -45,20 +46,7 @@ export default function Matches() {
 
   return (
     <Screen>
-      <View style={[styles.header, { paddingHorizontal: spacing['2xl'], paddingVertical: spacing.md }]}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          onPress={() => router.back()}
-          style={styles.backButton}
-        >
-          <Text variant="title" color={colors.primary}>
-            ←
-          </Text>
-        </Pressable>
-        <Text variant="title">Matches</Text>
-        <View style={styles.backButton} />
-      </View>
+      <Header title="Matches" onBack={() => router.back()} />
 
       {matches === null ? (
         // Row-shaped skeletons, never spinners (DESIGN.md).
@@ -85,54 +73,62 @@ export default function Matches() {
           />
         </View>
       ) : (
-        <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['2xl'] }}>
+        <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
           {populated.map((c) => (
             <View key={c} style={{ gap: spacing.md }}>
               <View style={[styles.sectionHeader, { gap: spacing.sm }]}>
                 <Text accessibilityElementsHidden>{CATEGORY_EMOJI[c]}</Text>
                 <Text variant="title">{CATEGORY_LABELS[c]}</Text>
               </View>
-              {(byCategory.get(c) ?? []).map((m) => (
-                <View
-                  key={m.item_id}
-                  style={[
-                    styles.row,
-                    {
-                      backgroundColor: colors.surface,
-                      borderRadius: radii.lg,
-                      borderWidth: 1,
-                      borderColor: colors.outline,
-                      padding: spacing.lg,
-                      gap: spacing.xs,
-                    },
-                    elevation.level1,
-                  ]}
-                >
-                  <View style={[styles.rowTop, { gap: spacing.md }]}>
-                    <Text variant="title" style={styles.rowTitle}>
-                      {m.title}
+              <View style={{ gap: spacing.sm }}>
+                {(byCategory.get(c) ?? []).map((m) => (
+                  <View
+                    key={m.item_id}
+                    style={[
+                      styles.row,
+                      {
+                        backgroundColor: colors.surface,
+                        borderRadius: radii.lg,
+                        borderWidth: 1,
+                        borderColor: colors.outline,
+                        padding: spacing.md,
+                        gap: spacing.md,
+                      },
+                      elevation.level1,
+                    ]}
+                  >
+                    {/* Leading category glyph for at-a-glance scannability */}
+                    <Text style={styles.rowGlyph} accessibilityElementsHidden>
+                      {CATEGORY_EMOJI[m.category]}
                     </Text>
-                    {/* badge-match: success-container is reserved for exactly this */}
-                    <View
-                      style={{
-                        backgroundColor: colors.successContainer,
-                        borderRadius: radii.xs,
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: spacing.xs,
-                      }}
-                    >
-                      <Text variant="overline" color={colors.onSuccessContainer}>
-                        MATCHED
-                      </Text>
+                    <View style={styles.rowBody}>
+                      <View style={[styles.rowTop, { gap: spacing.sm }]}>
+                        <Text variant="title" style={styles.rowTitle}>
+                          {m.title}
+                        </Text>
+                        {/* badge-match: success-container is reserved for exactly this */}
+                        <View
+                          style={{
+                            backgroundColor: colors.successContainer,
+                            borderRadius: radii.xs,
+                            paddingHorizontal: spacing.sm,
+                            paddingVertical: spacing.xs,
+                          }}
+                        >
+                          <Text variant="overline" color={colors.onSuccessContainer}>
+                            MATCHED
+                          </Text>
+                        </View>
+                      </View>
+                      {m.subtitle ? (
+                        <Text variant="body" color={colors.inkMuted}>
+                          {m.subtitle}
+                        </Text>
+                      ) : null}
                     </View>
                   </View>
-                  {m.subtitle ? (
-                    <Text variant="body" color={colors.inkMuted}>
-                      {m.subtitle}
-                    </Text>
-                  ) : null}
-                </View>
-              ))}
+                ))}
+              </View>
             </View>
           ))}
         </ScrollView>
@@ -142,21 +138,13 @@ export default function Matches() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backButton: {
-    width: 48,
-    height: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   emptyWrap: { flex: 1, justifyContent: 'center' },
   sectionHeader: { flexDirection: 'row', alignItems: 'center' },
-  row: {},
-  rowTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  row: { flexDirection: 'row', alignItems: 'center' },
+  rowGlyph: { fontSize: 26, lineHeight: 32 },
+  rowBody: { flex: 1, gap: 4 },
+  // Badge sits inline right after the title (no space-between fling).
+  rowTop: { flexDirection: 'row', alignItems: 'center' },
   rowTitle: { flexShrink: 1 },
   skeletonRow: { height: 76 },
 });
