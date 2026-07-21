@@ -138,7 +138,10 @@ export default function Lobby() {
           </View>
         </View>
 
-        <Button label="See your matches" variant="tonal" onPress={() => router.push('/matches')} />
+        <View style={{ gap: spacing.md }}>
+          <Button label="See your matches" variant="tonal" onPress={() => router.push('/matches')} />
+          <Button label="Date Night 🌙" variant="outlined" onPress={() => router.push('/date-night')} />
+        </View>
       </ScrollView>
     </Screen>
   );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
@@ -20,9 +20,19 @@ export default function Home() {
   const router = useRouter();
   const { loading, room, offline, createRoom, joinRoom } = useSession();
 
+  // Arrived via a shared invite link (?code=ABC123, web query param or deep link):
+  // sanitize like CodeInput and, when valid, seed the join code + reveal the join
+  // section. Never auto-submits — the user still taps Join and supplies their name.
+  const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
+  const invitedCode =
+    typeof codeParam === 'string'
+      ? codeParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
+      : '';
+  const prefilledCode = invitedCode.length === 6 ? invitedCode : '';
+
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
-  const [showJoin, setShowJoin] = useState(false);
+  const [code, setCode] = useState(prefilledCode);
+  const [showJoin, setShowJoin] = useState(prefilledCode.length === 6);
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
