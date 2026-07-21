@@ -14,9 +14,28 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 
 ## Restaurants category (T7 — optional until you want location-based decks)
 
-- [ ] **Places API key**: create Google Cloud project → enable Places API → API key (server-restricted). Alternative: Foursquare Places (free tier).
-- [ ] **Set edge function secret**: `supabase secrets set PLACES_API_KEY=...`
-- [ ] **Deploy edge function**: `supabase functions deploy get-restaurants` (CLI, logged in + project linked).
+The app already sources restaurants through the `get-restaurants` edge function
+(never the frontend). Until the steps below are done, the Restaurants deck shows
+an empty state ("Set your locations first" / "No restaurants yet") and everything
+else works. Run migration `006` regardless (below) so the shared locations list
+syncs live between partners.
+
+- [ ] **Realtime for rooms** (needed for live location sync): run
+      `supabase/migrations/006_realtime_rooms.sql` in the SQL Editor (adds the
+      `rooms` table to the `supabase_realtime` publication). Only needs to run once.
+- [ ] **Places API key**: Google Cloud project → enable **Places API (New)** →
+      create an API key. Restrict it to the Places API (server-side key; it lives
+      only as a Supabase secret, never in the app).
+- [ ] **Link the CLI to your project** (once): `supabase link --project-ref YOUR-PROJECT-REF`
+- [ ] **Set the edge function secret**: `supabase secrets set PLACES_API_KEY=YOUR_KEY`
+- [ ] **Deploy the edge function**: `supabase functions deploy get-restaurants`
+      — keep JWT verification **ON** (do NOT pass `--no-verify-jwt`); app users are
+      authenticated (anonymous session) and `supabase.functions.invoke` forwards
+      their JWT, so the platform gate is exactly what we want.
+- [ ] **Use it**: open the app → lobby → "Set your locations" → pick 1+ cities.
+      First visit to the Restaurants deck calls the function, which fetches ~20
+      places per city and upserts them into `items`. Repeat visits are cache-first
+      (≥20 stored rows for a city → no API call).
 
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 

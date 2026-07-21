@@ -30,6 +30,34 @@ const OFFLINE_ITEMS: Item[] = (
 
 const OFFLINE_ROOM: Room = { id: 'offline-room', code: 'OFFLNE', locations: [] };
 
+const RESTAURANT_COLUMNS = 'id, category, title, subtitle, image_url, location, source';
+
+/**
+ * Restaurants for one location. Tries the get-restaurants edge function
+ * (server-side Places lookup + cache-first upsert); if it's missing, has no API
+ * key, or errors, falls back to any restaurant rows already in the DB for that
+ * location. Either path may legitimately return [] (nothing sourced yet).
+ */
+async function getRestaurantsForLocation(location: string): Promise<Item[]> {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.functions.invoke('get-restaurants', {
+      body: { location },
+    });
+    if (error) throw error;
+    const items = (data?.items ?? []) as Item[];
+    if (items.length > 0) return items;
+  } catch (e) {
+    console.warn(`get-restaurants failed for "${location}", falling back to DB`, e);
+  }
+  const { data } = await supabase
+    .from('items')
+    .select(RESTAURANT_COLUMNS)
+    .eq('category', 'restaurants')
+    .eq('location', location);
+  return (data ?? []) as Item[];
+}
+
 type SessionValue = {
   loading: boolean;
   /** True when running without Supabase env vars (seed data, in-memory swipes). */
@@ -43,6 +71,8 @@ type SessionValue = {
   dismissMatch: () => void;
   createRoom: (name: string) => Promise<string>;
   joinRoom: (code: string, name: string) => Promise<void>;
+  /** Update the pair's shared location list; syncs to the partner in realtime. */
+  updateLocations: (locations: string[]) => Promise<void>;
   getItems: (category: Category) => Promise<Item[]>;
   getMySwipedItemIds: () => Promise<Set<string>>;
   recordSwipe: (item: Item, liked: boolean) => Promise<void>;
@@ -146,6 +176,27 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     };
   }, [room, member, partner]);
 
+  // ---- Realtime: room edits (shared locations) sync from either partner ----
+  useEffect(() => {
+    if (!supabase || !room) return;
+    const client = supabase;
+    const roomId = room.id;
+    const channel = client
+      .channel(`rooms-${roomId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
+        (payload) => {
+          const row = payload.new as Room;
+          setRoom((prev) => (prev ? { ...prev, ...row } : row));
+        },
+      )
+      .subscribe();
+    return () => {
+      client.removeChannel(channel);
+    };
+  }, [room?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ---- Realtime: partner swipes -> mutual-like match detection ----
   useEffect(() => {
     if (!supabase || !partner || !member) return;
@@ -245,15 +296,54 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [userId],
   );
 
-  const getItems = useCallback(async (category: Category): Promise<Item[]> => {
-    if (!supabase) return OFFLINE_ITEMS.filter((i) => i.category === category);
-    const { data, error } = await supabase
-      .from('items')
-      .select('id, category, title, subtitle, image_url, location, source')
-      .eq('category', category);
-    if (error) throw error;
-    return (data ?? []) as Item[];
-  }, []);
+  const updateLocations = useCallback(
+    async (locations: string[]): Promise<void> => {
+      // Normalize: trim, drop empties, dedupe (case-insensitive, keep first spelling).
+      const seen = new Set<string>();
+      const clean: string[] = [];
+      for (const raw of locations) {
+        const v = raw.trim();
+        if (!v) continue;
+        const key = v.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        clean.push(v);
+      }
+      // Optimistic local update — offline mode stops here (in-memory only).
+      setRoom((prev) => (prev ? { ...prev, locations: clean } : prev));
+      if (!supabase || !room) return;
+      const { error } = await supabase.from('rooms').update({ locations: clean }).eq('id', room.id);
+      if (error) throw error;
+    },
+    [room],
+  );
+
+  const getItems = useCallback(
+    async (category: Category): Promise<Item[]> => {
+      if (!supabase) return OFFLINE_ITEMS.filter((i) => i.category === category);
+
+      if (category === 'restaurants') {
+        // Location-catered: source from the edge function per selected location,
+        // then merge + dedupe. No locations set -> empty deck (settings CTA).
+        const locations = room?.locations ?? [];
+        if (locations.length === 0) return [];
+        const perLocation = await Promise.all(
+          locations.map((loc) => getRestaurantsForLocation(loc)),
+        );
+        const byId = new Map<string, Item>();
+        for (const item of perLocation.flat()) byId.set(item.id, item);
+        return [...byId.values()];
+      }
+
+      const { data, error } = await supabase
+        .from('items')
+        .select('id, category, title, subtitle, image_url, location, source')
+        .eq('category', category);
+      if (error) throw error;
+      return (data ?? []) as Item[];
+    },
+    [room],
+  );
 
   const getMySwipedItemIds = useCallback(async (): Promise<Set<string>> => {
     if (!supabase) return new Set(offlineSwipes.current.keys());
@@ -311,6 +401,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       dismissMatch,
       createRoom,
       joinRoom,
+      updateLocations,
       getItems,
       getMySwipedItemIds,
       recordSwipe,
@@ -326,6 +417,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       dismissMatch,
       createRoom,
       joinRoom,
+      updateLocations,
       getItems,
       getMySwipedItemIds,
       recordSwipe,

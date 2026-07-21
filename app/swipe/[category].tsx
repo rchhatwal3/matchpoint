@@ -137,11 +137,23 @@ export default function SwipeDeck() {
         </>
       ) : deck.length === 0 && category === 'restaurants' ? (
         <View style={styles.deckArea}>
-          <EmptyState
-            icon="🍽️"
-            title="No restaurants yet"
-            message="Restaurants unlock once locations are set."
-          />
+          {(room?.locations.length ?? 0) === 0 ? (
+            <EmptyState
+              icon="📍"
+              title="Set your locations first"
+              message="Restaurants are sourced from the cities you and your partner pick."
+              ctaLabel="Set locations"
+              onCtaPress={() => router.push('/settings')}
+            />
+          ) : (
+            <EmptyState
+              icon="🍽️"
+              title="No restaurants yet"
+              message="We couldn't find restaurants for your locations. Try adding another city."
+              ctaLabel="Edit locations"
+              onCtaPress={() => router.push('/settings')}
+            />
+          )}
         </View>
       ) : (
         <View style={styles.deckArea}>

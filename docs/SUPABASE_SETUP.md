@@ -57,6 +57,40 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=YOUR-ANON-PUBLIC-KEY
 The `EXPO_PUBLIC_` prefix is required for Expo to expose them to the client
 bundle. For the web deploy, set the same two values as GitHub repo secrets.
 
+## 6. Restaurants: locations + edge function (T7, optional)
+
+The `restaurants` category is location-catered and is **not** part of the static
+seed. It relies on two extra pieces of setup; skip them and the rest of the app
+works (the Restaurants deck just shows an empty state).
+
+1. **Realtime for the shared locations list** — run
+   `supabase/migrations/006_realtime_rooms.sql` (SQL Editor). It adds `rooms` to
+   the `supabase_realtime` publication so a location edit by one partner appears
+   live on the other's screen. RLS still applies (each session only receives its
+   own room row).
+
+2. **`get-restaurants` edge function** — sources restaurants server-side from the
+   Google Places API (New) and upserts them into `items` (category
+   `restaurants`, tagged with the input `location`). The frontend only ever calls
+   this function; the Places key never ships to the client.
+
+   ```
+   supabase link --project-ref YOUR-PROJECT-REF
+   supabase secrets set PLACES_API_KEY=YOUR_KEY
+   supabase functions deploy get-restaurants
+   ```
+
+   Keep JWT verification **ON** — do not pass `--no-verify-jwt`. App users hold an
+   anonymous Supabase session and `functions.invoke` forwards their JWT, so the
+   platform's JWT gate is the desired behavior. The function uses the
+   auto-provided `SUPABASE_SERVICE_ROLE_KEY` internally to write `items`; that key
+   stays server-side.
+
+   Behavior: for each selected location it returns up to ~20 restaurants and is
+   **cache-first** — once ≥20 rows exist for a location it serves them without
+   calling the API. With no `PLACES_API_KEY` set it returns whatever is already
+   stored (possibly none), and the app falls back to a DB read / empty state.
+
 ## Security warning
 
 **Never expose the `service_role` key.** It bypasses Row Level Security. It must

@@ -76,6 +76,31 @@ export default function Lobby() {
           </View>
         )}
 
+        {/* Locations settings — shared restaurant-sourcing cities (T7) */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Locations settings"
+          onPress={() => router.push('/settings')}
+          style={({ pressed }) => [
+            styles.settingsLink,
+            {
+              backgroundColor: pressed ? colors.surfaceVariant : 'transparent',
+              borderRadius: radii.md,
+              paddingHorizontal: spacing.sm,
+              gap: spacing.sm,
+            },
+          ]}
+        >
+          <Text style={styles.gear} accessibilityElementsHidden>
+            ⚙️
+          </Text>
+          <Text variant="label" color={colors.primary}>
+            {room && room.locations.length > 0
+              ? `Locations · ${room.locations.length} set`
+              : 'Set your locations'}
+          </Text>
+        </Pressable>
+
         {/* Category picker — the screen's primary action, a 2-up tile grid */}
         <View style={{ gap: spacing.md }}>
           <Text variant="title">Pick a category</Text>
@@ -121,6 +146,13 @@ export default function Lobby() {
 
 const styles = StyleSheet.create({
   presenceRow: { flexDirection: 'row', alignItems: 'center' },
+  settingsLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: 48,
+  },
+  gear: { fontSize: 20, lineHeight: 24 },
   waiting: { alignItems: 'stretch' },
   dot: { width: 12, height: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
