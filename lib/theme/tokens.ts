@@ -1,12 +1,12 @@
 /**
  * matchpoint design tokens — single source of truth.
  *
- * Identity: "Raspberry & Lagoon". A decision game for two should feel like
- * date-night energy the moment it opens — warmth carried by a confident
- * RASPBERRY primary (identity + every action + the "like" swipe) and a LAGOON
- * teal SECONDARY that means one thing: the other person (their presence, their
- * turn, their half of a match). Backgrounds stay near-neutral (No-Beige Rule)
- * so card imagery, state color, and text stay legible mid-swipe.
+ * Identity: "Flame & Iris". A decision game for two should feel like date-night
+ * energy the moment it opens — warmth carried by a confident FLAME vermilion
+ * primary (identity + every action + the "like" swipe) and an IRIS violet
+ * SECONDARY that means one thing: the other person (their presence, their turn,
+ * their half of a match). Backgrounds stay chroma-0 neutral (No-Beige Rule) so
+ * card imagery, state color, and text stay legible mid-swipe.
  *
  * Material 3 role naming (primary / onPrimary / surface / surfaceVariant /
  * outline / danger ...) so mapping to native Material stays 1:1.
@@ -15,7 +15,8 @@
  * DESIGN.md dark set where given (bg / surface / surfaceVariant / ink /
  * inkMuted / outline / primary / primaryContainer / secondary); remaining dark
  * container + semantic pairs follow Material 3 tonal logic (container = dark
- * tone of the hue, on-container = light tone).
+ * tone of the hue, on-container = light tone). Every text-bearing pair is
+ * WCAG-AA verified (>= 4.5:1) in both schemes.
  */
 
 export type ColorTokens = {
@@ -57,59 +58,59 @@ export type ColorTokens = {
 export const lightColors: ColorTokens = {
   bg: '#FAFAFA',
   surface: '#FFFFFF',
-  surfaceVariant: '#F0EFED',
+  surfaceVariant: '#EFEFEF',
   surfaceElevated: '#FFFFFF',
-  ink: '#1C1B1A',
-  inkMuted: '#5B5854',
+  ink: '#1A1A1A',
+  inkMuted: '#5C5C5C',
   onPrimary: '#FFFFFF',
   onSecondary: '#FFFFFF',
-  primary: '#C2314F',
-  primaryContainer: '#FFD9DF',
-  onPrimaryContainer: '#5C0A1F',
-  secondary: '#2E6B7A',
-  secondaryContainer: '#CDE9F0',
-  onSecondaryContainer: '#0B3A45',
-  outline: '#D8D5D0',
-  outlineStrong: '#B9B5AF',
+  primary: '#CC3311',
+  primaryContainer: '#FFDDD0',
+  onPrimaryContainer: '#4A1400',
+  secondary: '#5548C8',
+  secondaryContainer: '#E4E0FF',
+  onSecondaryContainer: '#211066',
+  outline: '#D9D9D9',
+  outlineStrong: '#BDBDBD',
   success: '#1E7A3D',
   onSuccess: '#FFFFFF',
-  successContainer: '#E6F7EA',
-  onSuccessContainer: '#0F4022',
-  danger: '#B3261E',
+  successContainer: '#E3F6E8',
+  onSuccessContainer: '#0E4021',
+  danger: '#C21A1A',
   onDanger: '#FFFFFF',
-  dangerContainer: '#FFDAD6',
-  onDangerContainer: '#410002',
+  dangerContainer: '#FFDAD5',
+  onDangerContainer: '#410100',
   scrim: 'rgba(0,0,0,0.45)',
-  skeleton: '#ECEAE7',
+  skeleton: '#ECECEC',
 };
 
 export const darkColors: ColorTokens = {
-  bg: '#151312',
-  surface: '#211E1C',
-  surfaceVariant: '#2A2622',
-  surfaceElevated: '#2A2622',
-  ink: '#F2F0ED',
-  inkMuted: '#B8B3AC',
-  onPrimary: '#5C0A1F',
-  onSecondary: '#0B3A45',
-  primary: '#F08CA1',
-  primaryContainer: '#6B1230',
-  onPrimaryContainer: '#FFD9DF',
-  secondary: '#8CC5D4',
-  secondaryContainer: '#0E3B47',
-  onSecondaryContainer: '#CDE9F0',
-  outline: '#46413B',
-  outlineStrong: '#5F5A53',
+  bg: '#141414',
+  surface: '#1F1F1F',
+  surfaceVariant: '#2A2A2A',
+  surfaceElevated: '#2A2A2A',
+  ink: '#F2F2F2',
+  inkMuted: '#ABABAB',
+  onPrimary: '#4A1400',
+  onSecondary: '#1B0A57',
+  primary: '#FF8A66',
+  primaryContainer: '#8A2408',
+  onPrimaryContainer: '#FFDDD0',
+  secondary: '#B7ADFF',
+  secondaryContainer: '#382A9E',
+  onSecondaryContainer: '#E4E0FF',
+  outline: '#444444',
+  outlineStrong: '#5E5E5E',
   success: '#6CC17D',
-  onSuccess: '#0F3316',
+  onSuccess: '#0E3316',
   successContainer: '#123D22',
   onSuccessContainer: '#CDEBD1',
   danger: '#FFB4AB',
   onDanger: '#3A0A06',
   dangerContainer: '#8C1D14',
-  onDangerContainer: '#FFDAD6',
+  onDangerContainer: '#FFDAD5',
   scrim: 'rgba(0,0,0,0.6)',
-  skeleton: '#2C2825',
+  skeleton: '#2C2C2C',
 };
 
 /** 4dp base spacing scale (DESIGN.md). */
@@ -135,18 +136,20 @@ export const radii = {
 } as const;
 
 /**
- * Type scale (DESIGN.md typography — Nunito family). Sizes are unitless
+ * Type scale (DESIGN.md typography — Flame & Iris pairing). Sizes are unitless
  * (RN = sp, scales with the OS font-size setting). lineHeight is absolute for
- * predictable rhythm. fontFamily is applied per-component from the loaded
- * Nunito weights, not baked in here.
+ * predictable rhythm. `fontFamily` names the exact loaded face and is consumed
+ * internally by components/Text.tsx: FRAUNCES (serif) carries display moments
+ * only (wordmark, screen titles, "IT'S A MATCH"); FIGTREE (sans) carries all
+ * title/body/label/overline UI text. The public Text API is unchanged.
  */
 export const typeScale = {
-  display: { fontSize: 40, lineHeight: 46, fontWeight: '800', letterSpacing: -0.5 },
-  headline: { fontSize: 28, lineHeight: 34, fontWeight: '700' },
-  title: { fontSize: 18, lineHeight: 24, fontWeight: '600' },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
-  label: { fontSize: 14, lineHeight: 20, fontWeight: '600' },
-  overline: { fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 0.6 },
+  display: { fontSize: 40, lineHeight: 46, fontWeight: '700', letterSpacing: -0.5, fontFamily: 'Fraunces_700Bold' },
+  headline: { fontSize: 28, lineHeight: 34, fontWeight: '600', fontFamily: 'Fraunces_600SemiBold' },
+  title: { fontSize: 18, lineHeight: 24, fontWeight: '600', fontFamily: 'Figtree_600SemiBold' },
+  body: { fontSize: 16, lineHeight: 24, fontWeight: '400', fontFamily: 'Figtree_400Regular' },
+  label: { fontSize: 14, lineHeight: 20, fontWeight: '600', fontFamily: 'Figtree_600SemiBold' },
+  overline: { fontSize: 12, lineHeight: 16, fontWeight: '600', letterSpacing: 0.6, fontFamily: 'Figtree_600SemiBold' },
 } as const;
 
 export type TypeVariant = keyof typeof typeScale;

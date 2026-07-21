@@ -2,59 +2,62 @@
 name: matchpoint
 description: Swipe together, match on what you both want — food, trips, activities, date nights, and shows.
 colors:
-  primary: "#C2314F"
+  primary: "#CC3311"
   on-primary: "#FFFFFF"
-  primary-container: "#FFD9DF"
-  on-primary-container: "#5C0A1F"
-  secondary: "#2E6B7A"
-  secondary-container: "#CDE9F0"
-  on-secondary-container: "#0B3A45"
+  primary-container: "#FFDDD0"
+  on-primary-container: "#4A1400"
+  secondary: "#5548C8"
+  on-secondary: "#FFFFFF"
+  secondary-container: "#E4E0FF"
+  on-secondary-container: "#211066"
   bg: "#FAFAFA"
   surface: "#FFFFFF"
-  surface-variant: "#F0EFED"
-  ink: "#1C1B1A"
-  ink-muted: "#5B5854"
-  outline: "#D8D5D0"
+  surface-variant: "#EFEFEF"
+  ink: "#1A1A1A"
+  ink-muted: "#5C5C5C"
+  outline: "#D9D9D9"
+  outline-strong: "#BDBDBD"
   success: "#1E7A3D"
-  success-container: "#E6F7EA"
-  on-success-container: "#0F4022"
-  danger: "#B3261E"
-  danger-container: "#FFDAD6"
-  on-danger-container: "#410002"
-  dark-bg: "#151312"
-  dark-surface: "#211E1C"
-  dark-ink: "#F2F0ED"
-  dark-primary: "#F08CA1"
-  dark-secondary: "#8CC5D4"
+  success-container: "#E3F6E8"
+  on-success-container: "#0E4021"
+  danger: "#C21A1A"
+  danger-container: "#FFDAD5"
+  on-danger-container: "#410100"
+  dark-bg: "#141414"
+  dark-surface: "#1F1F1F"
+  dark-ink: "#F2F2F2"
+  dark-ink-muted: "#ABABAB"
+  dark-primary: "#FF8A66"
+  dark-secondary: "#B7ADFF"
 typography:
   display:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Fraunces_700Bold"
     fontSize: "40"
-    fontWeight: 800
+    fontWeight: 700
     lineHeight: "46"
     letterSpacing: "-0.5"
   headline:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Fraunces_600SemiBold"
     fontSize: "28"
-    fontWeight: 700
+    fontWeight: 600
     lineHeight: "34"
   title:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Figtree_600SemiBold"
     fontSize: "18"
     fontWeight: 600
     lineHeight: "24"
   body:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Figtree_400Regular"
     fontSize: "16"
     fontWeight: 400
     lineHeight: "24"
   label:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Figtree_600SemiBold"
     fontSize: "14"
     fontWeight: 600
     lineHeight: "20"
   overline:
-    fontFamily: "Nunito, system-ui, sans-serif"
+    fontFamily: "Figtree_600SemiBold"
     fontSize: "12"
     fontWeight: 600
     lineHeight: "16"
@@ -106,7 +109,7 @@ components:
   chip-category:
     backgroundColor: "{colors.surface-variant}"
     textColor: "{colors.ink}"
-    rounded: "{rounded.full}"
+    rounded: "{rounded.lg}"
     padding: "8px 16px"
   input-code:
     backgroundColor: "{colors.surface}"
@@ -119,61 +122,79 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "Raspberry & Lagoon"**
+**Creative North Star: "Flame & Iris"**
 
 matchpoint is a decision game for two, so it should feel like date-night energy
-the moment it opens — but warmth is earned by a confident raspberry accent and
-springy card physics, not by a beige page. Two colors do real work: a
-**raspberry** primary that carries every action, the like-swipe, and the app's
-identity, and a **lagoon teal** secondary that means one concrete thing in the
-product: *the other person* — their presence, their turn, their half of the
-match. Backgrounds stay near-neutral and quiet so card imagery, state color,
-and text stay legible mid-swipe.
+the moment it opens — but warmth is earned by a confident **flame vermilion**
+accent and springy card physics, not by a beige page. Two colors do real work: a
+**flame** primary (`#CC3311`) that carries every action, the like-swipe, and the
+app's identity, and an **iris violet** secondary (`#5548C8`) that means one
+concrete thing in the product: *the other person* — their presence, their turn,
+their half of the match. Backgrounds stay chroma-0 neutral so card imagery, state
+color, and text stay legible mid-swipe.
 
-This is a **product-register** adaptive app (Expo: iOS + Android + web), mobile-first. Carried over from prior
-project hard stops: the Two-Color Rule, No-Beige Rule, Muted-Floor Rule, and
-Calm-Surface Rule all apply verbatim.
+This is a **product-register** adaptive app (Expo: iOS + Android + web),
+mobile-first, rendering as a centered phone-width column on desktop web. Carried
+over from prior project hard stops: the Two-Color Rule, No-Beige Rule,
+Muted-Floor Rule, and Calm-Surface Rule all apply verbatim.
 
 **Key Characteristics:**
-- Two working colors: raspberry (identity + actions + "like") and lagoon (partner presence).
-- Near-neutral surfaces, first-class dark theme via `lib/theme` tokens + `useTheme()`.
+- Two working colors: flame (identity + actions + "like") and iris (partner presence).
+- Near-neutral surfaces, first-class dark theme via `lib/theme` tokens + `useTheme()`, plus a user-facing light/dark/system toggle.
+- A serif/sans pairing: **Fraunces** carries display moments, **Figtree** carries all UI text.
 - One button vocabulary; every touch target ≥ 48px.
-- Motion confirms state — card spring, match reveal — and nothing else. All gated on `prefers-reduced-motion`.
+- Motion confirms state — card spring, match reveal — and nothing else. All gated on `useReducedMotion()`.
 
 ## 2. Colors
 
+Every text-bearing pair is WCAG-AA verified (≥ 4.5:1) in both light and dark; the
+tightest is flame/white at 5.19:1.
+
 ### Primary
-- **Raspberry** (light `#C2314F`, dark `#F08CA1`): brand color and every primary
-  action — the like button, filled CTAs, active category, focus ring, the swipe-right
-  glow on a card.
-- **Raspberry Container** (`#FFD9DF` / dark `#6B1230`): soft accent fills — invite-code
+- **Flame** (light `#CC3311`, dark `#FF8A66`): brand color and every primary
+  action — the like button, filled CTAs, active category, focus ring, the
+  swipe-right glow on a card. In dark mode it lifts to a toasted coral so it stays
+  legible on charcoal.
+- **Flame Container** (`#FFDDD0` / dark `#8A2408`): soft accent fills — invite-code
   badge, empty-state icon badges, tonal buttons, match-card halo.
 
 ### Secondary
-- **Lagoon** (light `#2E6B7A`, dark `#8CC5D4`): the partner's voice. Partner presence
-  dot, "waiting on partner" states, their avatar ring in the match reveal.
+- **Iris** (light `#5548C8`, dark `#B7ADFF`): the partner's voice. Partner presence
+  dot, "waiting on partner" states, their avatar ring in the match reveal. It is
+  deliberately a cool violet so it never reads as a second warm accent competing
+  with flame.
 
 ### Neutral
-- **Ink** (`#1C1B1A` / dark `#F2F0ED`), **Ink Muted** (`#5B5854` / dark `#B8B3AC`),
-  **Background** (`#FAFAFA` / dark `#151312`), **Surface** (`#FFFFFF` / dark `#211E1C`),
-  **Surface Variant** (`#F0EFED` / dark `#2A2622`), **Outline** (`#D8D5D0` / dark `#46413B`).
+- **Ink** (`#1A1A1A` / dark `#F2F2F2`), **Ink Muted** (`#5C5C5C` / dark `#ABABAB`),
+  **Background** (`#FAFAFA` / dark `#141414`), **Surface** (`#FFFFFF` / dark `#1F1F1F`),
+  **Surface Variant** (`#EFEFEF` / dark `#2A2A2A`), **Outline** (`#D9D9D9` / dark `#444444`).
 
 ### Named Rules (hard stops — carried from prior projects)
-**The Two-Color Rule.** The surface only speaks raspberry (action/identity/like) and
-lagoon (partner). Everything else is neutral. A third accent must carry real meaning,
-never decoration. (Green success-container is reserved for the matched badge only.)
+**The Two-Color Rule.** The surface only speaks flame (action/identity/like) and
+iris (partner). Everything else is neutral. A third accent must carry real meaning,
+never decoration. (Green success-container is reserved for the matched badge only;
+red danger for destructive actions only.)
 
-**The No-Beige Rule.** Backgrounds are chroma-0 neutrals. Warmth lives in the accent
-and the type, never in a cream, sand, or parchment body fill.
+**The No-Beige Rule.** Backgrounds are chroma-0 neutrals. Warmth lives in the flame
+accent and the type, never in a cream, sand, or parchment body fill.
 
 ## 3. Typography
 
-**Type family:** Nunito (`@expo-google-fonts/nunito`), system-ui fallback. One family, multiple weights — rounded terminals give the playful voice
-without a decorative display face.
+**Type pairing:** **Fraunces** (`@expo-google-fonts/fraunces`), a warm high-contrast
+display serif, against **Figtree** (`@expo-google-fonts/figtree`), a friendly
+geometric-humanist sans. Contrast axis is serif-vs-sans, so the two never blur
+together.
+
+- **Fraunces** appears only at display moments: the `matchpoint` wordmark, screen
+  titles (headline), and the "IT'S A MATCH" reveal. Its personality is the brand's
+  editorial-but-warm voice.
+- **Figtree** carries every piece of working UI text: titles, body, labels, buttons,
+  captions, codes. Body text is *always* Figtree — the serif never runs as body.
 
 ### Named Rules
-**The Muted-Floor Rule.** Muted text uses Ink Muted (`#5B5854`), verified ≥ 4.5:1 on
-both background and surface. Never lighten body or placeholder text "for elegance."
+**The Muted-Floor Rule.** Muted text uses Ink Muted (`#5C5C5C` / dark `#ABABAB`),
+verified ≥ 4.5:1 on both background and surface (light floor 6.41:1). Never lighten
+body or placeholder text "for elegance."
 
 ## 4. Elevation
 
@@ -188,39 +209,41 @@ the swipe deck rises to Level 2. If everything is elevated, nothing is.
 ## 5. Components
 
 ### Swipe Card (signature)
-- Full-bleed image or colored panel, 24px radius, title + meta pinned bottom over a
-  scrim. Drag physics: rotation follows drag x, raspberry "LIKE" / neutral "PASS"
-  stamp fades in with drag distance. Buttons (✕ / ♥, both ≥ 56px) mirror the gesture
-  for accessibility.
+- Portrait-locked (maxWidth ~400, aspect ~0.62), centered in the phone-width column
+  so it keeps its shape at any viewport. Full-bleed image or colored panel, 24px
+  radius, title + meta pinned bottom over a scrim. Drag physics: rotation follows
+  drag x, flame "LIKE" / neutral "PASS" stamp fades in with drag distance. Buttons
+  (✕ / ♥, both ≥ 56px) mirror the gesture for accessibility.
 
 ### Match Reveal (signature)
-- When both swipe right: card pauses, raspberry-container halo, both avatars
-  (raspberry ring = you, lagoon ring = partner), single spring scale-in.
-  Reduced-motion: static reveal, no confetti anywhere.
+- When both swipe right: card pauses, flame-container halo, both avatars
+  (flame ring = you, iris ring = partner), single spring scale-in, "IT'S A MATCH"
+  set in Fraunces. Reduced-motion: static reveal, no confetti anywhere.
 
 ### Buttons
-- Fully rounded pill, min height 48px. Filled raspberry (default action), tonal
+- Fully rounded pill, min height 48px. Filled flame (default action), tonal
   (secondary), outlined (neutral). Press scales to 0.97; disabled 50% opacity.
 
-### Invite Code
-- 6-character code in a `surface` field, 56px tall, overline-tracked monospace-ish
-  spacing, one-tap copy. Join screen: single input, auto-uppercase.
-
-### Empty & Waiting states
-- Raspberry-container icon badge + title + one sentence + optional CTA. "Waiting on
-  partner" states use lagoon. Skeletons shaped like real cards, never spinners.
+### Category tiles / Invite code / Empty states
+- Category picker: 2-column grid of neutral surface tiles (glyph + label, ≥72px),
+  flame-container only for pressed/active state.
+- Invite code: 6-character code in a `surface` field, 56px tall, one-tap copy.
+- Empty / waiting states: flame-container icon badge + title + one sentence + optional
+  CTA. "Waiting on partner" states use iris. Skeletons shaped like real cards, never spinners.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 - Route every color through `lib/theme` tokens and `useTheme()`; light/dark resolve automatically.
-- Keep raspberry for actions/likes and lagoon for partner state; leave everything else neutral.
+- Keep flame for actions/likes and iris for partner state; leave everything else neutral.
+- Reserve Fraunces for display moments; set all working text in Figtree.
 - Give every touch target ≥ 48px and gesture actions button equivalents.
 - Gate every animation on `useReducedMotion()` (maps to `prefers-reduced-motion` on web).
 
 ### Don't:
 - Use cream/sand/parchment/warm-tinted backgrounds. (No-Beige)
 - Introduce a decorative third accent, gradient text, or eyebrow kickers on sections.
+- Run the serif as body text, or pair it with a second display face.
 - Lighten text below 4.5:1. (Muted-Floor)
 - Elevate anything beyond the single active swipe card. (Calm-Surface)
 - Hard-code hex in components; tokens only.

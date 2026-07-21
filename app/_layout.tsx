@@ -6,12 +6,8 @@ import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  Nunito_400Regular,
-  Nunito_600SemiBold,
-  Nunito_700Bold,
-  Nunito_800ExtraBold,
-} from '@expo-google-fonts/nunito';
+import { Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
+import { Figtree_400Regular, Figtree_600SemiBold } from '@expo-google-fonts/figtree';
 import { ThemeProvider, useTheme } from '@/lib/theme';
 import { SessionProvider } from '@/providers/SessionProvider';
 import { MatchOverlay } from '@/components/MatchOverlay';
@@ -53,10 +49,10 @@ function ThemedApp() {
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
-    Nunito_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
+    Fraunces_600SemiBold,
+    Fraunces_700Bold,
+    Figtree_400Regular,
+    Figtree_600SemiBold,
   });
 
   useEffect(() => {
