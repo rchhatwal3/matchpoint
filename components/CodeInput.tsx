@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
     height: 56,
     fontSize: 22,
     letterSpacing: 6,
-    fontFamily: 'Nunito_700Bold',
+    fontFamily: 'Figtree_600SemiBold',
     textAlign: 'center',
   },
 });

@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     fontSize: 16,
-    fontFamily: 'Nunito_400Regular',
+    fontFamily: 'Figtree_400Regular',
     borderWidth: 1,
   },
 });

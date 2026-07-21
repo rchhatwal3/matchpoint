@@ -32,5 +32,5 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center' },
   slot: { width: TOUCH_TARGET, height: TOUCH_TARGET, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, textAlign: 'center' },
-  chevron: { fontSize: 34, lineHeight: 38, fontFamily: 'Nunito_700Bold' },
+  chevron: { fontSize: 34, lineHeight: 38, fontFamily: 'Figtree_600SemiBold' },
 });

@@ -49,6 +49,14 @@ export default function Home() {
 
   const handleJoin = async () => {
     setError(null);
+    if (name.trim().length === 0) {
+      setError('Add your name up top first, then join.');
+      return;
+    }
+    if (code.length !== 6) {
+      setError("Enter your partner's 6-character code.");
+      return;
+    }
     setBusy(true);
     try {
       await joinRoom(code, name.trim());
@@ -151,7 +159,7 @@ export default function Home() {
                   label={busy ? 'Joining…' : 'Join room'}
                   variant="tonal"
                   onPress={handleJoin}
-                  disabled={!canSubmit || code.length !== 6}
+                  disabled={busy}
                 />
               </View>
             ) : (
@@ -179,7 +187,7 @@ const styles = StyleSheet.create({
   centered: { justifyContent: 'center' },
   textCenter: { textAlign: 'center' },
   stretch: { alignSelf: 'stretch' },
-  nameInput: { height: 56, fontSize: 16, fontFamily: 'Nunito_400Regular', borderWidth: 1 },
+  nameInput: { height: 56, fontSize: 16, fontFamily: 'Figtree_400Regular', borderWidth: 1 },
   skeletonTitle: { height: 40, width: '60%', marginTop: 40 },
   skeletonField: { height: 56, width: '100%' },
 });
