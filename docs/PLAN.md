@@ -113,13 +113,20 @@ Enforce DESIGN.md: hard stops (Two-Color/No-Beige/Muted-Floor/Calm-Surface), dar
 
 **Verify:** RLS still holds (locations editable only by room members); edge function deploys (`supabase functions deploy` dry check or code review); deck filters correctly with two locations selected.
 
-## T8: Date Night mode (needs T4, T7)
+## T8: Date Night mode (needs T4, T7) — "date randomizer"
 
-- New screen "Date Night": builds a shortlist from the match bank — room_matches across restaurants, date_nights, activities, shows — plus 2-3 wildcard unseen items per section.
-- Pair picks the plan: tap-to-shortlist then a final quick swipe-off (reuse deck component) on the shortlist; the winner becomes "tonight's pick" (raspberry match-reveal treatment).
-- Empty state when match bank thin: prompt to go swipe categories first (lagoon waiting-state styling).
+- New screen "Date Night": user multiselects which categories to draw from (restaurants, date_nights, activities, shows), then a randomizer/shortlist pulls from the match bank (room_matches for those categories) plus 2-3 wildcard unseen items per section.
+- Pair picks the plan: tap-to-shortlist then a final quick swipe-off (reuse deck component) on the shortlist; the winner becomes "tonight's pick" (flame match-reveal treatment). A "surprise us" button picks one at random from mutual matches in the selected categories.
+- Empty state when match bank thin: prompt to go swipe categories first (iris waiting-state styling).
 
-**Verify:** with seeded matches, shortlist renders per section; final pick flow completes; empty state when no matches.
+**Verify:** with seeded matches, category multiselect + randomizer returns a mutual-match pick; final pick flow completes; empty state when no matches.
+
+## Goal backlog (defects + features from /goal 2026-07-20)
+
+- **T10 defect — join-by-code button broken**: joining via code does nothing. Diagnose `app/index.tsx` join flow + `SessionProvider.joinRoom`. Verify two-session join end-to-end.
+- **T11 feature — share invite link**: shareable URL carrying the room code (`?code=`) that prefills/auto-joins; native Share sheet + Web Share API from the code display; deep-link handling in `index.tsx`.
+- **T12 defect — per-item imagery**: cards show one category emoji for every item (noodle for tacos), no travel pictures. Root cause `SwipeCard.tsx:141`. Add per-item `image_url` (real images, esp. travel) with per-item emoji fallback; populate seed. Stable licensed source.
+- **T13 feature — multiple rooms + switching**: user belongs to many rooms (different partners), switches between them. Requires schema change (`members.id = auth.uid()` currently caps one room/user → membership table many-to-many) + active-room state + switcher UI. Pairs with T9 (durable identity).
 
 ## MVP2: Authentication (T9)
 
