@@ -2,14 +2,14 @@
 name: matchpoint
 description: Swipe together, match on what you both want — food, trips, activities, date nights, and shows.
 colors:
-  primary: "#CC3311"
+  primary: "#C2314F"
   on-primary: "#FFFFFF"
-  primary-container: "#FFDDD0"
-  on-primary-container: "#4A1400"
-  secondary: "#5548C8"
+  primary-container: "#FFD9DF"
+  on-primary-container: "#5C0A1F"
+  secondary: "#2E6B7A"
   on-secondary: "#FFFFFF"
-  secondary-container: "#E4E0FF"
-  on-secondary-container: "#211066"
+  secondary-container: "#CDE9F0"
+  on-secondary-container: "#0B3A45"
   bg: "#FAFAFA"
   surface: "#FFFFFF"
   surface-variant: "#EFEFEF"
@@ -23,12 +23,12 @@ colors:
   danger: "#C21A1A"
   danger-container: "#FFDAD5"
   on-danger-container: "#410100"
-  dark-bg: "#141414"
-  dark-surface: "#1F1F1F"
-  dark-ink: "#F2F2F2"
-  dark-ink-muted: "#ABABAB"
-  dark-primary: "#FF8A66"
-  dark-secondary: "#B7ADFF"
+  dark-bg: "#121317"
+  dark-surface: "#1C1E23"
+  dark-ink: "#F1F2F4"
+  dark-ink-muted: "#A8ABB2"
+  dark-primary: "#FF8FA3"
+  dark-secondary: "#8CC5D4"
 typography:
   display:
     fontFamily: "Fraunces_700Bold"
@@ -122,16 +122,18 @@ components:
 
 ## 1. Overview
 
-**Creative North Star: "Flame & Iris"**
+**Creative North Star: "Split Heart"** — drawn straight from the app's favicon,
+a heart split into two halves.
 
 matchpoint is a decision game for two, so it should feel like date-night energy
-the moment it opens — but warmth is earned by a confident **flame vermilion**
-accent and springy card physics, not by a beige page. Two colors do real work: a
-**flame** primary (`#CC3311`) that carries every action, the like-swipe, and the
-app's identity, and an **iris violet** secondary (`#5548C8`) that means one
-concrete thing in the product: *the other person* — their presence, their turn,
-their half of the match. Backgrounds stay chroma-0 neutral so card imagery, state
-color, and text stay legible mid-swipe.
+the moment it opens — warmth carried by a confident **crimson** accent and springy
+card physics, not by a beige page. Two colors do real work, one per heart-half: a
+**crimson** primary (`#C2314F`, the favicon's left half) that carries every action,
+the like-swipe, and the app's identity — *you* — and a **teal** secondary (`#2E6B7A`,
+the favicon's right half) that means one concrete thing: *the other person* — their
+presence, their turn, their half of the match. Backgrounds stay near-neutral
+(cooled a hair toward the teal in dark) so card imagery, state color, and text stay
+legible mid-swipe.
 
 This is a **product-register** adaptive app (Expo: iOS + Android + web),
 mobile-first, rendering as a centered phone-width column on desktop web. Carried
@@ -139,7 +141,7 @@ over from prior project hard stops: the Two-Color Rule, No-Beige Rule,
 Muted-Floor Rule, and Calm-Surface Rule all apply verbatim.
 
 **Key Characteristics:**
-- Two working colors: flame (identity + actions + "like") and iris (partner presence).
+- Two working colors: crimson (identity + actions + "like" = you) and teal (partner presence).
 - Near-neutral surfaces, first-class dark theme via `lib/theme` tokens + `useTheme()`, plus a user-facing light/dark/system toggle.
 - A serif/sans pairing: **Fraunces** carries display moments, **Figtree** carries all UI text.
 - One button vocabulary; every touch target ≥ 48px.
@@ -148,35 +150,36 @@ Muted-Floor Rule, and Calm-Surface Rule all apply verbatim.
 ## 2. Colors
 
 Every text-bearing pair is WCAG-AA verified (≥ 4.5:1) in both light and dark; the
-tightest is flame/white at 5.19:1.
+tightest is crimson/white at 5.46:1.
 
 ### Primary
-- **Flame** (light `#CC3311`, dark `#FF8A66`): brand color and every primary
+- **Crimson** (light `#C2314F`, dark `#FF8FA3`): brand color and every primary
   action — the like button, filled CTAs, active category, focus ring, the
-  swipe-right glow on a card. In dark mode it lifts to a toasted coral so it stays
-  legible on charcoal.
-- **Flame Container** (`#FFDDD0` / dark `#8A2408`): soft accent fills — invite-code
+  swipe-right glow on a card. In dark mode it lifts to a rose so it stays legible
+  on the cool charcoal ground.
+- **Crimson Container** (`#FFD9DF` / dark `#7A1230`): soft accent fills — invite-code
   badge, empty-state icon badges, tonal buttons, match-card halo.
 
 ### Secondary
-- **Iris** (light `#5548C8`, dark `#B7ADFF`): the partner's voice. Partner presence
+- **Teal** (light `#2E6B7A`, dark `#8CC5D4`): the partner's voice. Partner presence
   dot, "waiting on partner" states, their avatar ring in the match reveal. It is
-  deliberately a cool violet so it never reads as a second warm accent competing
-  with flame.
+  deliberately a cool blue-teal so it never reads as a second warm accent competing
+  with crimson.
 
 ### Neutral
-- **Ink** (`#1A1A1A` / dark `#F2F2F2`), **Ink Muted** (`#5C5C5C` / dark `#ABABAB`),
-  **Background** (`#FAFAFA` / dark `#141414`), **Surface** (`#FFFFFF` / dark `#1F1F1F`),
-  **Surface Variant** (`#EFEFEF` / dark `#2A2A2A`), **Outline** (`#D9D9D9` / dark `#444444`).
+- **Ink** (`#1A1A1A` / dark `#F1F2F4`), **Ink Muted** (`#5C5C5C` / dark `#A8ABB2`),
+  **Background** (`#FAFAFA` / dark `#121317`), **Surface** (`#FFFFFF` / dark `#1C1E23`),
+  **Surface Variant** (`#EFEFEF` / dark `#282A30`), **Outline** (`#D9D9D9` / dark `#3E414A`).
+  Dark neutrals carry the barest cool bias toward the teal so the ground never reads warm.
 
 ### Named Rules (hard stops — carried from prior projects)
-**The Two-Color Rule.** The surface only speaks flame (action/identity/like) and
-iris (partner). Everything else is neutral. A third accent must carry real meaning,
+**The Two-Color Rule.** The surface only speaks crimson (action/identity/like) and
+teal (partner). Everything else is neutral. A third accent must carry real meaning,
 never decoration. (Green success-container is reserved for the matched badge only;
 red danger for destructive actions only.)
 
-**The No-Beige Rule.** Backgrounds are chroma-0 neutrals. Warmth lives in the flame
-accent and the type, never in a cream, sand, or parchment body fill.
+**The No-Beige Rule.** Backgrounds are near-chroma-0 neutrals. Warmth lives in the
+crimson accent and the type, never in a cream, sand, or parchment body fill.
 
 ## 3. Typography
 
@@ -192,7 +195,7 @@ together.
   captions, codes. Body text is *always* Figtree — the serif never runs as body.
 
 ### Named Rules
-**The Muted-Floor Rule.** Muted text uses Ink Muted (`#5C5C5C` / dark `#ABABAB`),
+**The Muted-Floor Rule.** Muted text uses Ink Muted (`#5C5C5C` / dark `#A8ABB2`),
 verified ≥ 4.5:1 on both background and surface (light floor 6.41:1). Never lighten
 body or placeholder text "for elegance."
 
@@ -212,30 +215,30 @@ the swipe deck rises to Level 2. If everything is elevated, nothing is.
 - Portrait-locked (maxWidth ~400, aspect ~0.62), centered in the phone-width column
   so it keeps its shape at any viewport. Full-bleed image or colored panel, 24px
   radius, title + meta pinned bottom over a scrim. Drag physics: rotation follows
-  drag x, flame "LIKE" / neutral "PASS" stamp fades in with drag distance. Buttons
+  drag x, crimson "LIKE" / neutral "PASS" stamp fades in with drag distance. Buttons
   (✕ / ♥, both ≥ 56px) mirror the gesture for accessibility.
 
 ### Match Reveal (signature)
-- When both swipe right: card pauses, flame-container halo, both avatars
-  (flame ring = you, iris ring = partner), single spring scale-in, "IT'S A MATCH"
+- When both swipe right: card pauses, crimson-container halo, both avatars
+  (crimson ring = you, teal ring = partner), single spring scale-in, "IT'S A MATCH"
   set in Fraunces. Reduced-motion: static reveal, no confetti anywhere.
 
 ### Buttons
-- Fully rounded pill, min height 48px. Filled flame (default action), tonal
+- Fully rounded pill, min height 48px. Filled crimson (default action), tonal
   (secondary), outlined (neutral). Press scales to 0.97; disabled 50% opacity.
 
 ### Category tiles / Invite code / Empty states
 - Category picker: 2-column grid of neutral surface tiles (glyph + label, ≥72px),
-  flame-container only for pressed/active state.
+  crimson-container only for pressed/active state.
 - Invite code: 6-character code in a `surface` field, 56px tall, one-tap copy.
-- Empty / waiting states: flame-container icon badge + title + one sentence + optional
-  CTA. "Waiting on partner" states use iris. Skeletons shaped like real cards, never spinners.
+- Empty / waiting states: crimson-container icon badge + title + one sentence + optional
+  CTA. "Waiting on partner" states use teal. Skeletons shaped like real cards, never spinners.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 - Route every color through `lib/theme` tokens and `useTheme()`; light/dark resolve automatically.
-- Keep flame for actions/likes and iris for partner state; leave everything else neutral.
+- Keep crimson for actions/likes and teal for partner state; leave everything else neutral.
 - Reserve Fraunces for display moments; set all working text in Figtree.
 - Give every touch target ≥ 48px and gesture actions button equivalents.
 - Gate every animation on `useReducedMotion()` (maps to `prefers-reduced-motion` on web).

@@ -1,12 +1,12 @@
 /**
  * matchpoint design tokens — single source of truth.
  *
- * Identity: "Flame & Iris". A decision game for two should feel like date-night
- * energy the moment it opens — warmth carried by a confident FLAME vermilion
- * primary (identity + every action + the "like" swipe) and an IRIS violet
- * SECONDARY that means one thing: the other person (their presence, their turn,
- * their half of a match). Backgrounds stay chroma-0 neutral (No-Beige Rule) so
- * card imagery, state color, and text stay legible mid-swipe.
+ * Identity: "Split Heart" — drawn straight from the favicon's two heart-halves.
+ * A CRIMSON primary (#C2314F, favicon left) carries identity + every action +
+ * the "like" swipe = you. A TEAL secondary (#2E6B7A, favicon right) means one
+ * thing: the other person (their presence, their turn, their half of a match).
+ * Backgrounds stay near-neutral, cooled a hair toward the teal in dark so the
+ * two accents feel intentional and never read as "orange on black".
  *
  * Material 3 role naming (primary / onPrimary / surface / surfaceVariant /
  * outline / danger ...) so mapping to native Material stays 1:1.
@@ -64,12 +64,12 @@ export const lightColors: ColorTokens = {
   inkMuted: '#5C5C5C',
   onPrimary: '#FFFFFF',
   onSecondary: '#FFFFFF',
-  primary: '#CC3311',
-  primaryContainer: '#FFDDD0',
-  onPrimaryContainer: '#4A1400',
-  secondary: '#5548C8',
-  secondaryContainer: '#E4E0FF',
-  onSecondaryContainer: '#211066',
+  primary: '#C2314F',
+  primaryContainer: '#FFD9DF',
+  onPrimaryContainer: '#5C0A1F',
+  secondary: '#2E6B7A',
+  secondaryContainer: '#CDE9F0',
+  onSecondaryContainer: '#0B3A45',
   outline: '#D9D9D9',
   outlineStrong: '#BDBDBD',
   success: '#1E7A3D',
@@ -85,22 +85,22 @@ export const lightColors: ColorTokens = {
 };
 
 export const darkColors: ColorTokens = {
-  bg: '#141414',
-  surface: '#1F1F1F',
-  surfaceVariant: '#2A2A2A',
-  surfaceElevated: '#2A2A2A',
-  ink: '#F2F2F2',
-  inkMuted: '#ABABAB',
-  onPrimary: '#4A1400',
-  onSecondary: '#1B0A57',
-  primary: '#FF8A66',
-  primaryContainer: '#8A2408',
-  onPrimaryContainer: '#FFDDD0',
-  secondary: '#B7ADFF',
-  secondaryContainer: '#382A9E',
-  onSecondaryContainer: '#E4E0FF',
-  outline: '#444444',
-  outlineStrong: '#5E5E5E',
+  bg: '#121317',
+  surface: '#1C1E23',
+  surfaceVariant: '#282A30',
+  surfaceElevated: '#282A30',
+  ink: '#F1F2F4',
+  inkMuted: '#A8ABB2',
+  onPrimary: '#5C0A1F',
+  onSecondary: '#06323B',
+  primary: '#FF8FA3',
+  primaryContainer: '#7A1230',
+  onPrimaryContainer: '#FFD9DF',
+  secondary: '#8CC5D4',
+  secondaryContainer: '#234C57',
+  onSecondaryContainer: '#CDE9F0',
+  outline: '#3E414A',
+  outlineStrong: '#565A63',
   success: '#6CC17D',
   onSuccess: '#0E3316',
   successContainer: '#123D22',
@@ -110,7 +110,7 @@ export const darkColors: ColorTokens = {
   dangerContainer: '#8C1D14',
   onDangerContainer: '#FFDAD5',
   scrim: 'rgba(0,0,0,0.6)',
-  skeleton: '#2C2C2C',
+  skeleton: '#2A2C32',
 };
 
 /** 4dp base spacing scale (DESIGN.md). */
