@@ -160,7 +160,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!nextId) {
         // INITIAL_SESSION with no session: the mount effect signs in anon.
         // A real sign-out must return the app to a working anon session.
-        if (event === 'SIGNED_OUT') void client.auth.signInAnonymously();
+        if (event === 'SIGNED_OUT') {
+          client.auth
+            .signInAnonymously()
+            .catch((e) => console.warn('re-anonymize after sign-out failed', e));
+        }
         return;
       }
       setUserId((prev) => {
