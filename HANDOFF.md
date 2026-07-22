@@ -22,13 +22,12 @@ Pairing + invite code; share invite link (`?code=` deep link); Reanimated swipe 
 ## Pending work (see TODO.md)
 - **T9 login** — NOT built. Anonymous-to-permanent upgrade (email `updateUser`, Google/Apple `linkIdentity`) to preserve uid so rooms/matches survive. Build as a standalone `AuthProvider` + `/account` screen; do NOT rewrite `SessionProvider`. **Constraint from user:** an email-first account must NOT also be loginable via Google/Apple (no cross-provider override/merge) — don't offer linking on email accounts; verify Supabase doesn't auto-merge same-email identities.
 - **T13 multi-room** — user belongs to many rooms, switch between them. Needs schema change (`members.id = auth.uid()` caps one room/user → many-to-many membership).
-- **T15 travel photos** — real `image_url` for `vacations` items (Wikimedia Special:FilePath, verify 200s). Deferred: slow URL research kept exhausting subagent limits. SwipeCard already renders `image_url` when present, so this is data-only.
-- **T16 security fixes** (audit done, fixes not applied — see below).
+- **T16b** — CAPTCHA + rate limits (manual Supabase dashboard; see security section).
 
-## Security audit (2026-07-22) — findings, fixes NOT yet applied
+## Security audit (2026-07-22) — status
 - PASS: RLS isolation (outsider sees 0 cross-room rows), RPCs injection-safe (no dynamic SQL), edge function JWT-gated (401 without), no secret leakage.
-- **HIGH:** `get-restaurants` accepts arbitrary/unbounded `location` from any anon user, no per-user cap → Places API cost-abuse (financial DoS). Fix: cap `location` length (~80) AND restrict server-side to the caller's own `room.locations`.
-- **MEDIUM:** anonymous sign-ups effectively uncapped (12 rapid → all 200). Fix: enable CAPTCHA + tighten rate limits in Supabase Auth settings.
+- **HIGH — FIXED + DEPLOYED (PR #2):** `get-restaurants` now caps `location` at 80 and restricts to the caller's own `room.locations` (`isLocationAllowed` in `logic.ts`). Edge function deployed live.
+- **MEDIUM — still open (T16b, manual):** enable CAPTCHA + tighten rate limits in Supabase Auth settings (MANUAL_TODOS).
 - **LOW:** 11 moderate npm CVEs, all `@expo/config-plugins` build tooling (not runtime).
 
 ## Hard rules / gotchas (do not relearn the hard way)
@@ -38,8 +37,11 @@ Pairing + invite code; share invite link (`?code=` deep link); Reanimated swipe 
 - **Never** put `service_role` in app code. **Frontend never calls third-party APIs** — external data goes through edge functions.
 - **Orchestrator commits; subagents do NOT commit/push.** Use `/caveman-commit` for commit messages, `/caveman-review` for PR/diff review.
 
+## Testing / CI (enforced since PR #6)
+`npm test` (jest-expo, app logic in `lib/`) · `deno test supabase/functions/` (edge function) · **90% coverage gate** (`test:ci`). Logic worth testing is extracted to `lib/*` and `supabase/functions/*/logic.ts` — test there, don't deep-mock providers. husky `pre-push` blocks pushes on failing typecheck/lint/tests; husky `commit-msg` enforces Conventional Commits; CI `test`+`deno-test` jobs gate deploy; `main` is branch-protected (PR + approving review + green checks required).
+
 ## Verify a change
-`npm run typecheck` (tsc, whole tree) · `npm run lint` (app/ + components/) · `npx expo export --platform web` · hex grep (above) · live backend probe: source `.env`, python `urllib` against `/auth/v1/signup` → `/rest/v1/...` / `/functions/v1/get-restaurants`.
+`npm test` · `npm run typecheck` · `npm run lint` · `npx expo export --platform web` · hex grep (above) · live backend probe: source `.env`, python `urllib` against `/auth/v1/signup` → `/rest/v1/...` / `/functions/v1/get-restaurants`.
 
 ## Key files
 `providers/SessionProvider.tsx` (session hub: anon auth, room/member/partner, all Supabase I/O, realtime, match detection), `lib/theme/tokens.ts` (only hex home), `components/SwipeCard.tsx` (image-or-emoji card), `supabase/functions/get-restaurants/index.ts` (Places + photo + price), `supabase/migrations/00{1..9}_*.sql`, `docs/PLAN.md` (phased plan), `MANUAL_TODOS.md` (human-only steps), `DESIGN.md`, `PRODUCT.md`.
