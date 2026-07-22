@@ -11,6 +11,13 @@ Read these three first — they carry state across compaction and fresh conversa
 
 `docs/PLAN.md` has the full phased plan; `DESIGN.md` / `PRODUCT.md` are required reading before UI work.
 
+## Keep the live status dashboard current (REQUIRED)
+
+There is a published Claude Artifact tracking build status — running subagents, PRs in review, shipped/deployed work, the queue, and the 7 goal items:
+**https://claude.ai/code/artifact/98a0341f-6f7b-4043-8a5e-5b4ff86ea715** (title `matchpoint · build status`).
+
+Keep it live and accurate. Whenever session state changes materially — a subagent starts/finishes, a PR opens/merges/deploys, a task moves between queued/in-review/done — refresh the artifact **in the same turn**, before ending. Update it by republishing to that exact URL: pass `url: "https://claude.ai/code/artifact/98a0341f-6f7b-4043-8a5e-5b4ff86ea715"` to the Artifact tool (find it via `action: "list"` if the URL is lost). Preserve the Split Heart design system, keep the `❤️` favicon and the stable title so it stays the same artifact. Data comes from `TODO.md` + `gh pr list`.
+
 ## Use the knowledge graph for file context
 
 This repo has a graphify knowledge graph at `graphify-out/` (code structure, god nodes, communities, cross-file edges). Prefer it over blind grep/full-file reads for "where/what/how" questions — it returns a scoped subgraph, far smaller than reading files.
