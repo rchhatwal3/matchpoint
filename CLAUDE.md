@@ -11,6 +11,14 @@ Read these three first — they carry state across compaction and fresh conversa
 
 `docs/PLAN.md` has the full phased plan; `DESIGN.md` / `PRODUCT.md` are required reading before UI work.
 
+## Use the knowledge graph for file context
+
+This repo has a graphify knowledge graph at `graphify-out/` (code structure, god nodes, communities, cross-file edges). Prefer it over blind grep/full-file reads for "where/what/how" questions — it returns a scoped subgraph, far smaller than reading files.
+
+- Codebase questions: `graphify query "<question>"` (when `graphify-out/graph.json` exists). `graphify path "<A>" "<B>"` for how two things connect; `graphify explain "<concept>"` for a focused node.
+- Broad orientation: skim `graphify-out/GRAPH_REPORT.md` (god nodes = the load-bearing shared code, e.g. `useTheme`, `useSession`, `Text`, `Button`).
+- After changing code, refresh it: `graphify . --update` (AST-only, no LLM/API key, cheap). The graph currently covers code (AST); docs/images can be folded in with a full `graphify .` run when subagents/Gemini are available.
+
 ## Working style (keep context lean)
 
 - **Delegate token-heavy work to subagents.** Send research and self-contained implementation to subagents with strict file ownership; they do the heavy reading and report a concise summary, keeping the main thread's context clean. The main thread orchestrates, verifies, and commits — **subagents never commit or push.**
