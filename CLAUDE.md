@@ -24,7 +24,18 @@ This repo has a graphify knowledge graph at `graphify-out/` (code structure, god
 - **Delegate token-heavy work to subagents.** Send research and self-contained implementation to subagents with strict file ownership; they do the heavy reading and report a concise summary, keeping the main thread's context clean. The main thread orchestrates, verifies, and commits — **subagents never commit or push.**
 - **Work in small chunks.** One logical feature per unit of work. Finish, commit, deploy, then move on — don't let a session balloon until it needs compaction.
 - **Update the handoff before context fills.** When a session has made meaningful progress, refresh `HANDOFF.md` and `TODO.md` so the next session (or a fresh conversation) resumes instantly.
-- Commits via `/caveman-commit`; diff/PR review via `/caveman-review`.
+
+## Branch → review → test → PR protocol (REQUIRED for all code changes)
+
+Never commit code straight to `main`. For every piece of new work:
+
+1. **Feature branch per task.** Create `feat/<task-slug>` (or `fix/<slug>`) off `main` before writing code — one branch per task/feature.
+2. **caveman-commit every commit.** Use `/caveman-commit` to generate each commit message (Conventional Commits, terse).
+3. **Code-review every commit.** Run `/caveman-review` on the diff before it lands; address findings.
+4. **Test every change.** Verify before claiming done: `npm run typecheck`, `npm run lint`, `npx expo export --platform web`, the hex grep, and — when the change is observable — drive it in the browser / probe the live backend. Migrations that add selected columns must be run before a bundle that selects them ships.
+5. **PR, don't push to main.** When the branch is ready, open a PR to `main` with `gh pr create` and STOP — the human reviews and merges manually. Do not merge or push to `main` yourself. Deploy happens on their merge.
+
+`main` is protected-by-convention: it only changes through a human-reviewed PR.
 
 ## What this is
 
