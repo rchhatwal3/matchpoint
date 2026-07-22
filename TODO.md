@@ -10,6 +10,7 @@ Ordered by priority. Human-only steps (API keys, dashboard config, store account
 - [ ] **T15 travel photos** — real `image_url` for the 45 `vacations` items (Wikimedia `Special:FilePath`, verify HTTP 200). Data-only; SwipeCard already renders photos.
 
 ## Later
+- [ ] **T17 image caching** — make item photos (restaurant Google, vacation Wikimedia) fast + durable instead of hotlinked every render. Phased plan: (1) client cache — swap `SwipeCard` Image for `expo-image` (built-in memory+disk cache) + prefetch the next card; (2, optional/ToS-gated) persistent mirror to Supabase Storage for ToS-safe sources ONLY (Wikimedia yes + attribution; Google Places photo bytes NO — their ToS restricts storing them). Decide goal first: speed vs. decoupling from third parties.
 - [ ] **T13 multiple rooms** — many rooms per user + a switcher. Schema change: `members.id = auth.uid()` (one room/user) → a membership table (many-to-many). Pairs with T9 for durable identity.
 - [ ] **Adversarial QA subagent pass** — user requested; run once the account session limit resets. Break flows, fuzz inputs, retest RLS/rate limits.
 
