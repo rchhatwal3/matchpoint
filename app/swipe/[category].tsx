@@ -5,6 +5,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
+import { filterDeck } from '@/lib/deck';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
@@ -57,14 +58,9 @@ export default function SwipeDeck() {
   }, [valid, loading, room, category]);
 
   // Deck view: swiped items removed, then (restaurants only) price-filtered.
-  // Items with an unknown price_level always pass the filter.
   const visible = useMemo(() => {
     if (deck === null) return null;
-    return deck.filter(
-      (i) =>
-        !swiped.has(i.id) &&
-        (!isRestaurants || i.price_level == null || priceLevels.has(i.price_level)),
-    );
+    return filterDeck(deck, swiped, isRestaurants, priceLevels);
   }, [deck, swiped, isRestaurants, priceLevels]);
 
   const current = visible?.[0] ?? null;

@@ -2,6 +2,10 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
+## Testing / CI enforcement (T-tests)
+
+- [ ] **Branch protection on `main`** (GitHub → Settings → Branches → Add rule for `main`): require the status checks **Tests and Coverage**, **Edge Function Tests**, and **Typecheck and Lint** to pass, and require **1 approving review**, before merge. This is the server-side backstop that makes "review + tests before merge" un-skippable; the husky `pre-push` hook enforces the mechanical checks locally, and CI re-runs them.
+
 ## MVP1 — live website (blocks full functionality, site runs in offline demo mode without these)
 
 - [x] **Create Supabase project** at supabase.com (org: same as recipe-pantry-app). Region: us-east.

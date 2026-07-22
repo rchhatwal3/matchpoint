@@ -39,7 +39,7 @@ Never commit code straight to `main`. For every piece of new work:
 1. **Feature branch per task.** Create `feat/<task-slug>` (or `fix/<slug>`) off `main` before writing code — one branch per task/feature.
 2. **caveman-commit every commit.** Use `/caveman-commit` to generate each commit message (Conventional Commits, terse).
 3. **Code-review every commit.** Run `/caveman-review` on the diff before it lands; address findings.
-4. **Test every change.** Verify before claiming done: `npm run typecheck`, `npm run lint`, `npx expo export --platform web`, the hex grep, and — when the change is observable — drive it in the browser / probe the live backend. Migrations that add selected columns must be run before a bundle that selects them ships.
+4. **Test every change (REQUIRED).** Add/update tests for the change and keep the suite green at **≥90% coverage** on the logic scope. Verify before claiming done: `npm test` (jest), `deno test supabase/functions/` (if the edge function changed), `npm run typecheck`, `npm run lint`, `npx expo export --platform web`, the hex grep, and — when observable — drive it in the browser / probe the live backend. Migrations that add selected columns must be run before a bundle that selects them ships. Logic worth testing lives in `lib/` (pure, unit-tested) and `supabase/functions/*/logic.ts`; extract testable logic out of components/providers rather than mocking heavily. The husky `pre-push` hook blocks any push whose typecheck/lint/tests fail; CI (`.github/workflows/deploy.yml`) re-runs `test` + `deno-test` and deploy is gated on them.
 5. **PR, don't push to main.** When the branch is ready, open a PR to `main` with `gh pr create` and STOP — the human reviews and merges manually. Do not merge or push to `main` yourself. Deploy happens on their merge.
 
 `main` is protected-by-convention: it only changes through a human-reviewed PR.
@@ -58,7 +58,7 @@ One Expo codebase ships iOS, Android, and web. Web deploys to GitHub Pages (live
 - Typecheck: `npm run typecheck` (tsc --noEmit; covers whole tree)
 - Lint: `npm run lint` (expo lint; covers app/ + components/ only)
 - Web build: `npm run build:web` (`expo export --platform web` → `dist/`)
-- No test suite exists yet. Verification = typecheck + lint + web export + manual browser flow.
+- Test: `npm test` (jest-expo, app logic) · `npm run test:ci` (with 90% coverage gate) · `deno test supabase/functions/` (edge function). Verification = tests + typecheck + lint + web export + manual browser flow.
 
 ## Architecture
 

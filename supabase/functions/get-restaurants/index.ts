@@ -1,4 +1,11 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
+import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
+import {
+  MAX_LOCATION_LEN,
+  isLocationAllowed,
+  priceLevelNum,
+  describe,
+  type PlacesApiPlace,
+} from './logic.ts';
 
 // Server-side only. The Places API key never reaches the app; the frontend
 // calls this function and gets back stable `items` rows to swipe on.
@@ -14,11 +21,6 @@ const cors = {
 // How many stored rows count as "already cached" for a location — at/above
 // this we skip the API entirely and serve what we have.
 const CACHE_TARGET = 20;
-
-// Upper bound on a city-level location string. Anything longer is not a real
-// place name — rejecting it bounds the Places query and blocks abuse via
-// oversized input.
-const MAX_LOCATION_LEN = 80;
 
 type ItemRow = {
   id: string;
@@ -64,8 +66,8 @@ Deno.serve(async (req) => {
       .select('locations')
       .eq('id', member.room_id)
       .maybeSingle();
-    const allowed = ((room?.locations ?? []) as string[]).map((l) => l.trim().toLowerCase());
-    if (!allowed.includes(loc.toLowerCase())) {
+    const allowed = (room?.locations ?? []) as string[];
+    if (!isLocationAllowed(loc, allowed)) {
       return json({ error: 'Location not in your room' }, 403);
     }
 
@@ -121,7 +123,7 @@ function json(body: unknown, status = 200) {
   });
 }
 
-async function selectRestaurants(svc: ReturnType<typeof createClient>, loc: string): Promise<ItemRow[]> {
+async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<ItemRow[]> {
   const { data, error } = await svc
     .from('items')
     .select('id, category, title, subtitle, image_url, location, source, price_level')
@@ -192,67 +194,3 @@ async function resolvePhotoUrl(photoName?: string): Promise<string | null> {
   }
 }
 
-type PlacesApiPlace = {
-  displayName?: { text?: string };
-  rating?: number;
-  priceLevel?: string;
-  types?: string[];
-  userRatingCount?: number;
-  photos?: { name?: string }[];
-};
-
-// Places `priceLevel` enum -> 1–4 (same source as the $/$$ subtitle label).
-function priceLevelNum(level?: string): number | null {
-  switch (level) {
-    case 'PRICE_LEVEL_INEXPENSIVE':
-      return 1;
-    case 'PRICE_LEVEL_MODERATE':
-      return 2;
-    case 'PRICE_LEVEL_EXPENSIVE':
-      return 3;
-    case 'PRICE_LEVEL_VERY_EXPENSIVE':
-      return 4;
-    default:
-      return null;
-  }
-}
-
-// Own-words descriptor synthesized from structured fields (never copied prose):
-// e.g. "Italian restaurant · 4.6★ · $$".
-function describe(p: PlacesApiPlace): string | null {
-  const parts: string[] = [];
-  const cuisine = cuisineLabel(p.types);
-  if (cuisine) parts.push(cuisine);
-  if (typeof p.rating === 'number') parts.push(`${p.rating.toFixed(1)}★`);
-  const price = priceLabel(p.priceLevel);
-  if (price) parts.push(price);
-  return parts.length ? parts.join(' · ') : null;
-}
-
-function priceLabel(level?: string): string | null {
-  switch (level) {
-    case 'PRICE_LEVEL_INEXPENSIVE':
-      return '$';
-    case 'PRICE_LEVEL_MODERATE':
-      return '$$';
-    case 'PRICE_LEVEL_EXPENSIVE':
-      return '$$$';
-    case 'PRICE_LEVEL_VERY_EXPENSIVE':
-      return '$$$$';
-    default:
-      return null;
-  }
-}
-
-// Map the first food-related Places type to a friendly cuisine/venue label.
-function cuisineLabel(types?: string[]): string | null {
-  if (!types) return null;
-  for (const t of types) {
-    if (t.endsWith('_restaurant') || t === 'restaurant' || t === 'cafe' || t === 'bar') {
-      return t
-        .replace(/_/g, ' ')
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-    }
-  }
-  return null;
-}
