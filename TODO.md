@@ -10,7 +10,8 @@ Ordered by priority. Human-only steps (API keys, dashboard config, store account
 
 ## Later
 - [ ] **Offline vacation photos** — `mapSeedToItems` (`lib/session-logic.ts`) hardcodes `image_url: null`, so offline demo mode ignores the `image_url` T15 added to `data/seed.json`. Online (migration 010) is fine. If offline photos are wanted, read `row.image_url` in the map (needs `SeedRow.image_url?`).
-- [ ] **T17 image caching** — make item photos (restaurant Google, vacation Wikimedia) fast + durable instead of hotlinked every render. Phased plan: (1) client cache — swap `SwipeCard` Image for `expo-image` (built-in memory+disk cache) + prefetch the next card; (2, optional/ToS-gated) persistent mirror to Supabase Storage for ToS-safe sources ONLY (Wikimedia yes + attribution; Google Places photo bytes NO — their ToS restricts storing them). Decide goal first: speed vs. decoupling from third parties.
+- [x] **T17 image caching — phase 1** (PR #8, in review): `SwipeCard` swapped from RN `Image` to `expo-image` (built-in memory+disk cache, `contentFit="cover"`); the swipe deck prefetches the cards beyond the two mounted via pure `upcomingImageUrls` (`lib/deck.ts`, unit-tested). Browser-verified — photos paint from cache on swipe, next card is instant.
+- [ ] **T17 phase 2 (deferred, optional/ToS-gated)** — persistent mirror to Supabase Storage for ToS-safe sources ONLY (Wikimedia yes + attribution; Google Places photo bytes NO — their ToS restricts storing them). Only pursue if the goal shifts from speed (done in phase 1) to decoupling from third parties.
 - [ ] **T13 multiple rooms** — many rooms per user + a switcher. Schema change: `members.id = auth.uid()` (one room/user) → a membership table (many-to-many). Pairs with T9 for durable identity.
 - [ ] **Adversarial QA subagent pass** — user requested; run once the account session limit resets. Break flows, fuzz inputs, retest RLS/rate limits.
 
