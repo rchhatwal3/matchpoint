@@ -2,6 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Start every session here
+
+Read these three first — they carry state across compaction and fresh conversations:
+1. **`HANDOFF.md`** — current state, decisions, live URLs, security findings, gotchas. The fastest way to get up to speed.
+2. **`TODO.md`** — engineering backlog, ordered. Pick the next item from here.
+3. **`MANUAL_TODOS.md`** — human-only steps (API keys, dashboard config); check before assuming something can be automated.
+
+`docs/PLAN.md` has the full phased plan; `DESIGN.md` / `PRODUCT.md` are required reading before UI work.
+
+## Working style (keep context lean)
+
+- **Delegate token-heavy work to subagents.** Send research and self-contained implementation to subagents with strict file ownership; they do the heavy reading and report a concise summary, keeping the main thread's context clean. The main thread orchestrates, verifies, and commits — **subagents never commit or push.**
+- **Work in small chunks.** One logical feature per unit of work. Finish, commit, deploy, then move on — don't let a session balloon until it needs compaction.
+- **Update the handoff before context fills.** When a session has made meaningful progress, refresh `HANDOFF.md` and `TODO.md` so the next session (or a fresh conversation) resumes instantly.
+- Commits via `/caveman-commit`; diff/PR review via `/caveman-review`.
+
 ## What this is
 
 Tinder-style swipe app for pairs (couples/friends). Two people share a room via 6-char invite code, swipe decks per category (food, restaurants, vacations, activities, date_nights, shows), and only mutual likes surface as matches. Anonymous-first: no accounts (Supabase anonymous auth); auth upgrade is a planned MVP2 feature.
