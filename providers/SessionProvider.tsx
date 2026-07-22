@@ -27,11 +27,13 @@ const OFFLINE_ITEMS: Item[] = (
   image_url: null,
   location: null,
   source: row.source ?? null,
+  price_level: null,
 }));
 
 const OFFLINE_ROOM: Room = { id: 'offline-room', code: 'OFFLNE', locations: [] };
 
-const RESTAURANT_COLUMNS = 'id, category, title, subtitle, emoji, image_url, location, source';
+const RESTAURANT_COLUMNS =
+  'id, category, title, subtitle, emoji, image_url, location, source, price_level';
 
 /**
  * Restaurants for one location. Tries the get-restaurants edge function
@@ -222,7 +224,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (!mine?.liked) return;
           const { data: item } = await client
             .from('items')
-            .select('id, category, title, subtitle, emoji, image_url, location, source')
+            .select('id, category, title, subtitle, emoji, image_url, location, source, price_level')
             .eq('id', row.item_id)
             .maybeSingle();
           if (item) announceMatch(item as Item);
@@ -338,7 +340,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from('items')
-        .select('id, category, title, subtitle, emoji, image_url, location, source')
+        .select('id, category, title, subtitle, emoji, image_url, location, source, price_level')
         .eq('category', category);
       if (error) throw error;
       return (data ?? []) as Item[];

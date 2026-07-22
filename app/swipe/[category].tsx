@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
@@ -9,6 +9,7 @@ import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
+import { PriceFilter, PRICE_LEVELS } from '@/components/PriceFilter';
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard';
 
 export default function SwipeDeck() {
@@ -19,21 +20,30 @@ export default function SwipeDeck() {
   const { loading, room, getItems, getMySwipedItemIds, recordSwipe } = useSession();
 
   const [deck, setDeck] = useState<Item[] | null>(null);
-  const [index, setIndex] = useState(0);
+  // Ids swiped this session — items drop out of the deck view once swiped, so a
+  // price-filter toggle never resurfaces them (an index cursor couldn't do that).
+  const [swiped, setSwiped] = useState<Set<string>>(new Set());
+  // Restaurants only: selected price tiers, all on by default.
+  const [priceLevels, setPriceLevels] = useState<Set<number>>(new Set(PRICE_LEVELS));
   const translateX = useSharedValue(0);
   const topCardRef = useRef<SwipeCardHandle>(null);
 
   const valid = isCategory(category);
+  const isRestaurants = category === 'restaurants';
 
   useEffect(() => {
     if (!valid || loading || !room) return;
     let cancelled = false;
     (async () => {
       try {
-        const [items, swiped] = await Promise.all([getItems(category), getMySwipedItemIds()]);
+        const [items, alreadySwiped] = await Promise.all([
+          getItems(category),
+          getMySwipedItemIds(),
+        ]);
         if (cancelled) return;
-        setDeck(items.filter((i) => !swiped.has(i.id)));
-        setIndex(0);
+        setDeck(items.filter((i) => !alreadySwiped.has(i.id)));
+        setSwiped(new Set());
+        setPriceLevels(new Set(PRICE_LEVELS));
       } catch (e) {
         console.warn('deck load failed', e);
         if (!cancelled) setDeck([]);
@@ -42,31 +52,58 @@ export default function SwipeDeck() {
     return () => {
       cancelled = true;
     };
-    // Load once per category visit; swipes advance the index locally.
+    // Load once per category visit; swipes drop items from the view locally.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valid, loading, room, category]);
 
-  const current = deck?.[index] ?? null;
-  const next = deck?.[index + 1] ?? null;
+  // Deck view: swiped items removed, then (restaurants only) price-filtered.
+  // Items with an unknown price_level always pass the filter.
+  const visible = useMemo(() => {
+    if (deck === null) return null;
+    return deck.filter(
+      (i) =>
+        !swiped.has(i.id) &&
+        (!isRestaurants || i.price_level == null || priceLevels.has(i.price_level)),
+    );
+  }, [deck, swiped, isRestaurants, priceLevels]);
+
+  const current = visible?.[0] ?? null;
+  const next = visible?.[1] ?? null;
 
   const handleSwiped = useCallback(
     (item: Item) => (liked: boolean) => {
       recordSwipe(item, liked).catch((e) => console.warn('swipe save failed', e));
-      setIndex((i) => i + 1);
+      setSwiped((prev) => new Set(prev).add(item.id));
     },
     [recordSwipe],
   );
+
+  const togglePrice = useCallback((level: number) => {
+    setPriceLevels((prev) => {
+      const next = new Set(prev);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      return next;
+    });
+  }, []);
 
   if (!valid) return <Redirect href="/lobby" />;
   if (!loading && !room) return <Redirect href="/" />;
 
   const label = CATEGORY_LABELS[category];
+  // Show the price row whenever there are restaurant cards to filter.
+  const showPriceFilter = isRestaurants && (deck?.length ?? 0) > 0;
+  // Unswiped restaurants exist but the price filter is hiding all of them
+  // (distinguishes "priced out" from "you've swiped everything").
+  const pricedOut = isRestaurants && !current && (deck?.some((i) => !swiped.has(i.id)) ?? false);
 
   return (
     <Screen>
       <Header title={label} onBack={() => router.back()} />
 
-      {deck === null ? (
+      {showPriceFilter ? <PriceFilter selected={priceLevels} onToggle={togglePrice} /> : null}
+
+      {visible === null ? (
         // Card-shaped skeleton, never a spinner (DESIGN.md).
         <View style={[styles.deckArea, { padding: spacing['2xl'] }]}>
           <View
@@ -135,25 +172,33 @@ export default function SwipeDeck() {
             </Pressable>
           </View>
         </>
-      ) : deck.length === 0 && category === 'restaurants' ? (
+      ) : isRestaurants && (room?.locations.length ?? 0) === 0 ? (
         <View style={styles.deckArea}>
-          {(room?.locations.length ?? 0) === 0 ? (
-            <EmptyState
-              icon="📍"
-              title="Set your locations first"
-              message="Restaurants are sourced from the cities you and your partner pick."
-              ctaLabel="Set locations"
-              onCtaPress={() => router.push('/settings')}
-            />
-          ) : (
-            <EmptyState
-              icon="🍽️"
-              title="No restaurants yet"
-              message="We couldn't find restaurants for your locations. Try adding another city."
-              ctaLabel="Edit locations"
-              onCtaPress={() => router.push('/settings')}
-            />
-          )}
+          <EmptyState
+            icon="📍"
+            title="Set your locations first"
+            message="Restaurants are sourced from the cities you and your partner pick."
+            ctaLabel="Set locations"
+            onCtaPress={() => router.push('/settings')}
+          />
+        </View>
+      ) : isRestaurants && (deck?.length ?? 0) === 0 ? (
+        <View style={styles.deckArea}>
+          <EmptyState
+            icon="🍽️"
+            title="No restaurants yet"
+            message="We couldn't find restaurants for your locations. Try adding another city."
+            ctaLabel="Edit locations"
+            onCtaPress={() => router.push('/settings')}
+          />
+        </View>
+      ) : pricedOut ? (
+        <View style={styles.deckArea}>
+          <EmptyState
+            icon="💸"
+            title="Nothing in this price range"
+            message="No restaurants match the selected prices. Widen the price filter above to see more."
+          />
         </View>
       ) : (
         <View style={styles.deckArea}>

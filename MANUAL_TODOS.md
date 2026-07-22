@@ -20,24 +20,31 @@ an empty state ("Set your locations first" / "No restaurants yet") and everythin
 else works. Run migration `006` regardless (below) so the shared locations list
 syncs live between partners.
 
-- [ ] **Realtime for rooms** (needed for live location sync): run
+- [x] **Realtime for rooms** (needed for live location sync): run
       `supabase/migrations/006_realtime_rooms.sql` in the SQL Editor (adds the
       `rooms` table to the `supabase_realtime` publication). Only needs to run once.
-- [ ] **Service-role grants** (REQUIRED — the edge function fails without it): run
+- [x] **Service-role grants** (REQUIRED — the edge function fails without it): run
       `supabase/migrations/007_service_role_grants.sql` in the SQL Editor. Grants the
       `service_role` (which the function runs as) SELECT/INSERT on `items`. On projects
       without default blanket grants, the function 500s with "permission denied for
       table items" until this runs.
-- [ ] **Places API key**: Google Cloud project → enable **Places API (New)** →
+- [x] **Price-level column** (REQUIRED before the T14 restaurant enrichment ships —
+      run BEFORE redeploying `get-restaurants`): run
+      `supabase/migrations/009_item_price.sql` in the SQL Editor. Adds `items.price_level`
+      (smallint, 1–4, nullable) for the Restaurants price filter. All item reads now
+      SELECT this column (same as the emoji column), so online reads error with "column
+      items.price_level does not exist" until this migration is applied. 007's grants
+      already cover it — no extra grant needed.
+- [x] **Places API key**: Google Cloud project → enable **Places API (New)** →
       create an API key. Restrict it to the Places API (server-side key; it lives
       only as a Supabase secret, never in the app).
-- [ ] **Link the CLI to your project** (once): `supabase link --project-ref YOUR-PROJECT-REF`
-- [ ] **Set the edge function secret**: `supabase secrets set PLACES_API_KEY=YOUR_KEY`
-- [ ] **Deploy the edge function**: `supabase functions deploy get-restaurants`
+- [x] **Link the CLI to your project** (once): `supabase link --project-ref YOUR-PROJECT-REF`
+- [x] **Set the edge function secret**: `supabase secrets set PLACES_API_KEY=YOUR_KEY`
+- [x] **Deploy the edge function**: `supabase functions deploy get-restaurants`
       — keep JWT verification **ON** (do NOT pass `--no-verify-jwt`); app users are
       authenticated (anonymous session) and `supabase.functions.invoke` forwards
       their JWT, so the platform gate is exactly what we want.
-- [ ] **Use it**: open the app → lobby → "Set your locations" → pick 1+ cities.
+- [x] **Use it**: open the app → lobby → "Set your locations" → pick 1+ cities.
       First visit to the Restaurants deck calls the function, which fetches ~20
       places per city and upserts them into `items`. Repeat visits are cache-first
       (≥20 stored rows for a city → no API call).

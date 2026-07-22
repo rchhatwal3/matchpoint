@@ -23,6 +23,7 @@ type ItemRow = {
   image_url: string | null;
   location: string | null;
   source: string | null;
+  price_level: number | null;
 };
 
 Deno.serve(async (req) => {
@@ -55,9 +56,10 @@ Deno.serve(async (req) => {
         category: 'restaurants',
         title: p.title,
         subtitle: p.subtitle,
-        image_url: null,
+        image_url: p.image_url,
         location: loc,
         source: 'Google Places',
+        price_level: p.price_level,
       }));
 
     if (toInsert.length > 0) {
@@ -89,16 +91,23 @@ function json(body: unknown, status = 200) {
 async function selectRestaurants(svc: ReturnType<typeof createClient>, loc: string): Promise<ItemRow[]> {
   const { data, error } = await svc
     .from('items')
-    .select('id, category, title, subtitle, image_url, location, source')
+    .select('id, category, title, subtitle, image_url, location, source, price_level')
     .eq('category', 'restaurants')
     .eq('location', loc);
   if (error) throw error;
   return (data ?? []) as ItemRow[];
 }
 
-type Place = { title: string; subtitle: string | null };
+type Place = {
+  title: string;
+  subtitle: string | null;
+  image_url: string | null;
+  price_level: number | null;
+};
 
 // Google Places API (New) Text Search. Returns up to 20 places for the query.
+// `places.photos` is requested so we can resolve a keyless hotlinkable image per
+// place server-side (the API key never reaches the app or the stored image_url).
 async function fetchPlaces(loc: string): Promise<Place[]> {
   const resp = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
@@ -106,7 +115,7 @@ async function fetchPlaces(loc: string): Promise<Place[]> {
       'content-type': 'application/json',
       'X-Goog-Api-Key': PLACES_KEY!,
       'X-Goog-FieldMask':
-        'places.displayName,places.rating,places.priceLevel,places.types,places.userRatingCount',
+        'places.displayName,places.rating,places.priceLevel,places.types,places.userRatingCount,places.photos',
     },
     body: JSON.stringify({ textQuery: `best restaurants in ${loc}` }),
   });
@@ -115,12 +124,39 @@ async function fetchPlaces(loc: string): Promise<Place[]> {
   }
   const j = await resp.json();
   const places = (j.places ?? []) as PlacesApiPlace[];
-  return places
-    .map((p) => ({
+  // Resolve photos in parallel; each resolution is wrapped so one bad photo
+  // never fails the whole request (falls back to image_url: null).
+  const mapped = await Promise.all(
+    places.map(async (p) => ({
       title: p.displayName?.text?.trim() ?? '',
       subtitle: describe(p),
-    }))
-    .filter((p) => p.title);
+      image_url: await resolvePhotoUrl(p.photos?.[0]?.name),
+      price_level: priceLevelNum(p.priceLevel),
+    })),
+  );
+  return mapped.filter((p) => p.title);
+}
+
+// Turn a Places `photo.name` into a keyless, hotlinkable image URL.
+// `skipHttpRedirect=true` makes the media endpoint return JSON
+// `{ name, photoUri }` instead of a 302 — `photoUri` is a keyless
+// lh3.googleusercontent.com URL safe to store and serve to the app. We use this
+// JSON form (rather than reading the 302 Location header) because it needs no
+// redirect handling and returns the final URL directly.
+async function resolvePhotoUrl(photoName?: string): Promise<string | null> {
+  if (!photoName) return null;
+  try {
+    const resp = await fetch(
+      `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=800&skipHttpRedirect=true`,
+      { headers: { 'X-Goog-Api-Key': PLACES_KEY! } },
+    );
+    if (!resp.ok) return null;
+    const j = await resp.json();
+    return typeof j.photoUri === 'string' ? j.photoUri : null;
+  } catch (e) {
+    console.error('photo resolve failed', e);
+    return null;
+  }
 }
 
 type PlacesApiPlace = {
@@ -129,7 +165,24 @@ type PlacesApiPlace = {
   priceLevel?: string;
   types?: string[];
   userRatingCount?: number;
+  photos?: { name?: string }[];
 };
+
+// Places `priceLevel` enum -> 1–4 (same source as the $/$$ subtitle label).
+function priceLevelNum(level?: string): number | null {
+  switch (level) {
+    case 'PRICE_LEVEL_INEXPENSIVE':
+      return 1;
+    case 'PRICE_LEVEL_MODERATE':
+      return 2;
+    case 'PRICE_LEVEL_EXPENSIVE':
+      return 3;
+    case 'PRICE_LEVEL_VERY_EXPENSIVE':
+      return 4;
+    default:
+      return null;
+  }
+}
 
 // Own-words descriptor synthesized from structured fields (never copied prose):
 // e.g. "Italian restaurant · 4.6★ · $$".

@@ -45,6 +45,8 @@ export type Item = {
   image_url: string | null;
   location: string | null;
   source: string | null;
+  /** Structured price tier 1–4 (restaurants only); null = unknown, always shown. */
+  price_level: number | null;
 };
 
 export type Room = {
