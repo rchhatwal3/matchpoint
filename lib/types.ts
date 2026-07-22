@@ -40,6 +40,8 @@ export type Item = {
   category: Category;
   title: string;
   subtitle: string | null;
+  /** Per-item emoji; falls back to the category glyph when null. */
+  emoji: string | null;
   image_url: string | null;
   location: string | null;
   source: string | null;

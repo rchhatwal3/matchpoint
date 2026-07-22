@@ -1,5 +1,5 @@
-import { forwardRef, useImperativeHandle } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { forwardRef, useImperativeHandle, useState } from 'react';
+import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -44,6 +44,8 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
   const { colors, radii, spacing, elevation } = useTheme();
   const { width } = useWindowDimensions();
   const offscreen = width * 1.5;
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = !!item.image_url && !imgFailed;
 
   const finish = (liked: boolean) => onSwiped(liked);
 
@@ -136,16 +138,32 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
         nextStyle,
       ]}
     >
-      <View style={styles.panel}>
-        <Text style={styles.glyph} accessibilityElementsHidden>
-          {CATEGORY_EMOJI[item.category]}
-        </Text>
-      </View>
+      {showImage ? (
+        <>
+          <Image
+            source={{ uri: item.image_url as string }}
+            style={styles.panel}
+            resizeMode="cover"
+            onError={() => setImgFailed(true)}
+            accessibilityElementsHidden
+          />
+          {/* Scrim band so title/meta stay legible over the photo */}
+          <View style={[styles.scrim, { backgroundColor: colors.scrim }]} />
+        </>
+      ) : (
+        <View style={styles.panel}>
+          <Text style={styles.glyph} accessibilityElementsHidden>
+            {item.emoji ?? CATEGORY_EMOJI[item.category]}
+          </Text>
+        </View>
+      )}
 
       <View style={[styles.meta, { padding: spacing['2xl'], gap: spacing.xs }]}>
-        <Text variant="headline">{item.title}</Text>
+        <Text variant="headline" color={showImage ? colors.onScrim : colors.ink}>
+          {item.title}
+        </Text>
         {item.subtitle ? (
-          <Text variant="body" color={colors.inkMuted}>
+          <Text variant="body" color={showImage ? colors.onScrim : colors.inkMuted}>
             {item.subtitle}
           </Text>
         ) : null}
@@ -204,6 +222,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glyph: { fontSize: 96, lineHeight: 120 },
+  scrim: { position: 'absolute', left: 0, right: 0, bottom: 0, top: '52%' },
   meta: {},
   stamp: {
     position: 'absolute',

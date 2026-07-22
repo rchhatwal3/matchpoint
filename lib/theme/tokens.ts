@@ -52,6 +52,8 @@ export type ColorTokens = {
   onDangerContainer: string;
   // Misc
   scrim: string;
+  /** Text/icon over a photo scrim — always light, both themes. */
+  onScrim: string;
   skeleton: string;
 };
 
@@ -81,6 +83,7 @@ export const lightColors: ColorTokens = {
   dangerContainer: '#FFDAD5',
   onDangerContainer: '#410100',
   scrim: 'rgba(0,0,0,0.45)',
+  onScrim: '#FFFFFF',
   skeleton: '#ECECEC',
 };
 
@@ -110,6 +113,7 @@ export const darkColors: ColorTokens = {
   dangerContainer: '#8C1D14',
   onDangerContainer: '#FFDAD5',
   scrim: 'rgba(0,0,0,0.6)',
+  onScrim: '#FFFFFF',
   skeleton: '#2A2C32',
 };
 

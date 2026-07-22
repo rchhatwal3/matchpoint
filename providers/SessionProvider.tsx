@@ -17,12 +17,13 @@ import seedData from '@/data/seed.json';
  * swipes live in memory for the session. Solo — no partner, no matches.
  */
 const OFFLINE_ITEMS: Item[] = (
-  seedData as { category: string; title: string; subtitle?: string; source?: string }[]
+  seedData as { category: string; title: string; subtitle?: string; emoji?: string; source?: string }[]
 ).map((row, i) => ({
   id: `seed-${i}`,
   category: row.category as Category,
   title: row.title,
   subtitle: row.subtitle ?? null,
+  emoji: row.emoji ?? null,
   image_url: null,
   location: null,
   source: row.source ?? null,
@@ -30,7 +31,7 @@ const OFFLINE_ITEMS: Item[] = (
 
 const OFFLINE_ROOM: Room = { id: 'offline-room', code: 'OFFLNE', locations: [] };
 
-const RESTAURANT_COLUMNS = 'id, category, title, subtitle, image_url, location, source';
+const RESTAURANT_COLUMNS = 'id, category, title, subtitle, emoji, image_url, location, source';
 
 /**
  * Restaurants for one location. Tries the get-restaurants edge function
@@ -221,7 +222,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
           if (!mine?.liked) return;
           const { data: item } = await client
             .from('items')
-            .select('id, category, title, subtitle, image_url, location, source')
+            .select('id, category, title, subtitle, emoji, image_url, location, source')
             .eq('id', row.item_id)
             .maybeSingle();
           if (item) announceMatch(item as Item);
@@ -337,7 +338,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
       const { data, error } = await supabase
         .from('items')
-        .select('id, category, title, subtitle, image_url, location, source')
+        .select('id, category, title, subtitle, emoji, image_url, location, source')
         .eq('category', category);
       if (error) throw error;
       return (data ?? []) as Item[];
