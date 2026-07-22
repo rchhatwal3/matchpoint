@@ -5,7 +5,7 @@ import { useTheme } from '@/lib/theme';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
 
-const INVITE_BASE_URL = 'https://rchhatwal3.github.io/matchpoint/';
+const INVITE_BASE_URL = 'https://ramneekchhatwal.com/matchpoint/';
 
 function inviteUrl(code: string): string {
   return `${INVITE_BASE_URL}?code=${code}`;
