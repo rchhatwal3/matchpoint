@@ -15,6 +15,11 @@ const cors = {
 // this we skip the API entirely and serve what we have.
 const CACHE_TARGET = 20;
 
+// Upper bound on a city-level location string. Anything longer is not a real
+// place name — rejecting it bounds the Places query and blocks abuse via
+// oversized input.
+const MAX_LOCATION_LEN = 80;
+
 type ItemRow = {
   id: string;
   category: string;
@@ -34,7 +39,35 @@ Deno.serve(async (req) => {
       return json({ error: 'Missing location' }, 400);
     }
     const loc = location.trim();
+    if (loc.length > MAX_LOCATION_LEN) {
+      return json({ error: 'Location too long' }, 400);
+    }
     const svc = createClient(SB_URL, SB_SVC);
+
+    // Restrict to the caller's own room: only locations the pair actually saved
+    // can trigger a Places lookup. Without this, any anon user could bill the
+    // Places API for arbitrary queries (cost-abuse / financial DoS).
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    const { data: userData, error: userErr } = await svc.auth.getUser(jwt);
+    if (userErr || !userData?.user) {
+      return json({ error: 'Unauthorized' }, 401);
+    }
+    const { data: member } = await svc
+      .from('members')
+      .select('room_id')
+      .eq('id', userData.user.id)
+      .maybeSingle();
+    if (!member) return json({ error: 'No room' }, 403);
+    const { data: room } = await svc
+      .from('rooms')
+      .select('locations')
+      .eq('id', member.room_id)
+      .maybeSingle();
+    const allowed = ((room?.locations ?? []) as string[]).map((l) => l.trim().toLowerCase());
+    if (!allowed.includes(loc.toLowerCase())) {
+      return json({ error: 'Location not in your room' }, 403);
+    }
 
     // Cache-first: enough rows already stored -> return them, no API call.
     const existing = await selectRestaurants(svc, loc);
