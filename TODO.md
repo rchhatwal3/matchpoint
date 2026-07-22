@@ -6,7 +6,8 @@ Ordered by priority. Human-only steps (API keys, dashboard config, store account
 - [ ] **T16 security fixes** (audit done 2026-07-22):
   - [x] `get-restaurants`: cap `location` length (80) + restrict to caller's `room.locations`. Merged (PR #2) and **deployed live** (`supabase functions deploy get-restaurants` run 2026-07-22).
   - [ ] Enable CAPTCHA + tighten rate limits on anonymous sign-in (Supabase Auth settings → MANUAL_TODOS).
-- [ ] **T9 login** — standalone `AuthProvider` + `/account` screen. Anonymous→permanent upgrade: email `updateUser`, Google/Apple `linkIdentity` (preserve uid). Do NOT rewrite `SessionProvider`. **Enforce: email-first accounts cannot also log in via Google/Apple (no cross-provider override).** Dashboard steps (enable providers, manual-linking scope) → MANUAL_TODOS.
+- [x] **T9 login (email)** — BUILT, in review on `feat/t9-email-auth`. Passwordless email OTP: `AuthProvider` + pure `lib/auth-logic.ts` (100% cov) + `/account` screen + settings entry + additive `SessionProvider` auth listener. Upgrade keeps uid (room survives); recovery swaps uid + re-bootstraps; sign-out re-anonymizes. No cross-provider linking. Manual: enable Supabase Email provider (live test: "Signups not allowed for otp" until on) → MANUAL_TODOS.
+- [ ] **T9 login (Google + Apple)** — deferred: needs OAuth dashboard config (Google Cloud client IDs, Apple Developer capability + Services ID) wired into Supabase Auth, then `linkIdentity` paths in `AuthProvider`. Enforce no same-email auto-merge (no cross-provider override).
 
 ## Later
 - [ ] **Offline vacation photos** — `mapSeedToItems` (`lib/session-logic.ts`) hardcodes `image_url: null`, so offline demo mode ignores the `image_url` T15 added to `data/seed.json`. Online (migration 010) is fine. If offline photos are wanted, read `row.image_url` in the map (needs `SeedRow.image_url?`).

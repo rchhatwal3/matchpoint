@@ -53,6 +53,13 @@ syncs live between partners.
       places per city and upserts them into `items`. Repeat visits are cache-first
       (≥20 stored rows for a city → no API call).
 
+## T9 email auth (login) — enable before the upgrade flow works live
+
+- [ ] **Enable the Email provider**: Dashboard → Authentication → Providers → **Email** → turn ON. Keep "Confirm email" ON. Without this, `updateUser({email})` (account upgrade) and recovery sign-in fail. Verified live 2026-07-22: `signInWithOtp` currently returns **"Signups not allowed for otp"**, i.e. email OTP is not yet enabled on the project.
+- [ ] **OTP in the email templates**: Dashboard → Authentication → Email Templates → confirm the **"Confirm signup" / "Magic Link" / "Change Email Address"** templates include `{{ .Token }}` (the 6-digit code). The app's screen asks for a 6-digit code, so the template must send the token, not only `{{ .ConfirmationURL }}`.
+- [ ] **(T16b) CAPTCHA + rate limits**: Dashboard → Authentication → tighten rate limits and enable CAPTCHA — now also protects the email OTP send surface, not just anonymous sign-in.
+- [ ] **Later (when Google/Apple are added)**: confirm same-email identities do NOT auto-merge (no cross-provider override), per the product rule that an email account must not also be loginable via Google/Apple.
+
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 
 - [ ] **Expo account**: sign up / log in (`npx expo login`).
