@@ -52,3 +52,6 @@ graphify-out/cache/
 graphify-out/graph.html
 graphify-out/.graphify_*
 graphify-out/cost.json
+
+# test coverage
+coverage/

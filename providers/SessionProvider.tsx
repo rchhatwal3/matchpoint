@@ -10,25 +10,14 @@ import {
 } from 'react';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
+import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import seedData from '@/data/seed.json';
 
 /**
  * Offline dev mode (no Supabase env): seed items get stable local ids and
  * swipes live in memory for the session. Solo — no partner, no matches.
  */
-const OFFLINE_ITEMS: Item[] = (
-  seedData as { category: string; title: string; subtitle?: string; emoji?: string; source?: string }[]
-).map((row, i) => ({
-  id: `seed-${i}`,
-  category: row.category as Category,
-  title: row.title,
-  subtitle: row.subtitle ?? null,
-  emoji: row.emoji ?? null,
-  image_url: null,
-  location: null,
-  source: row.source ?? null,
-  price_level: null,
-}));
+const OFFLINE_ITEMS: Item[] = mapSeedToItems(seedData as SeedRow[]);
 
 const OFFLINE_ROOM: Room = { id: 'offline-room', code: 'OFFLNE', locations: [] };
 
@@ -98,7 +87,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const seenMatchIds = useRef<Set<string>>(new Set());
 
   const announceMatch = useCallback((item: Item) => {
-    if (seenMatchIds.current.has(item.id)) return;
+    if (!isNewMatch(seenMatchIds.current, item.id)) return;
     seenMatchIds.current.add(item.id);
     setPendingMatch(item);
   }, []);

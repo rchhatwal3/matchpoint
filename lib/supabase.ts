@@ -15,6 +15,7 @@ const KEY_PREFIX = 'sb-';
 const cleanKey = (k: string) => KEY_PREFIX + k.replace(/[^a-zA-Z0-9._-]/g, '_');
 
 /** Native: expo-secure-store, namespaced with the sb- prefix. */
+/* istanbul ignore next -- platform storage glue, exercised on-device not in jsdom */
 const secureStoreAdapter = {
   getItem: (k: string) => SecureStore.getItemAsync(cleanKey(k)),
   setItem: (k: string, v: string) => SecureStore.setItemAsync(cleanKey(k), v),
@@ -22,6 +23,7 @@ const secureStoreAdapter = {
 };
 
 /** Web: localStorage, guarded for static (no-window) render passes. */
+/* istanbul ignore next -- platform storage glue, exercised in a real browser not jsdom */
 const webStorageAdapter = {
   getItem: async (k: string) =>
     typeof window !== 'undefined' ? window.localStorage.getItem(k) : null,
@@ -46,6 +48,7 @@ export const supabase: SupabaseClient | null = supabaseEnabled
   : null;
 
 // Auto-refresh tied to app foreground/background — native only.
+/* istanbul ignore next -- native AppState wiring, no-ops under the web test env */
 if (supabase && Platform.OS !== 'web') {
   AppState.addEventListener('change', (state) => {
     if (state === 'active') supabase.auth.startAutoRefresh();
