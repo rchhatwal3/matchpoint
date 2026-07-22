@@ -217,9 +217,11 @@ export default function SwipeDeck() {
 
 const styles = StyleSheet.create({
   deckArea: { flex: 1, justifyContent: 'center' },
-  // Portrait lock: the deck never stretches landscape at any viewport.
-  cardStack: { width: '100%', maxWidth: 400, aspectRatio: 0.62, alignSelf: 'center' },
-  skeletonCard: { width: '100%', maxWidth: 400, aspectRatio: 0.62, alignSelf: 'center' },
+  // Fill the space the layout gives us (never the fixed 645px an aspect ratio
+  // forced), so the card can't overflow into the action buttons or push the
+  // header off a short web viewport. maxHeight keeps it portrait on tall screens.
+  cardStack: { flex: 1, width: '100%', maxWidth: 400, maxHeight: 645, alignSelf: 'center' },
+  skeletonCard: { flex: 1, width: '100%', maxWidth: 400, maxHeight: 645, alignSelf: 'center' },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
