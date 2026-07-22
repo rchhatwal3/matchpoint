@@ -4,13 +4,13 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 
 ## MVP1 — live website (blocks full functionality, site runs in offline demo mode without these)
 
-- [ ] **Create Supabase project** at supabase.com (org: same as recipe-pantry-app). Region: us-east.
-- [ ] **Enable anonymous sign-in**: Dashboard → Authentication → Sign In / Up → enable "Anonymous sign-ins".
-- [ ] **Run migrations** in order via SQL Editor: `supabase/migrations/001_schema.sql`, `002_rls.sql`, `003_rpc.sql` (or `supabase db push` with the CLI).
-- [ ] **Seed items**: run `supabase/seed.sql` in SQL Editor.
-- [ ] **Repo secrets** (GitHub → matchpoint → Settings → Secrets and variables → Actions): add `EXPO_PUBLIC_SUPABASE_URL` (Project URL) and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (anon public key). NEVER the service_role key.
-- [ ] **Enable GitHub Pages**: repo Settings → Pages → Source: Deploy from a branch → `gh-pages` / root. (Branch appears after first successful deploy workflow run on `main`.)
-- [ ] **Local dev env**: copy `.env.example` → `.env`, fill both values.
+- [x] **Create Supabase project** at supabase.com (org: same as recipe-pantry-app). Region: us-east.
+- [x] **Enable anonymous sign-in**: Dashboard → Authentication → Sign In / Up → enable "Anonymous sign-ins".
+- [x] **Run migrations** in order via SQL Editor: `supabase/migrations/001_schema.sql`, `002_rls.sql`, `003_rpc.sql` (or `supabase db push` with the CLI).
+- [x] **Seed items**: run `supabase/seed.sql` in SQL Editor.
+- [x] **Repo secrets** (GitHub → matchpoint → Settings → Secrets and variables → Actions): add `EXPO_PUBLIC_SUPABASE_URL` (Project URL) and `EXPO_PUBLIC_SUPABASE_ANON_KEY` (anon public key). NEVER the service_role key.
+- [x] **Enable GitHub Pages**: repo Settings → Pages → Source: Deploy from a branch → `gh-pages` / root. (Branch appears after first successful deploy workflow run on `main`.)
+- [x] **Local dev env**: copy `.env.example` → `.env`, fill both values.
 
 ## Restaurants category (T7 — optional until you want location-based decks)
 
@@ -23,6 +23,11 @@ syncs live between partners.
 - [ ] **Realtime for rooms** (needed for live location sync): run
       `supabase/migrations/006_realtime_rooms.sql` in the SQL Editor (adds the
       `rooms` table to the `supabase_realtime` publication). Only needs to run once.
+- [ ] **Service-role grants** (REQUIRED — the edge function fails without it): run
+      `supabase/migrations/007_service_role_grants.sql` in the SQL Editor. Grants the
+      `service_role` (which the function runs as) SELECT/INSERT on `items`. On projects
+      without default blanket grants, the function 500s with "permission denied for
+      table items" until this runs.
 - [ ] **Places API key**: Google Cloud project → enable **Places API (New)** →
       create an API key. Restrict it to the Places API (server-side key; it lives
       only as a Supabase secret, never in the app).

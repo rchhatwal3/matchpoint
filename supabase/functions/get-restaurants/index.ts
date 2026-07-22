@@ -69,7 +69,13 @@ Deno.serve(async (req) => {
     return json({ items });
   } catch (e) {
     console.error(e);
-    return json({ error: String(e) }, 500);
+    const msg =
+      e instanceof Error
+        ? e.message
+        : e && typeof e === 'object'
+          ? JSON.stringify(e)
+          : String(e);
+    return json({ error: msg }, 500);
   }
 });
 
