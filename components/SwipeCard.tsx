@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
-import { Image, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -143,7 +144,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
           <Image
             source={{ uri: item.image_url as string }}
             style={styles.panel}
-            resizeMode="cover"
+            contentFit="cover"
             onError={() => setImgFailed(true)}
             accessibilityElementsHidden
           />

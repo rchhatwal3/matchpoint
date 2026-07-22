@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSharedValue } from 'react-native-reanimated';
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
-import { filterDeck } from '@/lib/deck';
+import { filterDeck, upcomingImageUrls } from '@/lib/deck';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
@@ -65,6 +66,14 @@ export default function SwipeDeck() {
 
   const current = visible?.[0] ?? null;
   const next = visible?.[1] ?? null;
+
+  // Warm the cards beyond the two already mounted (top + next) so they paint
+  // from cache when they reach the top. Keyed on the top card's id.
+  useEffect(() => {
+    if (!visible) return;
+    const urls = upcomingImageUrls(visible, 2, 3);
+    if (urls.length) void Image.prefetch(urls).catch(() => {});
+  }, [visible, current?.id]);
 
   const handleSwiped = useCallback(
     (item: Item) => (liked: boolean) => {
