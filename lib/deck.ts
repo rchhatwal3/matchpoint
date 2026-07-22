@@ -17,3 +17,16 @@ export function filterDeck(
       (!isRestaurants || i.price_level == null || priceLevels.has(i.price_level)),
   );
 }
+
+/**
+ * Up to `count` non-null image_urls starting at `startIndex` — the photos to
+ * prefetch so cards paint from cache by the time they reach the top. Pure.
+ */
+export function upcomingImageUrls(items: Item[], startIndex: number, count: number): string[] {
+  const urls: string[] = [];
+  for (let i = startIndex; i < items.length && urls.length < count; i++) {
+    const url = items[i].image_url;
+    if (url) urls.push(url);
+  }
+  return urls;
+}
