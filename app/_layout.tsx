@@ -9,6 +9,7 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { Fraunces_600SemiBold, Fraunces_700Bold } from '@expo-google-fonts/fraunces';
 import { Figtree_400Regular, Figtree_600SemiBold } from '@expo-google-fonts/figtree';
 import { ThemeProvider, useTheme } from '@/lib/theme';
+import { AuthProvider } from '@/providers/AuthProvider';
 import { SessionProvider } from '@/providers/SessionProvider';
 import { MatchOverlay } from '@/components/MatchOverlay';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -69,9 +70,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <SafeAreaProvider>
-          <SessionProvider>
-            <ThemedApp />
-          </SessionProvider>
+          <AuthProvider>
+            <SessionProvider>
+              <ThemedApp />
+            </SessionProvider>
+          </AuthProvider>
         </SafeAreaProvider>
       </ThemeProvider>
     </GestureHandlerRootView>

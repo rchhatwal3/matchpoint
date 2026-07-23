@@ -92,6 +92,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setPendingMatch(item);
   }, []);
 
+  // ---- Load member/room/partner for a signed-in user id ----
+  const loadForUser = useCallback(async (userId: string) => {
+    const client = supabase!;
+    setUserId(userId);
+    const { data: me } = await client
+      .from('members')
+      .select('id, room_id, display_name, joined_at')
+      .eq('id', userId)
+      .maybeSingle();
+    if (!me) {
+      setMember(null);
+      setRoom(null);
+      setPartner(null);
+      return;
+    }
+    setMember(me as Member);
+    const [{ data: r }, { data: others }] = await Promise.all([
+      client
+        .from('rooms')
+        .select('id, code, locations, created_at')
+        .eq('id', me.room_id)
+        .maybeSingle(),
+      client
+        .from('members')
+        .select('id, room_id, display_name, joined_at')
+        .eq('room_id', me.room_id)
+        .neq('id', userId),
+    ]);
+    if (r) setRoom(r as Room);
+    else setRoom(null);
+    setPartner(others && others.length > 0 ? (others[0] as Member) : null);
+  }, []);
+
   // ---- Bootstrap: anonymous session + existing member/room/partner ----
   useEffect(() => {
     if (!supabaseEnabled || !supabase) {
@@ -101,52 +134,51 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return;
     }
     const client = supabase;
-    let cancelled = false;
     (async () => {
       try {
-        const { data: sessionData } = await client.auth.getSession();
-        let user = sessionData.session?.user ?? null;
-        if (!user) {
-          const { data, error } = await client.auth.signInAnonymously();
+        const { data } = await client.auth.getSession();
+        if (!data.session) {
+          const { error } = await client.auth.signInAnonymously();
           if (error) throw error;
-          user = data.user;
         }
-        if (cancelled || !user) return;
-        setUserId(user.id);
-
-        const { data: me } = await client
-          .from('members')
-          .select('id, room_id, display_name, joined_at')
-          .eq('id', user.id)
-          .maybeSingle();
-        if (cancelled || !me) return;
-        setMember(me as Member);
-
-        const [{ data: r }, { data: others }] = await Promise.all([
-          client
-            .from('rooms')
-            .select('id, code, locations, created_at')
-            .eq('id', me.room_id)
-            .maybeSingle(),
-          client
-            .from('members')
-            .select('id, room_id, display_name, joined_at')
-            .eq('room_id', me.room_id)
-            .neq('id', user.id),
-        ]);
-        if (cancelled) return;
-        if (r) setRoom(r as Room);
-        if (others && others.length > 0) setPartner(others[0] as Member);
+        // Loading (member/room/partner) is done by the auth-state listener
+        // below, which fires INITIAL_SESSION for an existing session and
+        // SIGNED_IN after signInAnonymously — so it runs exactly once per uid.
       } catch (e) {
         console.warn('session bootstrap failed', e);
-      } finally {
-        if (!cancelled) setLoading(false);
+        setLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  // ---- React to auth changes: listener owns room loading per uid ----
+  useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
+    const { data: sub } = client.auth.onAuthStateChange((event, session) => {
+      const nextId = session?.user?.id ?? null;
+      if (!nextId) {
+        // INITIAL_SESSION with no session: the mount effect signs in anon.
+        // A real sign-out must return the app to a working anon session.
+        if (event === 'SIGNED_OUT') {
+          client.auth
+            .signInAnonymously()
+            .catch((e) => console.warn('re-anonymize after sign-out failed', e));
+        }
+        return;
+      }
+      setUserId((prev) => {
+        if (prev === nextId) return prev; // same uid (email upgrade / token refresh): no-op
+        setRoom(null);
+        setMember(null);
+        setPartner(null);
+        seenMatchIds.current.clear();
+        void loadForUser(nextId).finally(() => setLoading(false));
+        return nextId;
+      });
+    });
+    return () => sub.subscription.unsubscribe();
+  }, [loadForUser]);
 
   // ---- Realtime: partner joins the room ----
   useEffect(() => {

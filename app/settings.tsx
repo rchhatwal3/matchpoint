@@ -152,6 +152,15 @@ export default function Settings() {
             ))}
           </View>
         </View>
+
+        <View style={{ gap: spacing.md }}>
+          <Text variant="title">Account</Text>
+          <Button
+            label="Manage account"
+            variant="outlined"
+            onPress={() => router.push('/account')}
+          />
+        </View>
       </ScrollView>
     </Screen>
   );

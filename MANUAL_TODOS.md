@@ -53,6 +53,20 @@ syncs live between partners.
       places per city and upserts them into `items`. Repeat visits are cache-first
       (≥20 stored rows for a city → no API call).
 
+## T9 email auth (login) — enable before the upgrade flow works live
+
+- [x] **Enable the Email provider**: Dashboard → Authentication → Providers → **Email** → turn ON. Keep "Confirm email" ON. Without this, `updateUser({email})` (account upgrade) and recovery sign-in fail. Now ON — email OTP verified live end-to-end 2026-07-23.
+- [x] **Custom SMTP (REQUIRED for real delivery — do this BEFORE the templates step)** — DONE 2026-07-23 via **Resend**, sender `no-reply@ramneekchhatwal.com` (root domain, verified). The built-in Supabase email service sends only **2/hour and only to pre-authorized team members**, so custom SMTP is required for real users.
+  1. Resend account → verify a sending domain you own (`ramneekchhatwal.com`) via the SPF/DKIM DNS records Resend provides. (Quick test only: `onboarding@resend.dev` sends solely to your own account email.)
+  2. Resend → API Keys → create one (`re_...`).
+  3. Dashboard → Authentication → Emails → **SMTP Settings** → enable Custom SMTP: Host `smtp.resend.com`, Port `465` (SSL) or `587` (STARTTLS), Username `resend`, Password = the `re_...` API key, Sender `no-reply@ramneekchhatwal.com`, Sender name `matchpoint`. Save. (No auto "connector" — SMTP is entered manually.)
+  4. Bump the send ceiling: Authentication → Rate Limits → email (custom-SMTP baseline ~30/hr).
+- [x] **OTP in the email templates** — DONE 2026-07-23, delivered a real 6-digit code verified end-to-end. Dashboard → Authentication → Email Templates. Masters live in `docs/email-templates/` — **Magic Link** ← `magic-link.html` (sign-in), **Change Email Address** ← `change-email.html` (upgrade), optionally **Confirm signup** ← `magic-link.html`. Each MUST include `{{ .Token }}` — default templates ship only `{{ .ConfirmationURL }}` (a link), and the app reads the typed code, never a link. See `docs/email-templates/README.md`.
+- [x] **Email OTP Length = 6 (REQUIRED — must match the app)**: Dashboard → Authentication → Providers → **Email** → **Email OTP Length** must be **6**. The app hardcodes a 6-digit code (`lib/auth-logic.ts` `isValidCode` = `/^\d{6}$/`, `app/account.tsx` `maxLength={6}`); a longer setting emits codes the app can never verify. Found live 2026-07-23 (project was set to 8 → corrected to 6). Do NOT change this without also updating the app.
+- [ ] **(T16b) CAPTCHA + rate limits**: Dashboard → Authentication → tighten rate limits and enable CAPTCHA — now also protects the email OTP send surface, not just anonymous sign-in.
+- [ ] **Later (when Google/Apple are added)**: confirm same-email identities do NOT auto-merge (no cross-provider override), per the product rule that an email account must not also be loginable via Google/Apple.
+- [ ] **Session TTL — verify only, no bounding** (decision doc: `docs/session-ttl-research.md`): Dashboard → Authentication → Sessions — confirm refresh-token rotation + reuse detection are ON (Supabase default) and access-token expiry stays 1 hour. Leave "Time-box user sessions" and "Inactivity timeout" UNSET (Pro-plan-only anyway). Do NOT bound the anonymous session: room membership is tied to the anon UID, so an expired anon session = permanently lost room. No `lib/supabase.ts` change.
+
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 
 - [ ] **Expo account**: sign up / log in (`npx expo login`).

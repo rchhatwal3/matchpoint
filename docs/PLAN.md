@@ -139,6 +139,10 @@ Keep anonymous-first onboarding; add optional account upgrade. Supabase Auth (no
 
 Manual steps (add to MANUAL_TODOS at T9 time): Google Cloud OAuth client IDs (iOS/Android/web), Apple Developer Sign-in-with-Apple capability + Services ID, both configured in Supabase Auth providers dashboard. Unlocks: push notifications for matches, multi-device sync, room recovery. Alternative considered: Clerk (prebuilt UI, Supabase third-party-auth support) — rejected to avoid second vendor + RLS rewiring.
 
+**Open follow-ups (surfaced 2026-07-22 during email-auth build, see TODO.md):**
+- **Session TTL policy** — current default is 1h access-token JWT + indefinite auto-refreshed session (`autoRefreshToken`/`persistSession` in `lib/supabase.ts`), so a device stays logged in until sign-out. User wants to weigh a *bounded* session (time-boxed max length + inactivity timeout). Dispatch a research agent to survey best practices for a passwordless, low-sensitivity, anonymous-first couples app and recommend a concrete setting; the policy is a Supabase dashboard toggle (`Time-box user sessions` / `Inactivity timeout` / refresh-token rotation), not app code → MANUAL_TODOS. Applies to both the anonymous and the permanent session.
+- **Lost-email recovery** — passwordless email OTP means a permanent account is *unrecoverable* if the user loses email access and has no live device session (no password fallback by design). Decide a fallback before promoting email auth as "your account is safe": one-time recovery codes at upgrade, a second linked email, Google/Apple as an alternate factor (needs an explicit carve-out from the "no cross-provider override" rule), or accept-the-risk-for-MVP with an explicit warning on the /account upgrade screen. Add the upgrade-screen warning regardless.
+
 ## Final: Verification sweep (orchestrator)
 
 1. `npm run typecheck && npm run lint && npx expo export --platform web` all clean
