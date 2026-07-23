@@ -1,0 +1,26 @@
+<!--
+  Supabase Auth → Email Templates → "Magic Link"
+  Flow: sign-in / restore account (app calls signInWithOtp, verifyOtp type 'email').
+  Subject: Your matchpoint sign-in code
+  Load-bearing: {{ .Token }} (the 6-digit OTP). Do NOT rely on {{ .ConfirmationURL }} —
+  the app reads the typed code, never opens a link.
+-->
+<div style="margin:0;padding:0;background:#f7f7f8;">
+  <div style="max-width:440px;margin:0 auto;padding:40px 24px;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;color:#17181c;">
+    <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;letter-spacing:-0.02em;color:#C2314F;margin-bottom:6px;">
+      matchpoint
+    </div>
+    <h1 style="font-family:Georgia,serif;font-size:20px;font-weight:600;margin:20px 0 8px;">Sign back in</h1>
+    <p style="font-size:15px;line-height:1.5;color:#5c5f66;margin:0 0 24px;">
+      Enter this code in the app to restore your room and matches on this device.
+    </p>
+    <div style="background:#ffffff;border:1px solid #e6e6ea;border-radius:14px;padding:22px;text-align:center;">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:34px;font-weight:800;letter-spacing:8px;color:#17181c;">
+        {{ .Token }}
+      </div>
+    </div>
+    <p style="font-size:13px;line-height:1.5;color:#5c5f66;margin:22px 0 0;">
+      This code expires in 1 hour. If you didn't try to sign in, ignore this email — nothing changes.
+    </p>
+  </div>
+</div>

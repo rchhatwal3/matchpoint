@@ -1,0 +1,27 @@
+<!--
+  Supabase Auth → Email Templates → "Change Email Address"
+  Flow: account upgrade anonymous → permanent (app calls updateUser({email}),
+  verifyOtp type 'email_change').
+  Subject: Confirm your email to save your matchpoint account
+  Load-bearing: {{ .Token }} (the 6-digit OTP). If {{ .Email }} renders blank in the
+  dashboard preview, swap it for {{ .NewEmail }}.
+-->
+<div style="margin:0;padding:0;background:#f7f7f8;">
+  <div style="max-width:440px;margin:0 auto;padding:40px 24px;font-family:-apple-system,'Segoe UI',Roboto,sans-serif;color:#17181c;">
+    <div style="font-family:Georgia,'Times New Roman',serif;font-size:24px;font-weight:700;letter-spacing:-0.02em;color:#C2314F;margin-bottom:6px;">
+      matchpoint
+    </div>
+    <h1 style="font-family:Georgia,serif;font-size:20px;font-weight:600;margin:20px 0 8px;">Save your account</h1>
+    <p style="font-size:15px;line-height:1.5;color:#5c5f66;margin:0 0 24px;">
+      Enter this code in the app to link <strong style="color:#17181c;">{{ .Email }}</strong> to your account so you never lose your room and matches.
+    </p>
+    <div style="background:#ffffff;border:1px solid #e6e6ea;border-radius:14px;padding:22px;text-align:center;">
+      <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:34px;font-weight:800;letter-spacing:8px;color:#17181c;">
+        {{ .Token }}
+      </div>
+    </div>
+    <p style="font-size:13px;line-height:1.5;color:#5c5f66;margin:22px 0 0;">
+      This code expires in 1 hour. Keep this email safe — it's currently the only way to recover your account.
+    </p>
+  </div>
+</div>
