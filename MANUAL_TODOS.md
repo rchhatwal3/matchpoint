@@ -59,6 +59,7 @@ syncs live between partners.
 - [ ] **OTP in the email templates**: Dashboard → Authentication → Email Templates → confirm the **"Confirm signup" / "Magic Link" / "Change Email Address"** templates include `{{ .Token }}` (the 6-digit code). The app's screen asks for a 6-digit code, so the template must send the token, not only `{{ .ConfirmationURL }}`.
 - [ ] **(T16b) CAPTCHA + rate limits**: Dashboard → Authentication → tighten rate limits and enable CAPTCHA — now also protects the email OTP send surface, not just anonymous sign-in.
 - [ ] **Later (when Google/Apple are added)**: confirm same-email identities do NOT auto-merge (no cross-provider override), per the product rule that an email account must not also be loginable via Google/Apple.
+- [ ] **Session TTL — verify only, no bounding** (decision doc: `docs/session-ttl-research.md`): Dashboard → Authentication → Sessions — confirm refresh-token rotation + reuse detection are ON (Supabase default) and access-token expiry stays 1 hour. Leave "Time-box user sessions" and "Inactivity timeout" UNSET (Pro-plan-only anyway). Do NOT bound the anonymous session: room membership is tied to the anon UID, so an expired anon session = permanently lost room. No `lib/supabase.ts` change.
 
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 
