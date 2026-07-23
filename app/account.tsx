@@ -110,6 +110,20 @@ export default function Account() {
                 ? 'Add your email to save your account so you never lose your room and matches.'
                 : 'Sign in with the email you saved to restore your room on this device.'}
             </Text>
+            {mode === 'upgrade' ? (
+              <View
+                style={{
+                  backgroundColor: colors.surface,
+                  borderRadius: radii.md,
+                  padding: spacing.md,
+                }}
+              >
+                <Text variant="body" color={colors.inkMuted}>
+                  Your email is the only key to this account. If you lose access to it, your room
+                  and matches can&apos;t be recovered yet.
+                </Text>
+              </View>
+            ) : null}
             <TextInput
               style={inputStyle}
               value={emailInput}
