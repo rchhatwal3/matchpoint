@@ -15,7 +15,7 @@ Two problems, one home:
 Second defect: the filter set is **ephemeral** — re-initialized to all-tiers-on every time the deck mounts ([app/swipe/[category].tsx:29](../../app/swipe/%5Bcategory%5D.tsx)). Even when it works, the choice never sticks.
 
 **Diagnose first (don't guess):**
-1. Live DB: `SELECT price_level, count(*) FROM items WHERE category='restaurants' GROUP BY price_level;` — measure the null share.
+1. Live DB: `SELECT price_level, count(*) FROM items WHERE category='restaurants' GROUP BY price_level;` — measure the null share. **DONE 2026-07-24 (REST probe, anon session):** 80 restaurant rows — `null`=50 (62%), `1`=1, `2`=17, `3`=10, `4`=2. Hypothesis confirmed: nulls dominate, so the always-pass rule keeps 62% of the deck visible regardless of tier selection → filter reads as dead. "Unpriced" toggle is warranted.
 2. Spot-check that `get-restaurants` stores non-null for places Google *does* price.
 
 **Fix approach (depends on the data):**
