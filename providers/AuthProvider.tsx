@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import { normalizeEmail } from '@/lib/auth-logic';
+import { normalizeCode } from '@/lib/recovery-logic';
 
 type AuthValue = {
   email: string | null;
@@ -18,6 +19,9 @@ type AuthValue = {
   sendSignInCode: (email: string) => Promise<void>;
   verifyCode: (email: string, token: string, mode: 'email_change' | 'email') => Promise<void>;
   signOut: () => Promise<void>;
+  issueRecoveryCodes: () => Promise<string[]>;
+  redeemRecoveryCode: (email: string, code: string) => Promise<void>;
+  codesRemaining: () => Promise<number>;
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
@@ -75,6 +79,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   }, []);
 
+  // Issue a fresh set of recovery codes for the permanent user (JWT-gated edge
+  // function). Returns the plaintext codes to show once; regenerating voids the
+  // prior set.
+  const issueRecoveryCodes = useCallback(async () => {
+    if (!supabase) throw new Error('Auth unavailable offline');
+    const { data, error } = await supabase.functions.invoke('issue-recovery-codes');
+    if (error) throw error;
+    return (data?.codes ?? []) as string[];
+  }, []);
+
+  // Recover a locked-out account with only email + a saved code: the edge
+  // function returns a magic-link token_hash, which verifyOtp exchanges for a
+  // session (same uid -> the SessionProvider auth listener reloads the room).
+  const redeemRecoveryCode = useCallback(async (rawEmail: string, rawCode: string) => {
+    if (!supabase) throw new Error('Auth unavailable offline');
+    const { data, error } = await supabase.functions.invoke('redeem-recovery-code', {
+      body: { email: normalizeEmail(rawEmail), code: normalizeCode(rawCode) },
+    });
+    if (error) throw error;
+    const tokenHash = data?.token_hash as string | undefined;
+    if (!tokenHash) throw new Error(data?.error ?? 'Recovery failed. Check your email and code.');
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: 'magiclink',
+    });
+    if (verifyErr) throw verifyErr;
+  }, []);
+
+  // How many unused recovery codes the permanent user has left.
+  const codesRemaining = useCallback(async () => {
+    if (!supabase) return 0;
+    const { data, error } = await supabase.rpc('recovery_codes_remaining');
+    if (error) throw error;
+    return (data ?? 0) as number;
+  }, []);
+
   const value = useMemo<AuthValue>(
     () => ({
       email,
@@ -84,8 +124,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sendSignInCode,
       verifyCode,
       signOut,
+      issueRecoveryCodes,
+      redeemRecoveryCode,
+      codesRemaining,
     }),
-    [email, isAnonymous, sendUpgradeCode, sendSignInCode, verifyCode, signOut],
+    [
+      email,
+      isAnonymous,
+      sendUpgradeCode,
+      sendSignInCode,
+      verifyCode,
+      signOut,
+      issueRecoveryCodes,
+      redeemRecoveryCode,
+      codesRemaining,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
