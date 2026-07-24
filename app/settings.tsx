@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Redirect, useRouter } from 'expo-router';
+import { useState, type ReactNode } from 'react';
+import { useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
@@ -8,6 +8,7 @@ import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { LocationChip } from '@/components/LocationChip';
+import { ThemeControl } from '@/components/ThemeControl';
 
 /** Curated popular US metros for the quick-pick list. Free text covers the rest. */
 const POPULAR_METROS = [
@@ -38,13 +39,22 @@ const POPULAR_METROS = [
   'Honolulu, HI',
 ];
 
+/** Title + content wrapper shared by every settings section. */
+function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
+  const { spacing } = useTheme();
+  return (
+    <View style={{ gap: spacing.md }}>
+      <Text variant="title">{title}</Text>
+      {children}
+    </View>
+  );
+}
+
 export default function Settings() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
   const { loading, room, updateLocations } = useSession();
   const [draft, setDraft] = useState('');
-
-  if (!loading && !room) return <Redirect href="/" />;
 
   const selected = room?.locations ?? [];
   const selectedKeys = new Set(selected.map((l) => l.toLowerCase()));
@@ -72,95 +82,122 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Header title="Locations" onBack={() => router.back()} />
+      <Header title="Settings" onBack={() => router.back()} />
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
-        <View style={{ gap: spacing.xs }}>
-          <Text variant="body" color={colors.inkMuted}>
-            Pick the cities you two live in or would travel to. Restaurants are suggested from these.
-          </Text>
-          {/* Partner-visible note — both members share and can edit this list. */}
-          <View
-            style={[
-              styles.note,
-              {
-                backgroundColor: colors.secondaryContainer,
-                borderRadius: radii.md,
-                padding: spacing.md,
-              },
-            ]}
-          >
-            <Text variant="label" color={colors.onSecondaryContainer}>
-              Both of you share this list — either can edit, and changes sync live.
-            </Text>
-          </View>
-        </View>
+        <SettingsSection title="Appearance">
+          <ThemeControl />
+        </SettingsSection>
 
-        {/* Your locations — removable chips */}
-        <View style={{ gap: spacing.md }}>
-          <Text variant="title">Your locations</Text>
-          {selected.length > 0 ? (
-            <View style={[styles.chipRow, { gap: spacing.sm }]}>
-              {selected.map((loc) => (
-                <LocationChip key={loc} label={loc} selected onRemove={() => remove(loc)} />
-              ))}
-            </View>
-          ) : (
-            <Text variant="body" color={colors.inkMuted}>
-              No locations yet. Add one below or pick from the list.
-            </Text>
-          )}
-        </View>
-
-        {/* Free-text add */}
-        <View style={{ gap: spacing.sm }}>
-          <Text variant="label">Add a city</Text>
-          <View style={[styles.addRow, { gap: spacing.sm }]}>
-            <TextInput
-              accessibilityLabel="Add a city"
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={addDraft}
-              returnKeyType="done"
-              placeholder="e.g. Brooklyn, NY"
-              placeholderTextColor={colors.inkMuted}
-              style={[
-                styles.input,
-                {
-                  backgroundColor: colors.surface,
-                  color: colors.ink,
-                  borderRadius: radii.md,
-                  borderColor: colors.outline,
-                  paddingHorizontal: spacing.lg,
-                },
-              ]}
-            />
-            <Button label="Add" variant="tonal" onPress={addDraft} disabled={!draft.trim()} />
-          </View>
-        </View>
-
-        {/* Popular metros — toggle chips */}
-        <View style={{ gap: spacing.md }}>
-          <Text variant="title">Popular metros</Text>
-          <View style={[styles.chipRow, { gap: spacing.sm }]}>
-            {POPULAR_METROS.map((metro) => (
-              <LocationChip
-                key={metro}
-                label={metro}
-                selected={selectedKeys.has(metro.toLowerCase())}
-                onPress={() => toggle(metro)}
-              />
-            ))}
-          </View>
-        </View>
-
-        <View style={{ gap: spacing.md }}>
-          <Text variant="title">Account</Text>
+        <SettingsSection title="Account">
           <Button
             label="Manage account"
             variant="outlined"
             onPress={() => router.push('/account')}
           />
-        </View>
+        </SettingsSection>
+
+        <SettingsSection title="Shared with your partner">
+          {room ? (
+            <View style={{ gap: spacing['3xl'] }}>
+              <View style={{ gap: spacing.xs }}>
+                <Text variant="body" color={colors.inkMuted}>
+                  Pick the cities you two live in or would travel to. Restaurants are suggested from these.
+                </Text>
+                {/* Partner-visible note — both members share and can edit this list. */}
+                <View
+                  style={[
+                    styles.note,
+                    {
+                      backgroundColor: colors.secondaryContainer,
+                      borderRadius: radii.md,
+                      padding: spacing.md,
+                    },
+                  ]}
+                >
+                  <Text variant="label" color={colors.onSecondaryContainer}>
+                    Both of you share this list — either can edit, and changes sync live.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Your locations — removable chips */}
+              <View style={{ gap: spacing.md }}>
+                <Text variant="title">Your locations</Text>
+                {selected.length > 0 ? (
+                  <View style={[styles.chipRow, { gap: spacing.sm }]}>
+                    {selected.map((loc) => (
+                      <LocationChip key={loc} label={loc} selected onRemove={() => remove(loc)} />
+                    ))}
+                  </View>
+                ) : (
+                  <Text variant="body" color={colors.inkMuted}>
+                    No locations yet. Add one below or pick from the list.
+                  </Text>
+                )}
+              </View>
+
+              {/* Free-text add */}
+              <View style={{ gap: spacing.sm }}>
+                <Text variant="label">Add a city</Text>
+                <View style={[styles.addRow, { gap: spacing.sm }]}>
+                  <TextInput
+                    accessibilityLabel="Add a city"
+                    value={draft}
+                    onChangeText={setDraft}
+                    onSubmitEditing={addDraft}
+                    returnKeyType="done"
+                    placeholder="e.g. Brooklyn, NY"
+                    placeholderTextColor={colors.inkMuted}
+                    style={[
+                      styles.input,
+                      {
+                        backgroundColor: colors.surface,
+                        color: colors.ink,
+                        borderRadius: radii.md,
+                        borderColor: colors.outline,
+                        paddingHorizontal: spacing.lg,
+                      },
+                    ]}
+                  />
+                  <Button label="Add" variant="tonal" onPress={addDraft} disabled={!draft.trim()} />
+                </View>
+              </View>
+
+              {/* Popular metros — toggle chips */}
+              <View style={{ gap: spacing.md }}>
+                <Text variant="title">Popular metros</Text>
+                <View style={[styles.chipRow, { gap: spacing.sm }]}>
+                  {POPULAR_METROS.map((metro) => (
+                    <LocationChip
+                      key={metro}
+                      label={metro}
+                      selected={selectedKeys.has(metro.toLowerCase())}
+                      onPress={() => toggle(metro)}
+                    />
+                  ))}
+                </View>
+              </View>
+            </View>
+          ) : !loading ? (
+            <Text variant="body" color={colors.inkMuted}>
+              Join or create a room to set locations.
+            </Text>
+          ) : null}
+        </SettingsSection>
+
+        <SettingsSection title="Notifications">
+          <View
+            style={[
+              styles.stubRow,
+              { backgroundColor: colors.surface, borderRadius: radii.md, padding: spacing.md },
+            ]}
+          >
+            <Text variant="body">Match alerts</Text>
+            <Text variant="label" color={colors.inkMuted}>
+              Coming soon
+            </Text>
+          </View>
+        </SettingsSection>
       </ScrollView>
     </Screen>
   );
@@ -176,5 +213,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Figtree_400Regular',
     borderWidth: 1,
+  },
+  stubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    opacity: 0.5,
   },
 });
