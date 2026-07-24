@@ -7,11 +7,12 @@ import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
 import { filterDeck, upcomingImageUrls } from '@/lib/deck';
+import { usePriceLevels } from '@/lib/usePriceLevels';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
-import { PriceFilter, PRICE_LEVELS } from '@/components/PriceFilter';
+import { PriceFilter } from '@/components/PriceFilter';
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard';
 
 export default function SwipeDeck() {
@@ -25,8 +26,8 @@ export default function SwipeDeck() {
   // Ids swiped this session — items drop out of the deck view once swiped, so a
   // price-filter toggle never resurfaces them (an index cursor couldn't do that).
   const [swiped, setSwiped] = useState<Set<string>>(new Set());
-  // Restaurants only: selected price tiers, all on by default.
-  const [priceLevels, setPriceLevels] = useState<Set<number>>(new Set(PRICE_LEVELS));
+  // Restaurants only: persisted price-tier selection (survives deck revisits).
+  const { priceLevels, toggle: togglePrice } = usePriceLevels();
   const translateX = useSharedValue(0);
   const topCardRef = useRef<SwipeCardHandle>(null);
 
@@ -45,7 +46,6 @@ export default function SwipeDeck() {
         if (cancelled) return;
         setDeck(items.filter((i) => !alreadySwiped.has(i.id)));
         setSwiped(new Set());
-        setPriceLevels(new Set(PRICE_LEVELS));
       } catch (e) {
         console.warn('deck load failed', e);
         if (!cancelled) setDeck([]);
@@ -82,15 +82,6 @@ export default function SwipeDeck() {
     },
     [recordSwipe],
   );
-
-  const togglePrice = useCallback((level: number) => {
-    setPriceLevels((prev) => {
-      const next = new Set(prev);
-      if (next.has(level)) next.delete(level);
-      else next.add(level);
-      return next;
-    });
-  }, []);
 
   if (!valid) return <Redirect href="/lobby" />;
   if (!loading && !room) return <Redirect href="/" />;
