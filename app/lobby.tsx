@@ -1,6 +1,6 @@
 import { Redirect, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useTheme } from '@/lib/theme';
+import { TOUCH_TARGET, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS } from '@/lib/types';
 import { Screen } from '@/components/Screen';
@@ -20,15 +20,34 @@ export default function Lobby() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
-        <View style={{ gap: spacing.xs }}>
-          <Text variant="headline">
-            {member ? `Hey, ${member.display_name}` : 'Lobby'}
-          </Text>
-          {offline ? (
-            <Text variant="overline" color={colors.inkMuted}>
-              OFFLINE DEMO MODE
+        <View style={[styles.header, { gap: spacing.md }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            onPress={() => router.push('/settings')}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              {
+                backgroundColor: pressed ? colors.surfaceVariant : colors.surface,
+                borderColor: colors.outline,
+                borderRadius: radii.full,
+              },
+            ]}
+          >
+            <Text variant="title" color={colors.ink} accessibilityElementsHidden>
+              {'⚙︎'}
             </Text>
-          ) : null}
+          </Pressable>
+          <View style={{ gap: spacing.xs, flex: 1 }}>
+            <Text variant="headline">
+              {member ? `Hey, ${member.display_name}` : 'Lobby'}
+            </Text>
+            {offline ? (
+              <Text variant="overline" color={colors.inkMuted}>
+                OFFLINE DEMO MODE
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         {/* Partner presence — lagoon is the partner's color (DESIGN.md) */}
@@ -75,31 +94,6 @@ export default function Lobby() {
             {room && !offline ? <CodeDisplay code={room.code} /> : null}
           </View>
         )}
-
-        {/* Locations settings — shared restaurant-sourcing cities (T7) */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Locations settings"
-          onPress={() => router.push('/settings')}
-          style={({ pressed }) => [
-            styles.settingsLink,
-            {
-              backgroundColor: pressed ? colors.surfaceVariant : 'transparent',
-              borderRadius: radii.md,
-              paddingHorizontal: spacing.sm,
-              gap: spacing.sm,
-            },
-          ]}
-        >
-          <Text style={styles.gear} accessibilityElementsHidden>
-            ⚙️
-          </Text>
-          <Text variant="label" color={colors.primary}>
-            {room && room.locations.length > 0
-              ? `Locations · ${room.locations.length} set`
-              : 'Set your locations'}
-          </Text>
-        </Pressable>
 
         {/* Category picker — the screen's primary action, a 2-up tile grid */}
         <View style={{ gap: spacing.md }}>
@@ -149,13 +143,14 @@ export default function Lobby() {
 
 const styles = StyleSheet.create({
   presenceRow: { flexDirection: 'row', alignItems: 'center' },
-  settingsLink: {
-    flexDirection: 'row',
+  header: { flexDirection: 'row', alignItems: 'center' },
+  settingsButton: {
+    width: TOUCH_TARGET,
+    height: TOUCH_TARGET,
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: 48,
+    justifyContent: 'center',
+    borderWidth: 1,
   },
-  gear: { fontSize: 20, lineHeight: 24 },
   waiting: { alignItems: 'stretch' },
   dot: { width: 12, height: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
