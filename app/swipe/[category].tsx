@@ -96,6 +96,10 @@ export default function SwipeDeck() {
   if (!loading && !room) return <Redirect href="/" />;
 
   const label = CATEGORY_LABELS[category];
+  // Restaurants are sourced from the room's cities — surface the count + an edit
+  // link while swiping. Zero-locations is handled by the empty state below.
+  const locationCount = room?.locations.length ?? 0;
+  const showLocationBar = isRestaurants && locationCount > 0;
   // Show the price row whenever there are restaurant cards to filter.
   const showPriceFilter = isRestaurants && (deck?.length ?? 0) > 0;
   // Unswiped restaurants exist but the price filter is hiding all of them
@@ -105,6 +109,28 @@ export default function SwipeDeck() {
   return (
     <Screen>
       <Header title={label} onBack={() => router.back()} />
+
+      {showLocationBar ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${locationCount} location${locationCount === 1 ? '' : 's'} set. Edit locations.`}
+          onPress={() => router.push('/settings')}
+          style={({ pressed }) => [
+            styles.locationBar,
+            { paddingHorizontal: spacing['2xl'], paddingBottom: spacing.sm, gap: spacing.xs, opacity: pressed ? 0.6 : 1 },
+          ]}
+        >
+          <Text variant="label" color={colors.inkMuted} accessibilityElementsHidden>
+            📍
+          </Text>
+          <Text variant="label" color={colors.inkMuted}>
+            {`${locationCount} location${locationCount === 1 ? '' : 's'}`}
+          </Text>
+          <Text variant="label" color={colors.primary}>
+            · Edit
+          </Text>
+        </Pressable>
+      ) : null}
 
       {showPriceFilter ? <PriceFilter selected={priceLevels} onToggle={togglePrice} /> : null}
 
@@ -221,6 +247,7 @@ export default function SwipeDeck() {
 }
 
 const styles = StyleSheet.create({
+  locationBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   deckArea: { flex: 1, justifyContent: 'center' },
   // Fill the space the layout gives us (never the fixed 645px an aspect ratio
   // forced), so the card can't overflow into the action buttons or push the
