@@ -4,12 +4,17 @@ import {
   isLocationAllowed,
   priceLevelNum,
   describe,
+  mergeDedupe,
+  normalizeName,
+  foursquarePrice,
   type PlacesApiPlace,
+  type Place,
 } from './logic.ts';
 
-// Server-side only. The Places API key never reaches the app; the frontend
-// calls this function and gets back stable `items` rows to swipe on.
+// Server-side only. Neither key ever reaches the app; the frontend calls
+// this function and gets back stable `items` rows to swipe on.
 const PLACES_KEY = Deno.env.get('PLACES_API_KEY');
+const FOURSQUARE_KEY = Deno.env.get('FOURSQUARE_API_KEY');
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -20,7 +25,7 @@ const cors = {
 
 // How many stored rows count as "already cached" for a location — at/above
 // this we skip the API entirely and serve what we have.
-const CACHE_TARGET = 20;
+const CACHE_TARGET = 60;
 
 type ItemRow = {
   id: string;
@@ -83,7 +88,8 @@ Deno.serve(async (req) => {
       return json({ items: existing, cached: true, note: 'PLACES_API_KEY not set' });
     }
 
-    const places = await fetchPlaces(loc);
+    const googlePlaces = await fetchPlaces(loc);
+    const places = await enrichPricesWithFoursquare(googlePlaces, loc);
     const existingTitles = new Set(existing.map((i) => i.title.toLowerCase()));
     const toInsert = places
       .filter((p) => p.title && !existingTitles.has(p.title.toLowerCase()))
@@ -133,43 +139,99 @@ async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<Item
   return (data ?? []) as ItemRow[];
 }
 
-type Place = {
-  title: string;
-  subtitle: string | null;
-  image_url: string | null;
-  price_level: number | null;
-};
-
-// Google Places API (New) Text Search. Returns up to 20 places for the query.
+// Google Places API (New) Text Search. Paginates up to 3 pages (pageSize 20,
+// so up to 60 places) via `nextPageToken`, stopping early if a page has none.
 // `places.photos` is requested so we can resolve a keyless hotlinkable image per
 // place server-side (the API key never reaches the app or the stored image_url).
 async function fetchPlaces(loc: string): Promise<Place[]> {
-  const resp = await fetch('https://places.googleapis.com/v1/places:searchText', {
+  const rawPages: PlacesApiPlace[][] = [];
+  let pageToken: string | undefined;
+  for (let page = 0; page < 3; page++) {
+    const body: Record<string, unknown> = { textQuery: `best restaurants in ${loc}`, pageSize: 20 };
+    if (pageToken) body.pageToken = pageToken;
+
+    let resp = await searchText(body);
+    if (!resp.ok && pageToken) {
+      // A fresh pageToken can briefly 400 as "not ready" right after the
+      // previous page — wait once and retry this same page before giving up.
+      await new Promise((r) => setTimeout(r, 2000));
+      resp = await searchText(body);
+    }
+    if (!resp.ok) {
+      if (page === 0) throw new Error(`Places API ${resp.status}: ${await resp.text()}`);
+      break; // later-page failure: keep whatever pages we already have
+    }
+
+    const j = await resp.json();
+    rawPages.push((j.places ?? []) as PlacesApiPlace[]);
+    pageToken = j.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  // Resolve photos in parallel; each resolution is wrapped so one bad photo
+  // never fails the whole request (falls back to image_url: null).
+  const mappedPages = await Promise.all(
+    rawPages.map((places) =>
+      Promise.all(
+        places.map(async (p) => ({
+          title: p.displayName?.text?.trim() ?? '',
+          subtitle: describe(p),
+          image_url: await resolvePhotoUrl(p.photos?.[0]?.name),
+          price_level: priceLevelNum(p.priceLevel),
+        })),
+      ),
+    ),
+  );
+  return mergeDedupe(mappedPages).filter((p) => p.title);
+}
+
+function searchText(body: unknown): Promise<Response> {
+  return fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
       'X-Goog-Api-Key': PLACES_KEY!,
       'X-Goog-FieldMask':
-        'places.displayName,places.rating,places.priceLevel,places.types,places.userRatingCount,places.photos',
+        'places.displayName,places.rating,places.priceLevel,places.types,places.userRatingCount,places.photos,nextPageToken',
     },
-    body: JSON.stringify({ textQuery: `best restaurants in ${loc}` }),
+    body: JSON.stringify(body),
   });
-  if (!resp.ok) {
-    throw new Error(`Places API ${resp.status}: ${await resp.text()}`);
+}
+
+// Foursquare Places Search, used only to fill in a price tier for restaurants
+// Google returned without one. Never adds new restaurants. Skips cleanly (no
+// hard fail) when FOURSQUARE_API_KEY isn't configured.
+async function enrichPricesWithFoursquare(places: Place[], loc: string): Promise<Place[]> {
+  if (!FOURSQUARE_KEY) {
+    console.log('FOURSQUARE_API_KEY not set; skipping price enrichment');
+    return places;
   }
-  const j = await resp.json();
-  const places = (j.places ?? []) as PlacesApiPlace[];
-  // Resolve photos in parallel; each resolution is wrapped so one bad photo
-  // never fails the whole request (falls back to image_url: null).
-  const mapped = await Promise.all(
-    places.map(async (p) => ({
-      title: p.displayName?.text?.trim() ?? '',
-      subtitle: describe(p),
-      image_url: await resolvePhotoUrl(p.photos?.[0]?.name),
-      price_level: priceLevelNum(p.priceLevel),
-    })),
+  const targets = places.filter((p) => p.price_level == null);
+  if (targets.length === 0) return places;
+
+  const prices = await Promise.all(
+    targets.map(async (p) => {
+      try {
+        const url =
+          `https://api.foursquare.com/v3/places/search?query=${encodeURIComponent(normalizeName(p.title))}` +
+          `&near=${encodeURIComponent(loc)}&limit=1&fields=price`;
+        const resp = await fetch(url, { headers: { Authorization: FOURSQUARE_KEY! } });
+        if (!resp.ok) return null;
+        const j = await resp.json();
+        return foursquarePrice(j?.results?.[0]);
+      } catch (e) {
+        console.error('foursquare price lookup failed', e);
+        return null;
+      }
+    }),
   );
-  return mapped.filter((p) => p.title);
+
+  let i = 0;
+  return places.map((p) => {
+    if (p.price_level != null) return p;
+    const price = prices[i++];
+    return price != null ? { ...p, price_level: price } : p;
+  });
 }
 
 // Turn a Places `photo.name` into a keyless, hotlinkable image URL.
