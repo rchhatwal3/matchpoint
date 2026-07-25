@@ -74,3 +74,44 @@ export function describe(p: PlacesApiPlace): string | null {
   if (price) parts.push(price);
   return parts.length ? parts.join(' · ') : null;
 }
+
+export type Place = {
+  title: string;
+  subtitle: string | null;
+  image_url: string | null;
+  price_level: number | null;
+};
+
+// Flatten paginated Google results into one list, deduping by lowercased
+// title (first occurrence wins) — the same dedupe rule already used against
+// stored rows.
+export function mergeDedupe(pages: Place[][]): Place[] {
+  const seen = new Set<string>();
+  const out: Place[] = [];
+  for (const page of pages) {
+    for (const p of page) {
+      const key = p.title.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(p);
+    }
+  }
+  return out;
+}
+
+// Light normalization for the Foursquare query string — trim + collapse
+// internal whitespace. Not fuzzy matching, just a clean query term.
+export function normalizeName(name: string): string {
+  return name.trim().replace(/\s+/g, ' ');
+}
+
+// Extract a valid Foursquare price tier (1–4) from one `results[]` entry of
+// a Places Search response. Anything malformed or out of range -> null so
+// the caller just leaves that item unenriched.
+export function foursquarePrice(result: unknown): number | null {
+  if (typeof result !== 'object' || result === null) return null;
+  const price = (result as { price?: unknown }).price;
+  if (typeof price !== 'number' || !Number.isInteger(price)) return null;
+  if (price < 1 || price > 4) return null;
+  return price;
+}

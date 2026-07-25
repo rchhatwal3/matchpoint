@@ -74,6 +74,16 @@ syncs live between partners.
 - [ ] **Later (when Google/Apple are added)**: confirm same-email identities do NOT auto-merge (no cross-provider override), per the product rule that an email account must not also be loginable via Google/Apple.
 - [ ] **Session TTL — verify only, no bounding** (decision doc: `docs/session-ttl-research.md`): Dashboard → Authentication → Sessions — confirm refresh-token rotation + reuse detection are ON (Supabase default) and access-token expiry stays 1 hour. Leave "Time-box user sessions" and "Inactivity timeout" UNSET (Pro-plan-only anyway). Do NOT bound the anonymous session: room membership is tied to the anon UID, so an expired anon session = permanently lost room. No `lib/supabase.ts` change.
 
+## Restaurants — Foursquare price enrichment (get-restaurants)
+
+- [ ] **Provision `FOURSQUARE_API_KEY`** (a **Service API Key** for the new Places API — the legacy v3 host was sunset 2026-05-15):
+  1. Sign in at **foursquare.com/developers** (Foursquare developer console) → create a **Project**.
+  2. In the project, create a **Service API Key** (NOT the legacy v3 "API Key"/OAuth). Copy it.
+  3. Set it as the edge-function secret: `supabase secrets set FOURSQUARE_API_KEY=<service-key>` (or Dashboard → Edge Functions → `get-restaurants` → Secrets).
+  4. Redeploy: `supabase functions deploy get-restaurants` (keep JWT verification ON — do NOT pass `--no-verify-jwt`).
+
+  The code calls `https://places-api.foursquare.com/places/search` with `Authorization: Bearer <key>` + `X-Places-Api-Version: 2025-06-17` (pinned as `FSQ_VERSION` in `index.ts`). Until the secret is set, `get-restaurants` runs fine but **skips price enrichment** (logs a note, leaves `price_level` null where Google gave no price) — degrades cleanly. Pagination to ~60 restaurants/city works without this key (Google only). Server-side only; never reaches the app.
+
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 
 - [ ] **Expo account**: sign up / log in (`npx expo login`).
