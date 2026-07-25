@@ -74,6 +74,10 @@ syncs live between partners.
 - [ ] **Later (when Google/Apple are added)**: confirm same-email identities do NOT auto-merge (no cross-provider override), per the product rule that an email account must not also be loginable via Google/Apple.
 - [ ] **Session TTL — verify only, no bounding** (decision doc: `docs/session-ttl-research.md`): Dashboard → Authentication → Sessions — confirm refresh-token rotation + reuse detection are ON (Supabase default) and access-token expiry stays 1 hour. Leave "Time-box user sessions" and "Inactivity timeout" UNSET (Pro-plan-only anyway). Do NOT bound the anonymous session: room membership is tied to the anon UID, so an expired anon session = permanently lost room. No `lib/supabase.ts` change.
 
+## Restaurants — Foursquare price enrichment (get-restaurants)
+
+- [ ] **Provision `FOURSQUARE_API_KEY`** — create a Foursquare developer account → a Places API key → set it as a secret for the `get-restaurants` edge function (`supabase secrets set FOURSQUARE_API_KEY=…` or Dashboard → Edge Functions → Secrets), then redeploy: `supabase functions deploy get-restaurants`. Until this is set, `get-restaurants` runs fine but **skips price enrichment** (logs a note, leaves `price_level` null for places Google didn't price) — the app degrades cleanly. Pagination to ~60 restaurants/city works without this key (Google only). Used server-side only; never reaches the app.
+
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 
 - [ ] **Expo account**: sign up / log in (`npx expo login`).
