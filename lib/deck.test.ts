@@ -30,9 +30,15 @@ describe('filterDeck', () => {
     expect(out.map((i) => i.id)).toEqual(['cheap']);
   });
 
-  it('always keeps restaurant items with an unknown price', () => {
-    const deck = [item('nulls', null), item('pricey', 4)];
+  it('treats unknown price as tier 0 — hidden when 0 is not selected', () => {
+    const deck = [item('nulls', null), item('cheap', 1)];
     const out = filterDeck(deck, new Set(), true, new Set([1]));
+    expect(out.map((i) => i.id)).toEqual(['cheap']);
+  });
+
+  it('keeps unknown-price items when tier 0 (Unpriced) is selected', () => {
+    const deck = [item('nulls', null), item('pricey', 4)];
+    const out = filterDeck(deck, new Set(), true, new Set([0]));
     expect(out.map((i) => i.id)).toEqual(['nulls']);
   });
 
