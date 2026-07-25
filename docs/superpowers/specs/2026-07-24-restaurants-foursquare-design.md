@@ -23,9 +23,9 @@
 
 ### 2. Foursquare price fill
 - New server-only env **`FOURSQUARE_API_KEY`** (never reaches the app; read via `Deno.env.get`). If unset, skip enrichment entirely (log a note) — never hard-fail.
-- After Google mapping, take the subset with `price_level == null`. For each, call Foursquare Places Search:
-  `GET https://api.foursquare.com/v3/places/search?query=<name>&near=<loc>&limit=1&fields=price`
-  header `Authorization: <FOURSQUARE_API_KEY>`. Read `results[0].price` (1–4) → our tier directly (Foursquare 1=cheap … 4=most expensive, same scale). Leave null if no match/price.
+- After Google mapping, take the subset with `price_level == null`. For each, call the new Foursquare Places Search (the legacy `api.foursquare.com/v3` host was sunset 2026-05-15):
+  `GET https://places-api.foursquare.com/places/search?query=<name>&near=<loc>&limit=1&fields=price`
+  headers `Authorization: Bearer <FOURSQUARE_API_KEY>` (a **Service API Key**), `X-Places-Api-Version: 2025-06-17`, `accept: application/json`. Read `results[0].price` (1–4) → our tier directly (Foursquare 1=cheap … 4=most expensive, same scale). Leave null if no match/price.
 - All lookups run **in parallel** via `Promise.all`, each wrapped in try/catch so one failure leaves that item null. Bound the set to the null-priced subset only (≤ ~40 per cold city).
 
 ### 3. No prewarm
