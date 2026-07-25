@@ -198,6 +198,10 @@ function searchText(body: unknown): Promise<Response> {
   });
 }
 
+// FSQ_VERSION pins the dated Foursquare Places API contract (the new
+// places-api.foursquare.com surface — the legacy v3 host was sunset 2026-05-15).
+const FSQ_VERSION = '2025-06-17';
+
 // Foursquare Places Search, used only to fill in a price tier for restaurants
 // Google returned without one. Never adds new restaurants. Skips cleanly (no
 // hard fail) when FOURSQUARE_API_KEY isn't configured.
@@ -213,9 +217,15 @@ async function enrichPricesWithFoursquare(places: Place[], loc: string): Promise
     targets.map(async (p) => {
       try {
         const url =
-          `https://api.foursquare.com/v3/places/search?query=${encodeURIComponent(normalizeName(p.title))}` +
+          `https://places-api.foursquare.com/places/search?query=${encodeURIComponent(normalizeName(p.title))}` +
           `&near=${encodeURIComponent(loc)}&limit=1&fields=price`;
-        const resp = await fetch(url, { headers: { Authorization: FOURSQUARE_KEY! } });
+        const resp = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${FOURSQUARE_KEY!}`,
+            'X-Places-Api-Version': FSQ_VERSION,
+            accept: 'application/json',
+          },
+        });
         if (!resp.ok) return null;
         const j = await resp.json();
         return foursquarePrice(j?.results?.[0]);

@@ -76,7 +76,13 @@ syncs live between partners.
 
 ## Restaurants — Foursquare price enrichment (get-restaurants)
 
-- [ ] **Provision `FOURSQUARE_API_KEY`** — create a Foursquare developer account → a Places API key → set it as a secret for the `get-restaurants` edge function (`supabase secrets set FOURSQUARE_API_KEY=…` or Dashboard → Edge Functions → Secrets), then redeploy: `supabase functions deploy get-restaurants`. Until this is set, `get-restaurants` runs fine but **skips price enrichment** (logs a note, leaves `price_level` null for places Google didn't price) — the app degrades cleanly. Pagination to ~60 restaurants/city works without this key (Google only). Used server-side only; never reaches the app.
+- [ ] **Provision `FOURSQUARE_API_KEY`** (a **Service API Key** for the new Places API — the legacy v3 host was sunset 2026-05-15):
+  1. Sign in at **foursquare.com/developers** (Foursquare developer console) → create a **Project**.
+  2. In the project, create a **Service API Key** (NOT the legacy v3 "API Key"/OAuth). Copy it.
+  3. Set it as the edge-function secret: `supabase secrets set FOURSQUARE_API_KEY=<service-key>` (or Dashboard → Edge Functions → `get-restaurants` → Secrets).
+  4. Redeploy: `supabase functions deploy get-restaurants` (keep JWT verification ON — do NOT pass `--no-verify-jwt`).
+
+  The code calls `https://places-api.foursquare.com/places/search` with `Authorization: Bearer <key>` + `X-Places-Api-Version: 2025-06-17` (pinned as `FSQ_VERSION` in `index.ts`). Until the secret is set, `get-restaurants` runs fine but **skips price enrichment** (logs a note, leaves `price_level` null where Google gave no price) — degrades cleanly. Pagination to ~60 restaurants/city works without this key (Google only). Server-side only; never reaches the app.
 
 ## Mobile apps (shells exist; needed to run on real devices / ship)
 
