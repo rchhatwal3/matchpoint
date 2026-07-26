@@ -1,4 +1,4 @@
-import { filterDeck, upcomingImageUrls } from './deck';
+import { deckLoadKey, filterDeck, upcomingImageUrls } from './deck';
 import type { Item } from './types';
 
 function item(id: string, price_level: number | null = null, image_url: string | null = null): Item {
@@ -46,6 +46,30 @@ describe('filterDeck', () => {
     const deck = [item('a', 4), item('b', 1)];
     const out = filterDeck(deck, new Set(), false, new Set([2]));
     expect(out.map((i) => i.id)).toEqual(['a', 'b']);
+  });
+});
+
+describe('deckLoadKey', () => {
+  it('ignores locations for non-restaurant categories', () => {
+    expect(deckLoadKey('activities', ['New York, NY'])).toBe('activities');
+    expect(deckLoadKey('activities', [])).toBe('activities');
+  });
+
+  it('folds the location list into the restaurants key', () => {
+    expect(deckLoadKey('restaurants', ['New York, NY'])).toBe('restaurants:new york, ny');
+    expect(deckLoadKey('restaurants', [])).toBe('restaurants:');
+  });
+
+  it('is order- and case-independent for the same set of locations', () => {
+    expect(deckLoadKey('restaurants', ['Austin, TX', 'Boston, MA'])).toBe(
+      deckLoadKey('restaurants', ['boston, ma', ' Austin, TX ']),
+    );
+  });
+
+  it('changes when a location is added or removed', () => {
+    const before = deckLoadKey('restaurants', ['Austin, TX']);
+    const after = deckLoadKey('restaurants', ['Austin, TX', 'Boston, MA']);
+    expect(before).not.toBe(after);
   });
 });
 
