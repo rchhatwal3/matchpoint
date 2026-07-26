@@ -18,6 +18,22 @@ export function filterDeck(
 }
 
 /**
+ * Identity of the data a deck currently reflects, so a focus-refetch can skip
+ * work when nothing changed. Restaurants are sourced from the room's locations,
+ * so their key folds in a case-insensitive, order-independent signature of that
+ * list — editing locations changes the key and forces a reload. Every other
+ * category depends only on itself. Pure.
+ */
+export function deckLoadKey(category: string, locations: string[]): string {
+  if (category !== 'restaurants') return category;
+  const sig = locations
+    .map((l) => l.trim().toLowerCase())
+    .sort()
+    .join('|');
+  return `restaurants:${sig}`;
+}
+
+/**
  * Up to `count` non-null image_urls starting at `startIndex` — the photos to
  * prefetch so cards paint from cache by the time they reach the top. Pure.
  */
