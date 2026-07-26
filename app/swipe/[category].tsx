@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import { Redirect, useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSharedValue } from 'react-native-reanimated';
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
-import { filterDeck, upcomingImageUrls } from '@/lib/deck';
+import { deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
 import { usePriceLevels } from '@/lib/usePriceLevels';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -30,33 +30,42 @@ export default function SwipeDeck() {
   const { priceLevels, toggle: togglePrice } = usePriceLevels();
   const translateX = useSharedValue(0);
   const topCardRef = useRef<SwipeCardHandle>(null);
+  // Data the mounted deck currently reflects. Editing locations happens on
+  // another screen (/settings), so reload on focus — but only when the key
+  // changed, to skip a redundant edge-function fetch and skeleton flash.
+  const loadedKey = useRef<string | null>(null);
 
   const valid = isCategory(category);
   const isRestaurants = category === 'restaurants';
 
-  useEffect(() => {
-    if (!valid || loading || !room) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const [items, alreadySwiped] = await Promise.all([
-          getItems(category),
-          getMySwipedItemIds(),
-        ]);
-        if (cancelled) return;
-        setDeck(items.filter((i) => !alreadySwiped.has(i.id)));
-        setSwiped(new Set());
-      } catch (e) {
-        console.warn('deck load failed', e);
-        if (!cancelled) setDeck([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // Load once per category visit; swipes drop items from the view locally.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valid, loading, room, category]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!valid || loading || !room) return;
+      const key = deckLoadKey(category, room.locations);
+      if (loadedKey.current === key) return;
+      loadedKey.current = key;
+      let cancelled = false;
+      (async () => {
+        try {
+          const [items, alreadySwiped] = await Promise.all([
+            getItems(category),
+            getMySwipedItemIds(),
+          ]);
+          if (cancelled) return;
+          setDeck(items.filter((i) => !alreadySwiped.has(i.id)));
+          setSwiped(new Set());
+        } catch (e) {
+          console.warn('deck load failed', e);
+          if (!cancelled) setDeck([]);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+      // getItems/getMySwipedItemIds excluded — loadedKey guards the reload.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [valid, loading, room, category]),
+  );
 
   // Deck view: swiped items removed, then (restaurants only) price-filtered.
   const visible = useMemo(() => {
