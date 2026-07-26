@@ -4,7 +4,7 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 
 ## Testing / CI enforcement (T-tests)
 
-- [ ] **Branch protection on `main`** (GitHub → Settings → Branches → Add rule for `main`): require the status checks **Tests and Coverage**, **Edge Function Tests**, and **Typecheck and Lint** to pass, and require **1 approving review**, before merge. This is the server-side backstop that makes "review + tests before merge" un-skippable; the husky `pre-push` hook enforces the mechanical checks locally, and CI re-runs them.
+- [x] **Branch protection on `main`** (GitHub → Settings → Branches → Add rule for `main`): require the status checks **Tests and Coverage**, **Edge Function Tests**, and **Typecheck and Lint** to pass, and require **1 approving review**, before merge. This is the server-side backstop that makes "review + tests before merge" un-skippable; the husky `pre-push` hook enforces the mechanical checks locally, and CI re-runs them.
 
 ## MVP1 — live website (blocks full functionality, site runs in offline demo mode without these)
 
@@ -76,7 +76,7 @@ syncs live between partners.
 
 ## Restaurants — Foursquare price enrichment (get-restaurants)
 
-- [ ] **Provision `FOURSQUARE_API_KEY`** (a **Service API Key** for the new Places API — the legacy v3 host was sunset 2026-05-15):
+- [x] **Provision `FOURSQUARE_API_KEY`** (a **Service API Key** for the new Places API — the legacy v3 host was sunset 2026-05-15):
   1. Sign in at **foursquare.com/developers** (Foursquare developer console) → create a **Project**.
   2. In the project, create a **Service API Key** (NOT the legacy v3 "API Key"/OAuth). Copy it.
   3. Set it as the edge-function secret: `supabase secrets set FOURSQUARE_API_KEY=<service-key>` (or Dashboard → Edge Functions → `get-restaurants` → Secrets).
