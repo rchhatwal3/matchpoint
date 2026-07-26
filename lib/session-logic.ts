@@ -6,12 +6,13 @@ export type SeedRow = {
   subtitle?: string;
   emoji?: string;
   source?: string;
+  image_url?: string | null;
 };
 
 /**
  * Offline dev mode: map bundled seed rows to Items with stable local ids, so the
- * same shape flows through the UI as the online path. Solo — no image/location/
- * price, which the seed doesn't carry into offline mode.
+ * same shape flows through the UI as the online path. Solo — no location/price,
+ * which the seed doesn't carry into offline mode; image_url passes through when present.
  */
 export function mapSeedToItems(seed: SeedRow[]): Item[] {
   return seed.map((row, i) => ({
@@ -20,7 +21,7 @@ export function mapSeedToItems(seed: SeedRow[]): Item[] {
     title: row.title,
     subtitle: row.subtitle ?? null,
     emoji: row.emoji ?? null,
-    image_url: null,
+    image_url: row.image_url ?? null,
     location: null,
     source: row.source ?? null,
     price_level: null,

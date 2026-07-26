@@ -3,7 +3,7 @@ import { mapSeedToItems, isNewMatch, type SeedRow } from './session-logic';
 describe('mapSeedToItems', () => {
   const seed: SeedRow[] = [
     { category: 'food', title: 'Tacos', subtitle: 'Al pastor', emoji: '🌮', source: 'seed' },
-    { category: 'vacations', title: 'Kyoto' },
+    { category: 'vacations', title: 'Kyoto', image_url: 'https://example.com/kyoto.jpg' },
   ];
 
   it('assigns stable seed-N ids by position', () => {
@@ -16,9 +16,14 @@ describe('mapSeedToItems', () => {
     expect(kyoto).toMatchObject({ subtitle: null, emoji: null, source: null });
   });
 
-  it('never sets image/location/price in offline mode', () => {
+  it('passes image_url through, nulling it when the row omits it', () => {
+    const [tacos, kyoto] = mapSeedToItems(seed);
+    expect(tacos.image_url).toBeNull();
+    expect(kyoto.image_url).toBe('https://example.com/kyoto.jpg');
+  });
+
+  it('never sets location/price in offline mode', () => {
     for (const i of mapSeedToItems(seed)) {
-      expect(i.image_url).toBeNull();
       expect(i.location).toBeNull();
       expect(i.price_level).toBeNull();
     }
