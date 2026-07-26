@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
@@ -17,6 +18,15 @@ SplashScreen.preventAutoHideAsync();
 /** Consumes resolved theme; must live under ThemeProvider. */
 function ThemedApp() {
   const { colors, scheme } = useTheme();
+  // On web the html/body canvas is transparent, so any region a themed Screen
+  // doesn't cover (scroll overflow, the >maxWidth gutter) falls back to the OS
+  // prefers-color-scheme instead of the user's theme choice — most visible on
+  // the short landing screen. Drive the document background from the resolved bg.
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.style.backgroundColor = colors.bg;
+    }
+  }, [colors.bg]);
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
