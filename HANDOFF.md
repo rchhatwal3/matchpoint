@@ -1,6 +1,12 @@
 # HANDOFF — matchpoint
 
-Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-07-24.
+Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-07-26.
+
+## ✅ RESOLVED (2026-07-26) — restaurants deck was broken; "service_role key" P0 was a misdiagnosis
+
+The 2026-07-25 "service_role key no longer bypasses RLS" P0 (recorded only on the now-deleted `diag/get-restaurants-servicerole` branch) was **wrong**. The service_role key is healthy — all three credentials (`SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_SECRET_KEYS.default`, legacy JWT) pass `auth.admin.listUsers()`, which needs genuine service_role. The old probe used `members` as its canary and misread a *missing table grant* as a broken key.
+
+**Real bug (fixed):** PR #2's room-location guard in `get-restaurants` (`index.ts:63-73`) reads `members` and `rooms` with the service_role client, but migration `007` granted service_role only `items`. So both reads hit `42501 permission denied` (swallowed — line 63 ignores the error), the guard read null, and **every restaurants request returned "No room" (403)** — broken since PR #2 shipped the guard. **Fix:** migration `012_service_role_room_grants.sql` (`GRANT SELECT ON members, rooms TO service_role`), applied to prod via SQL Editor 2026-07-26. **Verified live e2e:** anon sign-in → create_room → set location → `get-restaurants` returns 200 with 59 items ("Per Se", price 4). No key rotation, no `APP_SERVICE_KEY` needed (that temporary secret can be deleted).
 
 ## What it is
 Tinder-style swipe app for pairs (couples/friends). Two people share a room via 6-char invite code (Supabase anonymous auth — no accounts yet), swipe decks per category, and only mutual likes become matches. One Expo codebase → iOS + Android + web; web is the live deploy target.
@@ -8,7 +14,7 @@ Tinder-style swipe app for pairs (couples/friends). Two people share a room via 
 ## Live
 - **Deployed:** https://rchhatwal3.github.io/matchpoint/ (301-redirects to ramneekchhatwal.com/matchpoint — user chose to keep the redirect).
 - Deploy = push to `main` → GitHub Actions (`.github/workflows/deploy.yml`) typecheck+lint+`expo export --platform web` → `gh-pages`. Supabase keys come from repo Actions secrets.
-- **Supabase project ref:** `kchrpzeqcionxspctbbl`. Migrations 001–011 all run. Anonymous sign-in enabled. Edge functions deployed: `get-restaurants` (`PLACES_API_KEY` set), `issue-recovery-codes` (JWT on), `redeem-recovery-code` (`--no-verify-jwt`, incl. L610 200-status redeploy). Email provider + custom SMTP (Resend) live. Rate limits tightened on anon sign-in (T16b); CAPTCHA deliberately NOT enabled.
+- **Supabase project ref:** `kchrpzeqcionxspctbbl`. Migrations 001–012 all run. Anonymous sign-in enabled. Edge functions deployed: `get-restaurants` (`PLACES_API_KEY` set), `issue-recovery-codes` (JWT on), `redeem-recovery-code` (`--no-verify-jwt`, incl. L610 200-status redeploy). Email provider + custom SMTP (Resend) live. Rate limits tightened on anon sign-in (T16b); CAPTCHA deliberately NOT enabled.
 
 ## Stack
 Expo (expo-router, TS, react-native-reanimated + gesture-handler), Supabase (Postgres + RLS + anonymous auth + realtime + edge functions), Google Places API (New) via edge function. No web-only libs (no framer-motion/react-router-dom).
