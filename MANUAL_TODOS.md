@@ -2,6 +2,31 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
+## Spend caps on the restaurant APIs (DO FIRST — decided 2026-07-27)
+
+Step 1 of the QA-findings work order in `TODO.md`. No code, no deploy; this is the
+only control that bounds the actual money, including against a bug in our own logic.
+
+- [ ] **Google Cloud → APIs & Services → the Places APIs → Quotas**: set a daily
+      request quota on Text Search and Place Photos, and add a **budget alert** on the
+      billing account. Check the current per-call pricing in the console when picking
+      the numbers — don't trust a remembered figure.
+- [ ] **Foursquare developer console**: set the equivalent daily cap on the Places
+      search endpoint used by `get-restaurants`.
+- [ ] Keep both provider quotas comfortably **above** the app-side caps that land in
+      step 3 (10 locations per room, 50 lookups per user per day), or the app layer
+      never fires and every rejection comes from the provider instead.
+
+Why it matters: `get-restaurants`' location guard checks the caller's request against
+`rooms.locations`, but members hold UPDATE on `rooms`, so the caller writes their own
+allowlist. Full detail in `docs/security/2026-07-27-adversarial-qa.md`.
+
+- [ ] **Confirm "Prevent use of duplicate emails" / secure email change is enabled**
+      (Supabase → Authentication → Providers → Email). `sendUpgradeCode` upgrades an
+      anonymous session with `updateUser({ email })`; whether an attacker can claim an
+      email already belonging to another account depends on this setting, which isn't
+      visible from the repo. Treat as a REQUIRED constraint like the OTP-length one.
+
 ## GDPR/EU consent + legal pages (blocks the legal pages going live)
 
 - [ ] **Fill legal draft placeholders and remove the DRAFT banner**: before
