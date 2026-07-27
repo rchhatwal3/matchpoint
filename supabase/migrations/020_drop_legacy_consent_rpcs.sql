@@ -1,0 +1,33 @@
+-- 020_drop_legacy_consent_rpcs.sql
+-- Cleanup tail of the age-gate removal: retire the age-taking RPC signatures
+-- that 019 deliberately left standing, so the RPC surface ends up with exactly
+-- one version of create_room and one of join_room. Leaving both overloads
+-- around indefinitely is a hazard on its own — a stale client, or a PostgREST
+-- call that happens to pass four arguments, would keep writing age_confirmed
+-- long after the gate was removed, and the schema would stop telling a future
+-- reader which path is the live one.
+--
+-- *** DO NOT APPLY THIS MIGRATION UNTIL THE AGE-FREE WEB BUILD IS DEPLOYED. ***
+--
+-- This is the one migration in the pair that is NOT safe to run ahead of the
+-- deploy. The build currently live on GitHub Pages calls create_room with three
+-- arguments and join_room with four. Dropping those signatures while that build
+-- is serving traffic breaks room creation and room joining outright — every
+-- call gets a function-not-found from PostgREST — for the entire window between
+-- applying this and the new bundle going out.
+--
+-- This is exactly the lockstep hazard 013_consent.sql caused, recorded in
+-- HANDOFF.md: 013 dropped the old create_room(text)/join_room(text,text) as part
+-- of adding the consent params, so applying it broke the then-deployed create/
+-- join until PR #28 shipped. 019 avoids repeating that by adding overloads
+-- instead of replacing signatures; that only holds if this file waits.
+--
+-- Correct order:
+--   1. Apply 019 (safe any time — old and new signatures coexist).
+--   2. Merge + deploy the age-free build; confirm create and join work live.
+--   3. Only then apply this migration.
+-- If in doubt, do not apply. Nothing breaks by leaving the legacy overloads in
+-- place a while longer; applying early breaks the live app immediately.
+
+DROP FUNCTION IF EXISTS create_room(text, text, boolean);
+DROP FUNCTION IF EXISTS join_room(text, text, text, boolean);

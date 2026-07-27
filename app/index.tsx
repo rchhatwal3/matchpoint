@@ -34,7 +34,7 @@ export default function Home() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [consent, setConsent] = useState<ConsentState>({ tosAccepted: false, ageConfirmed: false });
+  const [consent, setConsent] = useState<ConsentState>({ tosAccepted: false });
 
   // Already paired from a previous session -> straight to the lobby.
   if (!loading && room && !createdCode) {
@@ -59,7 +59,7 @@ export default function Home() {
   const handleJoin = async () => {
     setError(null);
     if (!canEnterApp(consent)) {
-      setError('Please accept the terms and confirm your age first.');
+      setError('Please accept the terms first.');
       return;
     }
     if (name.trim().length === 0) {

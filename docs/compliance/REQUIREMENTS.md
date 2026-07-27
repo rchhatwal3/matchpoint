@@ -160,6 +160,8 @@ The threshold varies by country (examples: **Germany, Ireland, Netherlands = 16*
 
 **Sources:** [GDPR Art. 8](https://gdpr-info.eu/art-8-gdpr/), [ICO ISS & consent](https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/childrens-information/children-and-the-uk-gdpr-old/what-are-the-rules-about-an-iss-and-consent/), [Children's Code overview](https://en.wikipedia.org/wiki/Children%27s_Code).
 
+> **SUPERSEDED 2026-07-27:** The "Yes — gate at 18+" recommendation above and its A2 checkbox (§9) are no longer implemented. Reasoning: point 1 above rested on matchpoint being "dating-adjacent" and therefore subject to the App Store/Play dating-app age rules. matchpoint is a decision-making app for **existing** couples and friends — access is by private invite code only, there is no stranger-matching or discovery surface — so it is not a dating product and that App Store/Play rationale does not apply to it. The GDPR Art. 8 analysis above is unaffected by this change and remains the reason the floor is **16**, not lower: matchpoint's stated minimum age is now 16, the default digital age of consent under Art. 8, so no parental-consent verification is required in any EU member state at that threshold. The stated minimum is a Terms condition users agree to by using the Service; it is not verified or asked about in-app. The A2 age-confirmation checkbox has been removed from the entry flow; only the A1 Terms + Privacy checkbox remains.
+
 ---
 
 ## 7. US baseline — CCPA/CPRA (and why "US-hosted backend" is a red herring)
@@ -216,9 +218,9 @@ This is where the *general* acceptance and age gate belong, because anonymous us
 | # | Checkbox / control | Microcopy (final, ready to paste) | Mandatory? | Default state | Notes |
 |---|---|---|---|---|---|
 | A1 | Terms + Privacy acceptance | **"I agree to matchpoint's [Terms of Service](#) and [Privacy Policy](#)."** | **Mandatory** — block entry until ticked | **Unticked** | Single combined box for the two governing documents is acceptable; keep both links live. |
-| A2 | Age confirmation (18+) | **"I confirm I am 18 years of age or older."** | **Mandatory** — block entry until ticked | **Unticked** | Implements the 18+ gate (§6). Separate from A1 so consent to Terms isn't bundled with the age statement. |
+| A2 | ~~Age confirmation (18+)~~ | ~~**"I confirm I am 18 years of age or older."**~~ | **SUPERSEDED 2026-07-27 — removed, see §6.** Was mandatory. | — | Was intended to implement the 18+ gate (§6). Superseded: matchpoint is not a dating product, so the App Store/Play rationale for an 18+ gate does not apply. The stated minimum is now 16 (still the Art. 8 default), asserted as a Terms condition rather than confirmed via checkbox. |
 
-> You may combine A1 and A2 visually as two adjacent checkboxes on the same welcome screen. Both must be actively ticked to continue. Do **not** merge them into one line.
+> Originally: you may combine A1 and A2 visually as two adjacent checkboxes on the same welcome screen, both actively ticked to continue, not merged into one line. **As of 2026-07-27, A2 no longer exists — only A1 is shown.**
 
 **No consent checkbox is required for the core data processing itself** at Stage A, because that processing runs on contract/legitimate interests, not consent — but the Privacy Policy link (A1) provides the required transparency notice.
 
@@ -233,7 +235,7 @@ Only shown when the user chooses to upgrade. Adds email-specific items.
 | B3 | Marketing email opt-in *(only if/when you ever send marketing)* | **"Send me occasional product updates and tips by email. (Optional — you can unsubscribe anytime.)"** | **Optional** | **Unticked** | Not needed today (no marketing email). Include **only** when you actually start sending marketing; if included it must be a separate, unticked, opt-in box (consent lawful basis). |
 
 ### Which consents at first use vs only at upgrade — quick answer
-- **At first use (anonymous):** A1 (Terms + Privacy) and A2 (18+). These are required for **every** user, because processing starts immediately.
+- **At first use (anonymous):** A1 (Terms + Privacy). ~~A2 (18+)~~ — **superseded 2026-07-27** (see §6): A1 alone is required for **every** user, because processing starts immediately; the stated minimum age (now 16) is a Terms condition, not a checkbox.
 - **Only at email upgrade:** B2 (recovery-code acknowledgement), the B1 inline notice, and — *only if you later add marketing* — B3. Email is not collected until this stage, so nothing email-related belongs at first use.
 
 ### Copy for the "why we ask" / privacy short-notice (optional but recommended)
@@ -246,7 +248,7 @@ Place a one-line link near the checkboxes:
 
 **Do before broadening the user base:**
 1. Publish the tailored **Privacy Policy** and **Terms of Service** (drafts in this folder) after attorney review.
-2. Ship the **A1 + A2 checkboxes** (Terms/Privacy + 18+) on first-use screen, unticked, blocking entry.
+2. Ship the **A1 checkbox** (Terms/Privacy) on first-use screen, unticked, blocking entry. ~~A2 (18+)~~ — **superseded 2026-07-27** (see §6): stated minimum age is now 16, asserted in the Terms rather than confirmed via checkbox.
 3. Ship the **B2** recovery-code acknowledgement on email upgrade.
 4. Build **in-app data export + delete** (or a documented manual runbook) to satisfy access/erasure within one month.
 5. Sign/accept **DPAs** with Supabase, Resend, Google, Foursquare, GitHub; file the **transfer mechanism** (DPF/SCCs) evidence for each.

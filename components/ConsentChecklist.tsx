@@ -34,16 +34,6 @@ export function ConsentChecklist({
           .
         </Text>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-        <Checkbox
-          checked={value.ageConfirmed}
-          onChange={(next) => onChange({ ...value, ageConfirmed: next })}
-          accessibilityLabel="I confirm I am 18 years of age or older"
-        />
-        <Text variant="body" style={{ flex: 1 }}>
-          I confirm I am 18 years of age or older.
-        </Text>
-      </View>
     </View>
   );
 }

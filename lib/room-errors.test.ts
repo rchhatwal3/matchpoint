@@ -15,7 +15,7 @@ describe('friendlyRoomError', () => {
 
   it('points back at the consent checklist when it blocks entry', () => {
     expect(friendlyRoomError('consent_required')).toBe(
-      'Please accept the terms and confirm your age first.',
+      'Please accept the terms first.',
     );
   });
 

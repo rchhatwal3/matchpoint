@@ -17,7 +17,7 @@ export function friendlyRoomError(message: string): string {
     return 'Too many tries — take a short break, then try again.';
   }
   if (message.includes('consent_required')) {
-    return 'Please accept the terms and confirm your age first.';
+    return 'Please accept the terms first.';
   }
   if (
     message.includes(JOIN_FAILED) ||
