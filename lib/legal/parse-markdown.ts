@@ -17,7 +17,7 @@ function splitRow(line: string): string[] {
     .map((c) => c.trim());
 }
 
-const isTableSep = (line: string) => /^\|?\s*:?-{3,}.*$/.test(line) && line.includes('-');
+const isTableSep = (line: string) => /^\|?\s*:?-{1,}\s*:?\s*(\|\s*:?-{1,}\s*:?\s*)*\|?$/.test(line.trim());
 
 // Inline: **bold**, *italic*, [text](href). Single left-to-right scan.
 export function parseInline(text: string): Inline[] {
@@ -93,6 +93,13 @@ export function parseMarkdown(src: string): Block[] {
     const para: string[] = [];
     while (i < lines.length && lines[i].trim() !== '' && !/^(#{1,3}\s|>|[-*]\s|-{3,}$|\|)/.test(lines[i].trim())) {
       para.push(lines[i].trim());
+      i++;
+    }
+    // Guarantee forward progress: if the inner loop above consumed nothing
+    // (e.g. a stray "|" line that no other branch claimed), consume this
+    // line as a paragraph so `i` always advances and the outer loop can't spin.
+    if (para.length === 0) {
+      para.push(trimmed);
       i++;
     }
     blocks.push({ type: 'paragraph', spans: parseInline(para.join(' ')) });

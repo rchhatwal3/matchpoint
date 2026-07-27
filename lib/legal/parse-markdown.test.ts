@@ -36,6 +36,30 @@ describe('parseMarkdown — blocks', () => {
     expect(t.rows).toHaveLength(2);
     expect(t.rows[0][1][0].text).toBe('2');
   });
+
+  it('parses a GFM alignment-separator table (":-:") as a real table', () => {
+    const src = '| A | B |\n|:-:|:-:|\n| 1 | 2 |';
+    const t = parseMarkdown(src)[0] as Extract<Block, { type: 'table' }>;
+    expect(t.type).toBe('table');
+    expect(t.header).toHaveLength(2);
+    expect(t.header[0][0].text).toBe('A');
+    expect(t.rows).toHaveLength(1);
+    expect(t.rows[0][1][0].text).toBe('2');
+  });
+
+  it('terminates when a pipe row is not followed by a valid separator (stray prose line)', () => {
+    const src = '| this looks like a table row but is not\nNext paragraph.';
+    const b = parseMarkdown(src);
+    expect(b.length).toBeGreaterThan(0);
+    expect(b.every((x) => x.type === 'paragraph')).toBe(true);
+  });
+
+  it('terminates when a table header row is the last line of the file', () => {
+    const src = 'Intro paragraph.\n\n| A | B |';
+    const b = parseMarkdown(src);
+    expect(b).toHaveLength(2);
+    expect(b[1].type).toBe('paragraph');
+  });
 });
 
 describe('parseMarkdown — inline', () => {
