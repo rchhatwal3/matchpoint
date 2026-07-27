@@ -53,6 +53,8 @@ export type Room = {
   id: string;
   code: string;
   locations: string[];
+  /** Shared restaurant price-tier filter (smallint[]); tier 0 = unpriced. */
+  price_tiers: number[];
   created_at?: string;
 };
 

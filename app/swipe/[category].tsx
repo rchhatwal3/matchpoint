@@ -7,7 +7,7 @@ import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
 import { deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
-import { usePriceLevels } from '@/lib/usePriceLevels';
+import { normalizePriceTiers } from '@/lib/price-filter';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
@@ -28,14 +28,25 @@ export default function SwipeDeck() {
   const { colors, spacing, radii } = useTheme();
   const reducedMotion = useReducedMotion();
   const router = useRouter();
-  const { loading, room, getItems, getMySwipedItemIds, recordSwipe } = useSession();
+  const { loading, room, getItems, getMySwipedItemIds, recordSwipe, updatePriceTiers } =
+    useSession();
 
   const [deck, setDeck] = useState<Item[] | null>(null);
   // Ids swiped this session — items drop out of the deck view once swiped, so a
   // price-filter toggle never resurfaces them (an index cursor couldn't do that).
   const [swiped, setSwiped] = useState<Set<string>>(new Set());
-  // Restaurants only: persisted price-tier selection (survives deck revisits).
-  const { priceLevels, toggle: togglePrice } = usePriceLevels();
+  // Restaurants only: shared per-room price-tier selection (synced to the partner
+  // in realtime, persisted on the room row — survives revisits and devices).
+  const priceLevels = useMemo(() => normalizePriceTiers(room?.price_tiers), [room?.price_tiers]);
+  const togglePrice = useCallback(
+    (level: number) => {
+      const next = new Set(priceLevels);
+      if (next.has(level)) next.delete(level);
+      else next.add(level);
+      void updatePriceTiers([...next]);
+    },
+    [priceLevels, updatePriceTiers],
+  );
   const translateX = useSharedValue(0);
   const topCardRef = useRef<SwipeCardHandle>(null);
   // Data the mounted deck currently reflects. Editing locations happens on

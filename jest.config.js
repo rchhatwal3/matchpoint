@@ -5,7 +5,7 @@
 // is covered separately via `deno test`.
 module.exports = {
   preset: 'jest-expo',
-  collectCoverageFrom: ['lib/**/*.ts', '!lib/**/*.test.ts', '!lib/theme/**', '!lib/usePriceLevels.ts', '!lib/legal/content/**'],
+  collectCoverageFrom: ['lib/**/*.ts', '!lib/**/*.test.ts', '!lib/theme/**', '!lib/legal/content/**'],
   coverageThreshold: {
     global: { branches: 90, functions: 90, lines: 90, statements: 90 },
   },

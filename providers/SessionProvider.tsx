@@ -20,7 +20,12 @@ import seedData from '@/data/seed.json';
  */
 const OFFLINE_ITEMS: Item[] = mapSeedToItems(seedData as SeedRow[]);
 
-const OFFLINE_ROOM: Room = { id: 'offline-room', code: 'OFFLNE', locations: [] };
+const OFFLINE_ROOM: Room = {
+  id: 'offline-room',
+  code: 'OFFLNE',
+  locations: [],
+  price_tiers: [0, 1, 2, 3, 4],
+};
 
 const RESTAURANT_COLUMNS =
   'id, category, title, subtitle, emoji, image_url, location, source, price_level';
@@ -66,6 +71,8 @@ type SessionValue = {
   joinRoom: (code: string, name: string) => Promise<void>;
   /** Update the pair's shared location list; syncs to the partner in realtime. */
   updateLocations: (locations: string[]) => Promise<void>;
+  /** Update the pair's shared restaurant price-tier filter; syncs in realtime. */
+  updatePriceTiers: (tiers: number[]) => Promise<void>;
   getItems: (category: Category) => Promise<Item[]>;
   getMySwipedItemIds: () => Promise<Set<string>>;
   recordSwipe: (item: Item, liked: boolean) => Promise<void>;
@@ -113,7 +120,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const [{ data: r }, { data: others }] = await Promise.all([
       client
         .from('rooms')
-        .select('id, code, locations, created_at')
+        .select('id, code, locations, price_tiers, created_at')
         .eq('id', me.room_id)
         .maybeSingle(),
       client
@@ -284,7 +291,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setMember(me as Member);
         const { data: r } = await supabase
           .from('rooms')
-          .select('id, code, locations, created_at')
+          .select('id, code, locations, price_tiers, created_at')
           .eq('id', me.room_id)
           .maybeSingle();
         if (r) setRoom(r as Room);
@@ -311,7 +318,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const [{ data: r }, { data: allMembers }] = await Promise.all([
         supabase
           .from('rooms')
-          .select('id, code, locations, created_at')
+          .select('id, code, locations, price_tiers, created_at')
           .eq('id', roomId as string)
           .maybeSingle(),
         supabase
@@ -345,6 +352,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setRoom((prev) => (prev ? { ...prev, locations: clean } : prev));
       if (!supabase || !room) return;
       const { error } = await supabase.from('rooms').update({ locations: clean }).eq('id', room.id);
+      if (error) throw error;
+    },
+    [room],
+  );
+
+  const updatePriceTiers = useCallback(
+    async (tiers: number[]): Promise<void> => {
+      // Optimistic local update — offline mode stops here (in-memory only).
+      setRoom((prev) => (prev ? { ...prev, price_tiers: tiers } : prev));
+      if (!supabase || !room) return;
+      const { error } = await supabase
+        .from('rooms')
+        .update({ price_tiers: tiers })
+        .eq('id', room.id);
       if (error) throw error;
     },
     [room],
@@ -449,6 +470,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       createRoom,
       joinRoom,
       updateLocations,
+      updatePriceTiers,
       getItems,
       getMySwipedItemIds,
       recordSwipe,
@@ -466,6 +488,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       createRoom,
       joinRoom,
       updateLocations,
+      updatePriceTiers,
       getItems,
       getMySwipedItemIds,
       recordSwipe,
