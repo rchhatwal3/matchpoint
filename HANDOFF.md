@@ -2,10 +2,15 @@
 
 Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-07-27.
 
-## In review (2026-07-27) — two PRs open
+## In review (2026-07-27) — age gate removed
 
-- **PR #32 `fix/otp-length-hint`** — `OTP_CODE_LENGTH` in `lib/auth-logic.ts` is now the single source of truth for the email-OTP length (it was hardcoded in both `isValidCode`'s regex and `app/account.tsx`'s `maxLength`), and a new pure `codeEntryHint()` tells the user "Enter the 6-digit code from your email." instead of leaving Verify silently disabled. Closes the silent-failure mode that bit us live on 2026-07-23 when the Supabase setting was 8. 63/63 jest, `auth-logic.ts` 100% covered, static checks clean. Browser: `/account` renders clean; the hint's own view needs a real OTP email to reach, so it is unit-tested rather than click-tested.
-- **PR #33 `fix/legal-parser-hang`** — infinite loop in `lib/legal/parse-markdown.ts` found by the QA pass and reproduced (jest worker died with `FATAL ERROR ... heap out of memory`). The paragraph branch could fail to advance `i`, and `isTableSep` rejected GFM alignment rows, so a `|:-:|` table hung the parser — which would hang the CI static export of the legal pages with no error. Fixed with a forward-progress guarantee + a proper separator regex, 4 regression tests. Browser-verified `/legal/privacy` still renders its tables.
+- **Branch `feat/remove-age-gate`** — the A2 "I confirm I am 18 or older" checkbox is gone; the entry screen keeps only the A1 Terms + Privacy box, which still gates Create/Join. The Terms and Privacy Policy now state a **16+** minimum (GDPR Art. 8 default consent age — no parental-consent mechanism needed in any member state, clear of COPPA), asserted as an eligibility term and never asked about in-app. Reasoning is recorded in `docs/compliance/REQUIREMENTS.md` §6 rather than deleted: the original 18+ recommendation rested on matchpoint being "dating-adjacent", which it is not. `members.age_confirmed` survives as the historical record; new rows stop populating it.
+  - **Two migrations, order matters.** `019_age_gate_removal.sql` relaxes the 017 CHECK to its consent-version half and adds `create_room(text,text)` / `join_room(text,text,text)` as OVERLOADS — safe to apply *before* the deploy, and it must be applied before it, or the new build fails the CHECK. `020_drop_legacy_consent_rpcs.sql` drops the age-taking signatures and must NOT be applied until the new build is live (the 013 lockstep hazard, deliberately avoided this time).
+  - Verified: 74/74 jest, deno 24/24, typecheck/lint/hex-grep/web-export clean, browser (one checkbox, Create disabled until ticked, both legal pages render 16+ with no "18" remaining, console clean). Creating a room against the live backend is *not* yet verified — it needs `019` applied first.
+
+## Merged since (2026-07-27)
+
+PRs #32 (OTP length hint), #33 (legal parser hang), #34–#36 (QA report, decisions, launch config), #37 (recovery enumeration oracle closed), #38 (invite-code throttle + oracle removed), #39 (consent record tamper-evident, migration 017), #40 (Places lookup budget, migration 018) are all merged and deployed. Migrations 016, 017 and 018 are applied to prod.
 
 ## Adversarial QA pass — DONE 2026-07-27
 
@@ -22,7 +27,7 @@ Read-only static audit against a hostile-caller threat model. Report: **`docs/se
 
 All merged to `main` + deployed:
 - **Deep-route refresh 404 — FIXED (PR #27).** `generateStaticParams` in `app/swipe/[category].tsx` emits real HTML per category, so a hard refresh of `/swipe/<cat>` resolves on gh-pages (no SPA rewrite). Chose pre-render over the 404.html trick.
-- **EU/GDPR consent + legal pages + data erasure — SHIPPED (PR #28).** A1/A2 entry-consent checkboxes + B2 recovery ack; `/legal/terms` + `/legal/privacy` via a pure markdown parser (`lib/legal/parse-markdown.ts`); consent stamped on `members` (migration `013`, which re-creates `create_room`/`join_room` with consent params); in-app `delete_my_data()` (migration `014`) + Settings control + `docs/compliance/DSAR_RUNBOOK.md`. **Migrations 013/014 applied.** MANUAL pending: counsel fills `[PLACEHOLDER]`/removes DRAFT banner in the two `docs/compliance/*.draft.md`, then re-sync into `lib/legal/content/` (not legal advice).
+- **EU/GDPR consent + legal pages + data erasure — SHIPPED (PR #28).** A1/A2 entry-consent checkboxes + B2 recovery ack (A2, the 18+ box, was removed on 2026-07-27 — see the age-gate entry at the top); `/legal/terms` + `/legal/privacy` via a pure markdown parser (`lib/legal/parse-markdown.ts`); consent stamped on `members` (migration `013`, which re-creates `create_room`/`join_room` with consent params); in-app `delete_my_data()` (migration `014`) + Settings control + `docs/compliance/DSAR_RUNBOOK.md`. **Migrations 013/014 applied.** MANUAL pending: counsel fills `[PLACEHOLDER]`/removes DRAFT banner in the two `docs/compliance/*.draft.md`, then re-sync into `lib/legal/content/` (not legal advice).
 - **Shared per-room price filter — SHIPPED (PR #29).** Moved price-tier selection from per-device store to `rooms.price_tiers smallint[]` (migration `015`, applied) — shared + synced to partner via the existing rooms realtime path, like `locations`. `updatePriceTiers()` mirrors `updateLocations`; `lib/usePriceLevels.ts` retired; pure `normalizePriceTiers()`. Scope decision (per-room + DB) was the user's call. The Settings hub itself shipped earlier, in PR #15 — this line used to claim it was unbuilt.
 
 **Gotchas learned this session:**

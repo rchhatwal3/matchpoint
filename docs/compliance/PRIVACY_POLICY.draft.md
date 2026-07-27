@@ -109,7 +109,7 @@ Depending on where you live, you have the following rights over your personal da
 
 **Shared rooms:** a room is shared between two people. If you delete your data, we remove your personal data from the room. Room content that also belongs to the other member (such as their swipes and the shared match history) may remain available to that other member unless they also delete it. Contact us if you have questions about a specific room.
 
-**If you are a California / US resident:** we do **not sell or share** your personal information (as those terms are defined under the CCPA/CPRA), we do not use it for cross-context behavioral advertising, and we do not knowingly process the data of anyone under 18. You may contact us to ask what personal information we hold and to request deletion. We will not discriminate against you for exercising your rights.
+**If you are a California / US resident:** we do **not sell or share** your personal information (as those terms are defined under the CCPA/CPRA) and do not use it for cross-context behavioral advertising — including for any consumer under 16, for whom the CCPA would otherwise require opt-in consent before a sale or share. matchpoint's stated minimum age to use the Service is 16. You may contact us to ask what personal information we hold and to request deletion. We will not discriminate against you for exercising your rights.
 
 ## 10. Security
 
@@ -117,7 +117,7 @@ We use reasonable technical and organisational measures to protect your data, in
 
 ## 11. Children
 
-The Service is intended for adults and **you must be 18 or older to use it**. We do not knowingly collect personal data from anyone under 18. If you believe a minor has provided us data, contact **[PRIVACY CONTACT EMAIL]** and we will delete it.
+**You must be at least 16 years old to use the Service.** We do not knowingly collect personal data from anyone under 16. If you believe someone under 16 has provided us data, contact **[PRIVACY CONTACT EMAIL]** and we will delete it.
 
 ## 12. Data breaches
 

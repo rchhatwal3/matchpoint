@@ -16,9 +16,9 @@ matchpoint is a shared decision-making app for **pairs** — couples or friends.
 
 The Service is available on iOS, Android, and the web.
 
-## 2. Eligibility — you must be 18 or older
+## 2. Eligibility — you must be 16 or older
 
-The Service is intended for adults. **You must be at least 18 years old to use the Service.** By using the Service you represent and warrant that you are 18 or older. We may suspend or terminate any account we reasonably believe belongs to a person under 18. If you believe a minor is using the Service, contact us at **[CONTACT EMAIL]**.
+**You must be at least 16 years old to use the Service.** By using the Service you represent and warrant that you are 16 or older. We may suspend or terminate any account we reasonably believe belongs to a person under 16. If you believe someone under 16 is using the Service, contact us at **[CONTACT EMAIL]**.
 
 ## 3. Accounts and access
 
@@ -33,7 +33,7 @@ The Service is intended for adults. **You must be at least 18 years old to use t
 ## 4. Acceptable use
 
 You agree not to:
-- use the Service if you are under 18;
+- use the Service if you are under 16;
 - use the Service for any unlawful purpose or in violation of these Terms;
 - upload, save, or transmit content that is illegal, infringing, abusive, harassing, or that violates another person's rights;
 - attempt to access rooms, accounts, or data that are not yours, or to defeat invite-code privacy;
@@ -67,7 +67,7 @@ The Service is currently provided **free of charge**. If we introduce paid featu
 
 **9.1 By you.** You may stop using the Service at any time. You may request deletion of your data as described in the Privacy Policy, or via any in-app delete control we provide.
 
-**9.2 By us.** We may suspend or terminate your access if you violate these Terms, if we reasonably believe you are under 18, or if required to protect the Service, other users, or comply with law.
+**9.2 By us.** We may suspend or terminate your access if you violate these Terms, if we reasonably believe you are under 16, or if required to protect the Service, other users, or comply with law.
 
 **9.3 Effect.** On termination, your right to use the Service ends. Sections that by their nature should survive (including Sections 5.2, 10, 11, 12, 13, and 14) survive termination.
 
