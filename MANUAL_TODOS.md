@@ -33,13 +33,13 @@ The 18+ checkbox is gone; the Terms now state a 16+ minimum that the app never a
 about. `members.age_confirmed` survives as the record of what earlier members
 confirmed. Full reasoning in `docs/compliance/REQUIREMENTS.md` §6.
 
-- [ ] **Run `019_age_gate_removal.sql`** in the SQL Editor — safe to apply any time,
+- [x] **Run `019_age_gate_removal.sql`** — DONE 2026-07-27. in the SQL Editor — safe to apply any time,
       including before the PR merges. It relaxes the `members_consent_recorded` CHECK
       (dropping the `age_confirmed` conjunct, keeping the consent-version one) and adds
       `create_room(text,text)` / `join_room(text,text,text)` as OVERLOADS, so the
       currently deployed build keeps working. **Apply this before the deploy** or the
       new build's create/join fail the CHECK.
-- [ ] **Run `020_drop_legacy_consent_rpcs.sql` ONLY after the age-free build is live.**
+- [x] **Run `020_drop_legacy_consent_rpcs.sql`** — DONE 2026-07-27, after the deploy. Verified live: both legacy signatures now return `PGRST202`.
       It drops the age-taking 3-arg/4-arg signatures. Applying it early breaks create
       and join for the deployed build — the same lockstep hazard `013` caused.
 - [ ] **Tell counsel the stated minimum age changed from 18 to 16** when they do the
