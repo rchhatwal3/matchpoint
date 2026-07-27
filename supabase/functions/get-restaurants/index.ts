@@ -1,6 +1,8 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
 import {
   MAX_LOCATION_LEN,
+  lookupWindowStart,
+  isOverLookupBudget,
   isLocationAllowed,
   priceLevelNum,
   describe,
@@ -88,6 +90,13 @@ Deno.serve(async (req) => {
       return json({ items: existing, cached: true, note: 'PLACES_API_KEY not set' });
     }
 
+    // Per-user cost budget. The room guard above is self-authorizing (members
+    // may UPDATE rooms.locations), so it only stops the trivial case; this is
+    // what bounds the bill. Checked here, after the cache and no-key exits, so
+    // a cache hit never spends budget — only a request about to go upstream.
+    const refusal = await spendLookupBudget(svc, userData.user.id);
+    if (refusal) return refusal;
+
     const googlePlaces = await fetchPlaces(loc);
     const places = await enrichPricesWithFoursquare(googlePlaces, loc);
     const existingTitles = new Set(existing.map((i) => i.title.toLowerCase()));
@@ -127,6 +136,48 @@ function json(body: unknown, status = 200) {
     status,
     headers: { ...cors, 'content-type': 'application/json' },
   });
+}
+
+// Count this user's upstream lookups in the trailing window and record this one.
+// Returns a refusal Response when the request must not proceed, else null.
+// Fails closed: if the ledger can't be read or written we cannot bound spend, so
+// we refuse rather than bill. Error detail is logged, never returned (the
+// response bodies here are fixed strings).
+async function spendLookupBudget(svc: SupabaseClient, userId: string): Promise<Response | null> {
+  const now = new Date();
+  const since = lookupWindowStart(now);
+
+  const { count, error: countErr } = await svc
+    .from('places_lookups')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .gte('at', since);
+  if (countErr) {
+    console.error('places_lookups count failed', countErr);
+    return json({ error: 'Could not load restaurants' }, 500);
+  }
+  if (isOverLookupBudget(count ?? 0)) {
+    return json({ error: 'Daily restaurant search limit reached. Try again tomorrow.' }, 429);
+  }
+
+  const { error: insertErr } = await svc
+    .from('places_lookups')
+    .insert({ user_id: userId, at: now.toISOString() });
+  if (insertErr) {
+    console.error('places_lookups insert failed', insertErr);
+    return json({ error: 'Could not load restaurants' }, 500);
+  }
+
+  // Keep the ledger to one window per user. Best-effort: a failed prune costs
+  // storage, not correctness, since the count above is window-filtered anyway.
+  const { error: pruneErr } = await svc
+    .from('places_lookups')
+    .delete()
+    .eq('user_id', userId)
+    .lt('at', since);
+  if (pruneErr) console.error('places_lookups prune failed', pruneErr);
+
+  return null;
 }
 
 async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<ItemRow[]> {
