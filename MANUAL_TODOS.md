@@ -2,6 +2,28 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
+## GDPR/EU consent + legal pages (blocks the legal pages going live)
+
+- [ ] **Fill legal draft placeholders and remove the DRAFT banner**: before
+      `/legal/terms` and `/legal/privacy` are treated as final, counsel must fill
+      the `[PLACEHOLDER]` fields in `docs/compliance/TERMS_OF_SERVICE.draft.md`
+      and `docs/compliance/PRIVACY_POLICY.draft.md` (legal entity name, contact/
+      privacy email, dates, jurisdiction, retention periods, transfer-mechanism
+      confirmations), remove the DRAFT banner, then re-sync the finalized bodies
+      verbatim into `lib/legal/content/terms.ts` and `lib/legal/content/privacy.ts`
+      (bump `POLICY_VERSION` in `lib/legal/policy-meta.ts` if wording changed
+      materially, so future re-consent can be triggered). The DSAR contact email
+      (`docs/compliance/DSAR_RUNBOOK.md`) must be the same real, monitored inbox.
+- [ ] **Apply migrations `013_consent.sql` and `014_delete_my_data.sql`** (SQL
+      Editor or `supabase db push`) before deploying a build that calls the new
+      `create_room`/`join_room` signatures or `delete_my_data()` — otherwise those
+      RPC calls fail with a missing-function/column error.
+      **DEPLOY IN LOCKSTEP:** `013` **drops** the old 1-arg `create_room(text)` and
+      2-arg `join_room(text, text)`, so applying it makes the *currently deployed*
+      site's create/join fail until the consent build ships. Apply `013` right as
+      the consent PR merges/deploys (not days ahead) to keep the outage window near
+      zero. `015_room_price_tiers.sql` (price filter) is independent — apply anytime.
+
 ## Testing / CI enforcement (T-tests)
 
 - [x] **Branch protection on `main`** (GitHub → Settings → Branches → Add rule for `main`): require the status checks **Tests and Coverage**, **Edge Function Tests**, and **Typecheck and Lint** to pass, and require **1 approving review**, before merge. This is the server-side backstop that makes "review + tests before merge" un-skippable; the husky `pre-push` hook enforces the mechanical checks locally, and CI re-runs them.

@@ -11,6 +11,7 @@ import { Screen } from '@/components/Screen';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
 import { Text } from '@/components/Text';
+import { Checkbox } from '@/components/Checkbox';
 
 export default function Account() {
   const { colors, spacing, radii } = useTheme();
@@ -41,6 +42,7 @@ export default function Account() {
   const [generatedCodes, setGeneratedCodes] = useState<string[] | null>(null);
   const [codesLeft, setCodesLeft] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [ackSaved, setAckSaved] = useState(false);
 
   const view = authView({ isAnonymous, email, codeSent });
 
@@ -89,6 +91,7 @@ export default function Account() {
         const c = await issueRecoveryCodes();
         setGeneratedCodes(c);
         setCodesLeft(c.length);
+        setAckSaved(false);
       }
     });
 
@@ -98,6 +101,7 @@ export default function Account() {
       const c = await issueRecoveryCodes();
       setGeneratedCodes(c);
       setCodesLeft(c.length);
+      setAckSaved(false);
     });
 
   const copyCodes = () =>
@@ -184,10 +188,22 @@ export default function Account() {
                   {Platform.OS === 'web' ? (
                     <Button label="Download codes" variant="outlined" disabled={busy} onPress={downloadCodes} />
                   ) : null}
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                    <Checkbox
+                      checked={ackSaved}
+                      onChange={setAckSaved}
+                      accessibilityLabel="I understand my recovery codes cannot be recovered and I have saved them"
+                    />
+                    <Text variant="body" style={{ flex: 1 }}>
+                      I understand my recovery codes are the only way to regain access if I lose my
+                      email, and matchpoint cannot recover them for me. I&apos;ve saved them somewhere
+                      safe.
+                    </Text>
+                  </View>
                   <Button
                     label="I've saved them"
                     variant="outlined"
-                    disabled={busy}
+                    disabled={busy || !ackSaved}
                     onPress={() => setGeneratedCodes(null)}
                   />
                 </View>

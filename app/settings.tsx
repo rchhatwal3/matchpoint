@@ -53,8 +53,9 @@ function SettingsSection({ title, children }: { title: string; children: ReactNo
 export default function Settings() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
-  const { loading, room, updateLocations } = useSession();
+  const { loading, room, updateLocations, deleteMyData } = useSession();
   const [draft, setDraft] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const selected = room?.locations ?? [];
   const selectedKeys = new Set(selected.map((l) => l.toLowerCase()));
@@ -94,6 +95,31 @@ export default function Settings() {
             variant="outlined"
             onPress={() => router.push('/account')}
           />
+          {confirmDelete ? (
+            <View style={{ gap: spacing.sm }}>
+              <Text variant="body" color={colors.danger}>
+                This permanently deletes your data from this room. Shared matches stay with your
+                partner unless they also delete. This can&apos;t be undone.
+              </Text>
+              <Button
+                label="Permanently delete my data"
+                variant="outlined"
+                onPress={() =>
+                  deleteMyData()
+                    .then(() => router.replace('/'))
+                    .catch((e) => console.warn('deleteMyData failed', e))
+                }
+              />
+              <Button label="Cancel" variant="outlined" onPress={() => setConfirmDelete(false)} />
+            </View>
+          ) : (
+            <Button label="Delete my data" variant="outlined" onPress={() => setConfirmDelete(true)} />
+          )}
+        </SettingsSection>
+
+        <SettingsSection title="Legal">
+          <Button label="Terms of Service" variant="outlined" onPress={() => router.push('/legal/terms')} />
+          <Button label="Privacy Policy" variant="outlined" onPress={() => router.push('/legal/privacy')} />
         </SettingsSection>
 
         <SettingsSection title="Shared with your partner">
