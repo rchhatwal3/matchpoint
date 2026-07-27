@@ -11,26 +11,13 @@ const isTier = (n: number): n is PriceTier => (PRICE_TIERS as readonly number[])
 /** Every tier selected — the default view (nothing hidden). */
 export const allPriceTiers = (): Set<number> => new Set(PRICE_TIERS);
 
-/** Selected set → a stable, storable string (sorted, valid tiers only). */
-export function serializePriceTiers(selected: Set<number>): string {
-  return [...selected]
-    .filter(isTier)
-    .sort((a, b) => a - b)
-    .join(',');
-}
-
 /**
- * Stored string → a valid tier set. Junk tokens are dropped; an absent or empty
- * value falls back to all-tiers-on, so a corrupt store (or an intentional
- * all-off, which would show an empty deck) never leaves the deck permanently
- * blank on the next visit.
+ * DB value (rooms.price_tiers, a smallint[]) → a valid tier Set. Junk entries are
+ * dropped; null/undefined/empty/all-junk falls back to all-tiers-on so a fresh or
+ * corrupt row (or an intentional all-off, which would show an empty deck) never
+ * leaves the deck permanently blank.
  */
-export function parsePriceTiers(raw: string | null): Set<number> {
-  if (raw == null) return allPriceTiers();
-  const tiers = raw
-    .split(',')
-    .filter((t) => t.trim() !== '') // Number('') === 0, which is a valid tier — drop blanks first
-    .map(Number)
-    .filter((n) => Number.isInteger(n) && isTier(n));
+export function normalizePriceTiers(raw: number[] | null | undefined): Set<number> {
+  const tiers = (raw ?? []).filter((n) => Number.isInteger(n) && isTier(n));
   return tiers.length ? new Set(tiers) : allPriceTiers();
 }
