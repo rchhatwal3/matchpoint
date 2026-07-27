@@ -12,6 +12,22 @@ export function isLocationAllowed(loc: string, allowed: string[]): boolean {
   return allowed.map((l) => l.trim().toLowerCase()).includes(loc.toLowerCase());
 }
 
+// Per-user cost budget. The room-locations guard above is self-authorizing —
+// members may UPDATE rooms.locations — so it cannot bound spend on its own.
+// This counts only lookups that actually go upstream to Places/Foursquare.
+export const LOOKUP_LIMIT = 50;
+export const LOOKUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+// Start of the trailing budget window, as an ISO timestamp for the `at` filter.
+export function lookupWindowStart(now: Date): string {
+  return new Date(now.getTime() - LOOKUP_WINDOW_MS).toISOString();
+}
+
+// True when the user has already spent the whole window's budget.
+export function isOverLookupBudget(countInWindow: number): boolean {
+  return countInWindow >= LOOKUP_LIMIT;
+}
+
 export type PlacesApiPlace = {
   displayName?: { text?: string };
   rating?: number;

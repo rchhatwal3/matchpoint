@@ -1,6 +1,10 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
   MAX_LOCATION_LEN,
+  LOOKUP_LIMIT,
+  LOOKUP_WINDOW_MS,
+  lookupWindowStart,
+  isOverLookupBudget,
   isLocationAllowed,
   priceLevelNum,
   priceLabel,
@@ -26,6 +30,22 @@ Deno.test('isLocationAllowed rejects when the room has no locations', () => {
 Deno.test('an over-long location exceeds MAX_LOCATION_LEN', () => {
   assertEquals('x'.repeat(MAX_LOCATION_LEN + 1).length > MAX_LOCATION_LEN, true);
   assertEquals('New York'.length > MAX_LOCATION_LEN, false);
+});
+
+Deno.test('lookupWindowStart is exactly one window behind now', () => {
+  const now = new Date('2026-07-27T12:00:00.000Z');
+  assertEquals(lookupWindowStart(now), '2026-07-26T12:00:00.000Z');
+  assertEquals(
+    now.getTime() - new Date(lookupWindowStart(now)).getTime(),
+    LOOKUP_WINDOW_MS,
+  );
+});
+
+Deno.test('isOverLookupBudget refuses at the limit, not before', () => {
+  assertEquals(isOverLookupBudget(0), false);
+  assertEquals(isOverLookupBudget(LOOKUP_LIMIT - 1), false);
+  assertEquals(isOverLookupBudget(LOOKUP_LIMIT), true);
+  assertEquals(isOverLookupBudget(LOOKUP_LIMIT + 1), true);
 });
 
 Deno.test('priceLevelNum maps every Places enum, null otherwise', () => {
