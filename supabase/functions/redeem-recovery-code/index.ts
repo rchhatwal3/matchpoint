@@ -44,10 +44,12 @@ Deno.serve(async (req) => {
     }
 
     // Resolve the email to a user id (definer helper — auth.users is unreachable
-    // via PostgREST). Unknown email: generic failure, no attempt recorded (an
-    // unknown email is not a brute-force against a real account).
+    // via PostgREST). Unknown email: same fail() path as a wrong code, so an
+    // unregistered email accumulates lockout state identically to a registered
+    // one — otherwise the two are distinguishable by the sixth request (see
+    // docs/security/2026-07-27-adversarial-qa.md, P2 enumeration finding).
     const { data: uid } = await svc.rpc('user_id_for_email', { p_email: email });
-    if (!uid) return json({ error: GENERIC });
+    if (!uid) return await fail(svc, email);
 
     // Find a matching unused code by recomputing the hash per row salt.
     const { data: rows } = await svc
