@@ -2,6 +2,9 @@
 
 Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-07-27.
 
+## In review (2026-07-27) — Date Night per-category randomizer
+- **Branch `feat/date-night-per-category-randomizer` — PR open, awaiting merge.** "Surprise us" rolls one random pick per *selected* category (was one across the whole pool): a multi-category draw now shows one card per populated category under "TONIGHT'S PLAN". Empty categories get no card; deselecting drops that category's card. Pick logic extracted to pure `lib/date-night.ts` (`groupByCategory`, `rollPicks` — injectable rng, avoids repeating a category's last pick) + 6 unit tests. All static checks green; browser E2E in offline mode passed. Investigated a theoretical stale-pick-on-refetch flag and confirmed it's unreachable (no un-match path shrinks the pool).
+
 ## Latest session (2026-07-27) — 3 backlog items shipped
 
 All merged to `main` + deployed:

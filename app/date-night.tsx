@@ -5,6 +5,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-na
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORY_EMOJI, CATEGORY_LABELS, type Category, type MatchRow } from '@/lib/types';
+import { groupByCategory, rollPicks } from '@/lib/date-night';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
@@ -34,7 +35,7 @@ export default function DateNight() {
 
   const [matches, setMatches] = useState<MatchRow[] | null>(null);
   const [selected, setSelected] = useState<Set<Category>>(() => new Set(DATE_CATEGORIES));
-  const [pick, setPick] = useState<MatchRow | null>(null);
+  const [picks, setPicks] = useState<Map<Category, MatchRow>>(() => new Map());
   const [showShortlist, setShowShortlist] = useState(false);
 
   useFocusEffect(
@@ -61,52 +62,46 @@ export default function DateNight() {
     [matches, selected],
   );
 
+  // Pool grouped by category — the per-category draw buckets and shortlist source.
+  const byCategory = useMemo(() => groupByCategory(pool), [pool]);
+  const populated = DATE_CATEGORIES.filter((c) => (byCategory.get(c)?.length ?? 0) > 0);
+
   const toggle = useCallback((c: Category) => {
-    // Deselecting the pick's category shouldn't leave a stale pick on screen.
-    setPick((cur) => (cur && cur.category === c && selected.has(c) ? null : cur));
+    // Deselecting a category drops its pick so no stale card lingers.
+    setPicks((cur) => {
+      if (!cur.has(c)) return cur;
+      const next = new Map(cur);
+      next.delete(c);
+      return next;
+    });
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(c)) next.delete(c);
       else next.add(c);
       return next;
     });
-  }, [selected]);
+  }, []);
 
+  // Roll one random match in every selected category that has matches.
   const spin = useCallback(() => {
-    if (pool.length === 0) {
-      setPick(null);
-      return;
-    }
-    // Avoid landing on the same pick twice in a row when there's a choice.
-    const candidates =
-      pool.length > 1 && pick ? pool.filter((m) => m.item_id !== pick.item_id) : pool;
-    setPick(candidates[Math.floor(Math.random() * candidates.length)]);
-  }, [pool, pick]);
+    setPicks((prev) => rollPicks(byCategory, DATE_CATEGORIES, prev));
+  }, [byCategory]);
 
-  // Celebratory scale-in on each new pick (gated on reduced motion).
+  // Celebratory scale-in on each new spin (gated on reduced motion).
   const scale = useSharedValue(1);
   const cardStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
   useEffect(() => {
-    if (!pick) return;
+    if (picks.size === 0) return;
     if (reducedMotion) {
       scale.set(1);
       return;
     }
     scale.set(0.9);
     scale.set(withSpring(1, { damping: 14, stiffness: 180 }));
-  }, [pick, reducedMotion, scale]);
+  }, [picks, reducedMotion, scale]);
 
-  // Shortlist grouping — mirrors the matches screen idiom.
-  const byCategory = useMemo(() => {
-    const map = new Map<Category, MatchRow[]>();
-    for (const m of pool) {
-      const list = map.get(m.category) ?? [];
-      list.push(m);
-      map.set(m.category, list);
-    }
-    return map;
-  }, [pool]);
-  const populated = DATE_CATEGORIES.filter((c) => (byCategory.get(c)?.length ?? 0) > 0);
+  // Selected categories that produced a pick, in picker order.
+  const pickedCategories = DATE_CATEGORIES.filter((c) => picks.has(c));
 
   if (!loading && !room) return <Redirect href="/" />;
 
@@ -168,51 +163,58 @@ export default function DateNight() {
           />
         ) : (
           <>
-            {/* Tonight's pick — celebratory flame-container halo around a surface card. */}
-            {pick ? (
-              <View
-                style={{
-                  backgroundColor: colors.primaryContainer,
-                  borderRadius: radii.xl + spacing.md,
-                  padding: spacing.md,
-                }}
-              >
-                <Animated.View
-                  style={[
-                    styles.pickCard,
-                    {
-                      backgroundColor: colors.surface,
-                      borderRadius: radii.xl,
-                      padding: spacing['3xl'],
-                      gap: spacing.md,
-                    },
-                    elevation.level2,
-                    cardStyle,
-                  ]}
-                >
-                  <Text variant="overline" color={colors.primary}>
-                    TONIGHT’S PICK
-                  </Text>
-                  <Text style={styles.pickGlyph} accessibilityElementsHidden>
-                    {CATEGORY_EMOJI[pick.category]}
-                  </Text>
-                  <Text variant="headline" style={styles.centered}>
-                    {pick.title}
-                  </Text>
-                  {pick.subtitle ? (
-                    <Text variant="body" color={colors.inkMuted} style={styles.centered}>
-                      {pick.subtitle}
-                    </Text>
-                  ) : null}
-                  <Text variant="overline" color={colors.inkMuted}>
-                    {CATEGORY_LABELS[pick.category].toUpperCase()}
-                  </Text>
-                </Animated.View>
-              </View>
+            {/* Tonight's plan — one celebratory flame-halo card per selected category. */}
+            {pickedCategories.length > 0 ? (
+              <Animated.View style={[{ gap: spacing.md }, cardStyle]}>
+                <Text variant="overline" color={colors.primary}>
+                  TONIGHT’S PLAN
+                </Text>
+                {pickedCategories.map((c) => {
+                  const p = picks.get(c)!;
+                  return (
+                    <View
+                      key={c}
+                      style={{
+                        backgroundColor: colors.primaryContainer,
+                        borderRadius: radii.xl + spacing.md,
+                        padding: spacing.md,
+                      }}
+                    >
+                      <View
+                        style={[
+                          styles.pickCard,
+                          {
+                            backgroundColor: colors.surface,
+                            borderRadius: radii.xl,
+                            padding: spacing['3xl'],
+                            gap: spacing.md,
+                          },
+                          elevation.level2,
+                        ]}
+                      >
+                        <Text variant="overline" color={colors.inkMuted}>
+                          {CATEGORY_LABELS[c].toUpperCase()}
+                        </Text>
+                        <Text style={styles.pickGlyph} accessibilityElementsHidden>
+                          {CATEGORY_EMOJI[c]}
+                        </Text>
+                        <Text variant="headline" style={styles.centered}>
+                          {p.title}
+                        </Text>
+                        {p.subtitle ? (
+                          <Text variant="body" color={colors.inkMuted} style={styles.centered}>
+                            {p.subtitle}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                })}
+              </Animated.View>
             ) : null}
 
             {/* Prominent flame randomizer — the screen's primary action. */}
-            <Button label={pick ? 'Spin again' : 'Surprise us'} onPress={spin} />
+            <Button label={picks.size > 0 ? 'Spin again' : 'Surprise us'} onPress={spin} />
 
             {/* Shortlist — browse the same pool grouped by category instead of spinning. */}
             <View style={{ gap: spacing.md }}>
