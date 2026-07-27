@@ -11,6 +11,7 @@ import {
 import { supabase, supabaseEnabled } from '@/lib/supabase';
 import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
+import { POLICY_VERSION } from '@/lib/legal/policy-meta';
 import seedData from '@/data/seed.json';
 
 /**
@@ -69,6 +70,7 @@ type SessionValue = {
   getMySwipedItemIds: () => Promise<Set<string>>;
   recordSwipe: (item: Item, liked: boolean) => Promise<void>;
   getMatches: () => Promise<MatchRow[]>;
+  deleteMyData: () => Promise<void>;
 };
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -267,7 +269,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         return OFFLINE_ROOM.code;
       }
       if (!userId) throw new Error('session not ready');
-      const { data: code, error } = await supabase.rpc('create_room', { p_name: name });
+      const { data: code, error } = await supabase.rpc('create_room', {
+        p_name: name,
+        p_policy_version: POLICY_VERSION,
+        p_age_confirmed: true,
+      });
       if (error) throw error;
       const { data: me } = await supabase
         .from('members')
@@ -298,6 +304,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const { data: roomId, error } = await supabase.rpc('join_room', {
         p_code: code,
         p_name: name,
+        p_policy_version: POLICY_VERSION,
+        p_age_confirmed: true,
       });
       if (error) throw error;
       const [{ data: r }, { data: allMembers }] = await Promise.all([
@@ -411,6 +419,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return (data ?? []) as MatchRow[];
   }, [room]);
 
+  const deleteMyData = useCallback(async (): Promise<void> => {
+    if (!supabase) {
+      setRoom(null);
+      setMember(null);
+      setPartner(null);
+      return;
+    }
+    const { error } = await supabase.rpc('delete_my_data');
+    if (error) throw error;
+    setRoom(null);
+    setMember(null);
+    setPartner(null);
+    seenMatchIds.current.clear();
+  }, []);
+
   const dismissMatch = useCallback(() => setPendingMatch(null), []);
 
   const value = useMemo<SessionValue>(
@@ -430,6 +453,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       getMySwipedItemIds,
       recordSwipe,
       getMatches,
+      deleteMyData,
     }),
     [
       loading,
@@ -446,6 +470,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       getMySwipedItemIds,
       recordSwipe,
       getMatches,
+      deleteMyData,
     ],
   );
 
