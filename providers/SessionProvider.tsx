@@ -12,6 +12,7 @@ import { supabase, supabaseEnabled } from '@/lib/supabase';
 import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
+import { consentRpcArgs, type ConsentState } from '@/lib/consent/consent-logic';
 import seedData from '@/data/seed.json';
 
 /**
@@ -67,8 +68,9 @@ type SessionValue = {
   /** Mutual like detected — MatchOverlay renders it wherever it happens. */
   pendingMatch: Item | null;
   dismissMatch: () => void;
-  createRoom: (name: string) => Promise<string>;
-  joinRoom: (code: string, name: string) => Promise<void>;
+  /** `consent` is the user's actual checklist state — it becomes the stored record. */
+  createRoom: (name: string, consent: ConsentState) => Promise<string>;
+  joinRoom: (code: string, name: string, consent: ConsentState) => Promise<void>;
   /** Update the pair's shared location list; syncs to the partner in realtime. */
   updateLocations: (locations: string[]) => Promise<void>;
   /** Update the pair's shared restaurant price-tier filter; syncs in realtime. */
@@ -268,7 +270,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // ---- Actions ----
   const createRoom = useCallback(
-    async (name: string): Promise<string> => {
+    async (name: string, consent: ConsentState): Promise<string> => {
+      // Derived before the offline branch so an incomplete checklist is refused
+      // in both modes.
+      const consentArgs = consentRpcArgs(consent, POLICY_VERSION);
       if (!supabase) {
         // Offline: fake room, you are the only member.
         setRoom(OFFLINE_ROOM);
@@ -278,8 +283,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!userId) throw new Error('session not ready');
       const { data: code, error } = await supabase.rpc('create_room', {
         p_name: name,
-        p_policy_version: POLICY_VERSION,
-        p_age_confirmed: true,
+        ...consentArgs,
       });
       if (error) throw error;
       const { data: me } = await supabase
@@ -302,7 +306,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const joinRoom = useCallback(
-    async (code: string, name: string): Promise<void> => {
+    async (code: string, name: string, consent: ConsentState): Promise<void> => {
+      const consentArgs = consentRpcArgs(consent, POLICY_VERSION);
       if (!supabase) {
         setRoom({ ...OFFLINE_ROOM, code: code.toUpperCase() });
         setMember({ id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
@@ -311,8 +316,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const { data: roomId, error } = await supabase.rpc('join_room', {
         p_code: code,
         p_name: name,
-        p_policy_version: POLICY_VERSION,
-        p_age_confirmed: true,
+        ...consentArgs,
       });
       if (error) throw error;
       const [{ data: r }, { data: allMembers }] = await Promise.all([

@@ -15,6 +15,9 @@ import { LegalFooter } from '@/components/LegalFooter';
 function friendlyError(message: string): string {
   if (message.includes('room_not_found')) return 'No room with that code — double-check it?';
   if (message.includes('room_full')) return 'That room already has two people.';
+  if (message.includes('consent_required')) {
+    return 'Please accept the terms and confirm your age first.';
+  }
   return 'Something went wrong. Try again.';
 }
 
@@ -52,7 +55,7 @@ export default function Home() {
     setError(null);
     setBusy(true);
     try {
-      const c = await createRoom(name.trim());
+      const c = await createRoom(name.trim(), consent);
       setCreatedCode(c);
     } catch (e) {
       setError(friendlyError(e instanceof Error ? e.message : String(e)));
@@ -77,7 +80,7 @@ export default function Home() {
     }
     setBusy(true);
     try {
-      await joinRoom(code, name.trim());
+      await joinRoom(code, name.trim(), consent);
       router.replace('/lobby');
     } catch (e) {
       setError(friendlyError(e instanceof Error ? e.message : String(e)));
