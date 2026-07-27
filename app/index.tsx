@@ -47,7 +47,7 @@ export default function Home() {
     setError(null);
     setBusy(true);
     try {
-      const c = await createRoom(name.trim());
+      const c = await createRoom(name.trim(), consent);
       setCreatedCode(c);
     } catch (e) {
       setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
@@ -72,7 +72,7 @@ export default function Home() {
     }
     setBusy(true);
     try {
-      await joinRoom(code, name.trim());
+      await joinRoom(code, name.trim(), consent);
       router.replace('/lobby');
     } catch (e) {
       setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
