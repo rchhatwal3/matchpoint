@@ -1,4 +1,11 @@
-import { normalizeEmail, isValidEmail, isValidCode, authView } from './auth-logic';
+import {
+  normalizeEmail,
+  isValidEmail,
+  isValidCode,
+  codeEntryHint,
+  OTP_CODE_LENGTH,
+  authView,
+} from './auth-logic';
 
 describe('normalizeEmail', () => {
   it('trims and lowercases', () => {
@@ -26,6 +33,24 @@ describe('isValidCode', () => {
     expect(isValidCode('12345')).toBe(false);
     expect(isValidCode('1234567')).toBe(false);
     expect(isValidCode('12a456')).toBe(false);
+  });
+});
+
+describe('codeEntryHint', () => {
+  it('is null for an empty code', () => {
+    expect(codeEntryHint('')).toBeNull();
+  });
+  it('is null for a correct-length code', () => {
+    expect(codeEntryHint('123456')).toBeNull();
+  });
+  it('names the expected length when too short', () => {
+    expect(codeEntryHint('123')).toBe(`Enter the ${OTP_CODE_LENGTH}-digit code from your email.`);
+  });
+  it('names the expected length when too long', () => {
+    expect(codeEntryHint('1234567')).toBe(`Enter the ${OTP_CODE_LENGTH}-digit code from your email.`);
+  });
+  it('names the expected length for non-digit input', () => {
+    expect(codeEntryHint('12a456')).toBe(`Enter the ${OTP_CODE_LENGTH}-digit code from your email.`);
   });
 });
 

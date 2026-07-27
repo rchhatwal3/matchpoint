@@ -5,7 +5,7 @@ import { Platform, ScrollView, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/lib/theme';
 import { useAuth } from '@/providers/AuthProvider';
-import { authView, isValidEmail, isValidCode } from '@/lib/auth-logic';
+import { authView, isValidEmail, isValidCode, codeEntryHint, OTP_CODE_LENGTH } from '@/lib/auth-logic';
 import { codesToText, groupCode, isValidRecoveryCode } from '@/lib/recovery-logic';
 import { Screen } from '@/components/Screen';
 import { Header } from '@/components/Header';
@@ -45,6 +45,7 @@ export default function Account() {
   const [ackSaved, setAckSaved] = useState(false);
 
   const view = authView({ isAnonymous, email, codeSent });
+  const codeHint = codeEntryHint(code);
 
   // Load the remaining-codes count when landing on the permanent view.
   useEffect(() => {
@@ -231,7 +232,7 @@ export default function Account() {
         ) : view === 'code-sent' ? (
           <View style={{ gap: spacing.lg }}>
             <Text variant="body" color={colors.inkMuted}>
-              Enter the 6-digit code we emailed to {emailInput}.
+              Enter the {OTP_CODE_LENGTH}-digit code we emailed to {emailInput}.
             </Text>
             <TextInput
               style={inputStyle}
@@ -240,9 +241,14 @@ export default function Account() {
               placeholder="123456"
               placeholderTextColor={colors.inkMuted}
               keyboardType="number-pad"
-              maxLength={6}
+              maxLength={OTP_CODE_LENGTH}
               autoFocus
             />
+            {codeHint ? (
+              <Text variant="body" color={colors.primary}>
+                {codeHint}
+              </Text>
+            ) : null}
             <Button label="Verify" disabled={busy || !isValidCode(code)} onPress={verify} />
             <Button
               label="Use a different email"
