@@ -13,6 +13,12 @@ describe('friendlyRoomError', () => {
     );
   });
 
+  it('points back at the consent checklist when it blocks entry', () => {
+    expect(friendlyRoomError('consent_required')).toBe(
+      'Please accept the terms and confirm your age first.',
+    );
+  });
+
   it('falls back for unrecognised failures', () => {
     expect(friendlyRoomError('not_authenticated')).toBe('Something went wrong. Try again.');
     expect(friendlyRoomError('')).toBe('Something went wrong. Try again.');

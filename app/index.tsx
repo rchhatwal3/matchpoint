@@ -13,15 +13,6 @@ import { CodeInput } from '@/components/CodeInput';
 import { ConsentChecklist } from '@/components/ConsentChecklist';
 import { LegalFooter } from '@/components/LegalFooter';
 
-function friendlyError(message: string): string {
-  if (message.includes('room_not_found')) return 'No room with that code — double-check it?';
-  if (message.includes('room_full')) return 'That room already has two people.';
-  if (message.includes('consent_required')) {
-    return 'Please accept the terms and confirm your age first.';
-  }
-  return 'Something went wrong. Try again.';
-}
-
 export default function Home() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();

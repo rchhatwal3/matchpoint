@@ -12,6 +12,7 @@ import { supabase, supabaseEnabled } from '@/lib/supabase';
 import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
+import { JOIN_FAILED } from '@/lib/room-errors';
 import { consentRpcArgs, type ConsentState } from '@/lib/consent/consent-logic';
 import seedData from '@/data/seed.json';
 
