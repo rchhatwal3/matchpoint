@@ -14,15 +14,12 @@ Steps only a human can do. Ordered by priority. Check off as completed.
       (bump `POLICY_VERSION` in `lib/legal/policy-meta.ts` if wording changed
       materially, so future re-consent can be triggered). The DSAR contact email
       (`docs/compliance/DSAR_RUNBOOK.md`) must be the same real, monitored inbox.
-- [ ] **Apply migrations `013_consent.sql` and `014_delete_my_data.sql`** (SQL
-      Editor or `supabase db push`) before deploying a build that calls the new
-      `create_room`/`join_room` signatures or `delete_my_data()` — otherwise those
-      RPC calls fail with a missing-function/column error.
-      **DEPLOY IN LOCKSTEP:** `013` **drops** the old 1-arg `create_room(text)` and
-      2-arg `join_room(text, text)`, so applying it makes the *currently deployed*
-      site's create/join fail until the consent build ships. Apply `013` right as
-      the consent PR merges/deploys (not days ahead) to keep the outage window near
-      zero. `015_room_price_tiers.sql` (price filter) is independent — apply anytime.
+- [x] **Apply migrations `013_consent.sql` and `014_delete_my_data.sql`** — DONE
+      2026-07-26 (SQL Editor). `013` **dropped** the old 1-arg `create_room(text)`
+      and 2-arg `join_room(text, text)`, so the *currently deployed* build's
+      create/join are broken until the consent PR (#28) deploys — merge + deploy it
+      promptly to close that window. New build calls the 3-/4-arg signatures +
+      `delete_my_data()`. `015_room_price_tiers.sql` (price filter) also applied.
 
 ## Testing / CI enforcement (T-tests)
 
