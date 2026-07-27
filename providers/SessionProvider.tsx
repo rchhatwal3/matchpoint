@@ -319,6 +319,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         ...consentArgs,
       });
       if (error) throw error;
+      // join_room returns NULL for its one generic failure (unknown code, full
+      // room, lost race) so the caller cannot tell them apart — see
+      // 016_invite_code_hardening.sql.
+      if (!roomId) throw new Error(JOIN_FAILED);
       const [{ data: r }, { data: allMembers }] = await Promise.all([
         supabase
           .from('rooms')

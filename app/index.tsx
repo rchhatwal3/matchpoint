@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { canEnterApp, type ConsentState } from '@/lib/consent/consent-logic';
+import { friendlyRoomError } from '@/lib/room-errors';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
@@ -58,7 +59,7 @@ export default function Home() {
       const c = await createRoom(name.trim(), consent);
       setCreatedCode(c);
     } catch (e) {
-      setError(friendlyError(e instanceof Error ? e.message : String(e)));
+      setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
     }
@@ -83,7 +84,7 @@ export default function Home() {
       await joinRoom(code, name.trim(), consent);
       router.replace('/lobby');
     } catch (e) {
-      setError(friendlyError(e instanceof Error ? e.message : String(e)));
+      setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
     }
