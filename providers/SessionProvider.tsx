@@ -12,6 +12,7 @@ import { supabase, supabaseEnabled } from '@/lib/supabase';
 import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
+import { JOIN_FAILED } from '@/lib/room-errors';
 import seedData from '@/data/seed.json';
 
 /**
@@ -315,6 +316,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         p_age_confirmed: true,
       });
       if (error) throw error;
+      // join_room returns NULL for its one generic failure (unknown code, full
+      // room, lost race) so the caller cannot tell them apart — see
+      // 016_invite_code_hardening.sql.
+      if (!roomId) throw new Error(JOIN_FAILED);
       const [{ data: r }, { data: allMembers }] = await Promise.all([
         supabase
           .from('rooms')

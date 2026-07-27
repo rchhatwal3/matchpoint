@@ -4,6 +4,7 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { canEnterApp, type ConsentState } from '@/lib/consent/consent-logic';
+import { friendlyRoomError } from '@/lib/room-errors';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
@@ -11,12 +12,6 @@ import { CodeDisplay } from '@/components/CodeDisplay';
 import { CodeInput } from '@/components/CodeInput';
 import { ConsentChecklist } from '@/components/ConsentChecklist';
 import { LegalFooter } from '@/components/LegalFooter';
-
-function friendlyError(message: string): string {
-  if (message.includes('room_not_found')) return 'No room with that code — double-check it?';
-  if (message.includes('room_full')) return 'That room already has two people.';
-  return 'Something went wrong. Try again.';
-}
 
 export default function Home() {
   const { colors, spacing, radii } = useTheme();
@@ -55,7 +50,7 @@ export default function Home() {
       const c = await createRoom(name.trim());
       setCreatedCode(c);
     } catch (e) {
-      setError(friendlyError(e instanceof Error ? e.message : String(e)));
+      setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
     }
@@ -80,7 +75,7 @@ export default function Home() {
       await joinRoom(code, name.trim());
       router.replace('/lobby');
     } catch (e) {
-      setError(friendlyError(e instanceof Error ? e.message : String(e)));
+      setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
     }
