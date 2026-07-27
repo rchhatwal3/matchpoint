@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { useSharedValue } from 'react-native-reanimated';
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
-import { CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
+import { CATEGORIES, CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
 import { deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
 import { normalizePriceTiers } from '@/lib/price-filter';
 import { Screen } from '@/components/Screen';
@@ -14,6 +14,14 @@ import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { PriceFilter } from '@/components/PriceFilter';
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard';
+
+// Pre-render one static HTML file per category so a hard load / refresh of a
+// deep route (e.g. /swipe/restaurants) resolves on GitHub Pages, which has no
+// SPA rewrite. Without this, `expo export` (output: "static") emits no file for
+// the dynamic [category] route and a direct hit 404s ("Unmatched Route").
+export function generateStaticParams(): { category: string }[] {
+  return CATEGORIES.map((category) => ({ category }));
+}
 
 export default function SwipeDeck() {
   const { category } = useLocalSearchParams<{ category: string }>();

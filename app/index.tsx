@@ -3,11 +3,14 @@ import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
+import { canEnterApp, type ConsentState } from '@/lib/consent/consent-logic';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
 import { CodeDisplay } from '@/components/CodeDisplay';
 import { CodeInput } from '@/components/CodeInput';
+import { ConsentChecklist } from '@/components/ConsentChecklist';
+import { LegalFooter } from '@/components/LegalFooter';
 
 function friendlyError(message: string): string {
   if (message.includes('room_not_found')) return 'No room with that code — double-check it?';
@@ -36,13 +39,14 @@ export default function Home() {
   const [createdCode, setCreatedCode] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [consent, setConsent] = useState<ConsentState>({ tosAccepted: false, ageConfirmed: false });
 
   // Already paired from a previous session -> straight to the lobby.
   if (!loading && room && !createdCode) {
     return <Redirect href="/lobby" />;
   }
 
-  const canSubmit = name.trim().length > 0 && !busy;
+  const canSubmit = name.trim().length > 0 && canEnterApp(consent) && !busy;
 
   const handleCreate = async () => {
     setError(null);
@@ -59,6 +63,10 @@ export default function Home() {
 
   const handleJoin = async () => {
     setError(null);
+    if (!canEnterApp(consent)) {
+      setError('Please accept the terms and confirm your age first.');
+      return;
+    }
     if (name.trim().length === 0) {
       setError('Add your name up top first, then join.');
       return;
@@ -156,6 +164,7 @@ export default function Home() {
                 ]}
               />
             </View>
+            <ConsentChecklist value={consent} onChange={setConsent} />
             <Button label={busy ? 'Creating…' : 'Create room'} onPress={handleCreate} disabled={!canSubmit} />
           </View>
 
@@ -169,7 +178,7 @@ export default function Home() {
                   label={busy ? 'Joining…' : 'Join room'}
                   variant="tonal"
                   onPress={handleJoin}
-                  disabled={busy}
+                  disabled={busy || !canEnterApp(consent)}
                 />
               </View>
             ) : (
@@ -186,6 +195,7 @@ export default function Home() {
               {error}
             </Text>
           ) : null}
+          <LegalFooter />
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
