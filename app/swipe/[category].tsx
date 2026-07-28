@@ -7,7 +7,7 @@ import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
 import { deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
-import { normalizePriceTiers } from '@/lib/price-filter';
+import { nextPriceTiers, normalizePriceTiers } from '@/lib/price-filter';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
@@ -40,10 +40,9 @@ export default function SwipeDeck() {
   const priceLevels = useMemo(() => normalizePriceTiers(room?.price_tiers), [room?.price_tiers]);
   const togglePrice = useCallback(
     (level: number) => {
-      const next = new Set(priceLevels);
-      if (next.has(level)) next.delete(level);
-      else next.add(level);
-      void updatePriceTiers([...next]);
+      const next = nextPriceTiers([...priceLevels], level);
+      if (next === null) return;
+      void updatePriceTiers(next);
     },
     [priceLevels, updatePriceTiers],
   );
