@@ -1,6 +1,5 @@
 // app/account.tsx
 import { useEffect, useState } from 'react';
-import { useRouter } from 'expo-router';
 import { Platform, ScrollView, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '@/lib/theme';
@@ -15,7 +14,6 @@ import { Checkbox } from '@/components/Checkbox';
 
 export default function Account() {
   const { colors, spacing, radii } = useTheme();
-  const router = useRouter();
   const {
     email,
     isAnonymous,
@@ -136,7 +134,7 @@ export default function Account() {
 
   return (
     <Screen>
-      <Header title="Account" onBack={() => router.back()} />
+      <Header title="Account" />
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['2xl'] }}>
         {!enabled ? (
           <Text variant="body" color={colors.inkMuted}>

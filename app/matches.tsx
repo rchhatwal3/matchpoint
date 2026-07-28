@@ -46,7 +46,7 @@ export default function Matches() {
 
   return (
     <Screen>
-      <Header title="Matches" onBack={() => router.back()} />
+      <Header title="Matches" />
 
       {matches === null ? (
         // Row-shaped skeletons, never spinners (DESIGN.md).
@@ -69,7 +69,7 @@ export default function Matches() {
                 : 'When you and your partner both like the same thing, it lands here.'
             }
             ctaLabel="Go swipe"
-            onCtaPress={() => router.back()}
+            onCtaPress={() => router.replace('/lobby')}
           />
         </View>
       ) : (
