@@ -2,6 +2,23 @@
 
 Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-07-27.
 
+## Adversarial QA findings — ALL CLOSED except the provider spend caps (2026-07-28)
+
+Every P1/P2/P3 from `docs/security/2026-07-27-adversarial-qa.md` is now shipped and deployed. The one open item is human-only: **per-minute quotas on Google Maps Platform** (their editable quotas are per-minute, not per-day — the earlier daily-cap instruction was wrong) plus a billing budget alert. Foursquare has no settable cap at all; its console offers keys and usage reporting only.
+
+- **PRs #37–#40** closed the P2 batch and the app-side lookup budget (migrations 016, 017, 018).
+- **PR #43** made erasure honest both ways (migration 021 + the `delete-account` edge function). **Live E2E passed:** two-member room, one side erases, the survivor still reads both matches through the `matches` snapshot, and the erased account returns `user_not_found`. The snapshot carries room + item only — never the departing member's identity.
+- **PRs #44–#46** closed the five remaining P3s (migration 022 + both edge functions redeployed). **Live probes passed:** a member's PATCH of `rooms.code` → `42501`; PATCH of `locations` → 204; `price_tiers = {9}` → refused by `rooms_price_tiers_valid`.
+- **PR #47** fixed back navigation (see below).
+
+**Two things deliberately NOT verified**, so nobody re-claims them: the three-member join race (not reproducible by hand — the advisory lock in `022` is reviewed, not exercised), and the atomic recovery-code write (the endpoint requires an email account, so an anonymous probe hits the 403 gate; the next real regenerate from `/account` confirms it).
+
+**Housekeeping:** two empty probe rooms (`P2E8E4`, `UD27CM`) sit in `rooms` with no members, left by live-probe scripts whose sessions were discarded before `delete_my_data()` could reach them. Invisible to users; delete them whenever you're in the SQL editor.
+
+## Back navigation — FIXED 2026-07-28 (PR #47, merged + deployed)
+
+Every screen's `Header` called `router.back()`, which replays history. The Restaurants deck links to Settings and Settings' Locations section links back to the deck, so Back bounced between them and never reached the lobby (user-reported). Pure `parentRoute(pathname, hasRoom)` in `lib/nav.ts` now owns the destination; `Header` resolves it from `usePathname()` and navigates with `replace`. Decks, Matches and Date Night → `/lobby`; Account and the legal pages → `/settings`; Settings → `/lobby`, or `/` with no room. Strips the `/matchpoint` base path before matching. Verified on the deployed site: `/matchpoint/swipe/restaurants` → Back → `/matchpoint/lobby`.
+
 ## Age gate removed — SHIPPED 2026-07-27 (PR #41, merged + deployed)
 
 - **PR #41 `feat/remove-age-gate` — merged, deployed, migrations 019 + 020 applied.** the A2 "I confirm I am 18 or older" checkbox is gone; the entry screen keeps only the A1 Terms + Privacy box, which still gates Create/Join. The Terms and Privacy Policy now state a **16+** minimum (GDPR Art. 8 default consent age — no parental-consent mechanism needed in any member state, clear of COPPA), asserted as an eligibility term and never asked about in-app. Reasoning is recorded in `docs/compliance/REQUIREMENTS.md` §6 rather than deleted: the original 18+ recommendation rested on matchpoint being "dating-adjacent", which it is not. `members.age_confirmed` survives as the historical record; new rows stop populating it.

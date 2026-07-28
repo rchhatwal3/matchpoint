@@ -7,12 +7,21 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 Step 1 of the QA-findings work order in `TODO.md`. No code, no deploy; this is the
 only control that bounds the actual money, including against a bug in our own logic.
 
-- [ ] **Google Cloud → APIs & Services → the Places APIs → Quotas**: set a daily
-      request quota on Text Search and Place Photos, and add a **budget alert** on the
-      billing account. Check the current per-call pricing in the console when picking
-      the numbers — don't trust a remembered figure.
-- [ ] **Foursquare developer console**: set the equivalent daily cap on the Places
-      search endpoint used by `get-restaurants`.
+- [ ] **Google Maps Platform → Quotas** — NOT "APIs & Services → Quotas". Maps
+      Platform APIs are configured on their own page, and the quotas you can edit
+      there are **per-minute**, not per-day (the daily-cap instruction written here
+      on 2026-07-27 was wrong). Suggested: Text Search 10/min, Place Photos 100/min.
+      Editing quotas at all requires billing enabled on the project; on a free-trial
+      account it is often locked entirely. Add a **budget alert** separately under
+      Billing → Budgets & alerts. Sizing context: one cache-missing city costs up to
+      3 Text Search calls, up to 60 Place Photos calls and up to 60 Foursquare calls,
+      so a cap in the tens breaks the deck on the first new city. Check current
+      per-call pricing in the console when picking the budget — don't trust a
+      remembered figure.
+- [x] **Foursquare developer console** — NOT POSSIBLE, nothing to do. The console
+      exposes API keys and usage reporting only; there is no spend cap or settable
+      quota, and rate limits are fixed by tier (50 QPS on Sandbox / pay-as-you-go).
+      The only bound available there is watching usage.
 - [ ] Keep both provider quotas comfortably **above** the app-side caps that land in
       step 3 (10 locations per room, 50 lookups per user per day), or the app layer
       never fires and every rejection comes from the provider instead.
@@ -21,11 +30,15 @@ Why it matters: `get-restaurants`' location guard checks the caller's request ag
 `rooms.locations`, but members hold UPDATE on `rooms`, so the caller writes their own
 allowlist. Full detail in `docs/security/2026-07-27-adversarial-qa.md`.
 
-- [ ] **Confirm "Prevent use of duplicate emails" / secure email change is enabled**
-      (Supabase → Authentication → Providers → Email). `sendUpgradeCode` upgrades an
-      anonymous session with `updateUser({ email })`; whether an attacker can claim an
-      email already belonging to another account depends on this setting, which isn't
-      visible from the repo. Treat as a REQUIRED constraint like the OTP-length one.
+- [ ] **Confirm duplicate-email behaviour** — there may be no dashboard toggle by
+      the name "Prevent use of duplicate emails" in the current Supabase UI, so do not
+      hunt for it. Verify empirically instead: from a throwaway anonymous session call
+      `updateUser({ email })` with an address that already has an account and see
+      whether it is refused. It matters because `sendUpgradeCode` upgrades an
+      anonymous session with `updateUser({ email })`, so whether an attacker can claim
+      an email already belonging to another account turns on this behaviour, which is
+      not visible from the repo. Treat as a REQUIRED constraint like the OTP-length
+      one. Looked for the toggle 2026-07-28 and could not confirm it exists.
 
 ## Age-gate removal — two migrations, ordered around the deploy (2026-07-27)
 
@@ -52,18 +65,33 @@ history, erases recovery codes and redeem attempts, and — via a new edge
 function — deletes the `auth.users` row holding the email. Nothing here works
 until both steps below run.
 
-- [ ] **Run `021_erasure_honesty.sql`** in the SQL Editor. Adds the `matches`
+- [x] **Run `021_erasure_honesty.sql`** — DONE 2026-07-28 in the SQL Editor. Adds the `matches`
       snapshot table, re-creates `room_matches` as live rows UNION the snapshot,
       rewrites `delete_my_data()`, and schedules a 30-day `pg_cron` purge of
       `recovery_redeem_attempts`. If the `CREATE EXTENSION pg_cron` line errors,
       enable pg_cron from Dashboard - Database - Extensions and re-run just that
       block; everything above it is independent and already applied. Verify with
       `SELECT jobname, schedule, active FROM cron.job;`.
-- [ ] **Deploy the new edge function:** `supabase functions deploy delete-account`
+- [x] **Deploy the new edge function:** `supabase functions deploy delete-account` — DONE 2026-07-28; live E2E passed.
       — JWT verification stays ON (do NOT pass `--no-verify-jwt`). No new secrets;
       it uses the `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
       the runtime already injects. Until it is deployed, the Settings delete
       button fails — the client now calls this function, not the RPC.
+
+## P3 hardening batch — DONE 2026-07-28
+
+- [x] **Run `022_p3_hardening.sql`** — DONE. Column-restricts `rooms` UPDATE to
+      `locations` + `price_tiers`, adds the `price_tiers` CHECK, takes an advisory
+      lock in the member-cap trigger, changes `room_matches` HAVING to `>= 2`, and
+      adds `replace_recovery_codes`. **Live probes passed:** PATCH of `rooms.code`
+      returns `42501`, PATCH of `locations` returns 204, `price_tiers = {9}` is
+      refused by `rooms_price_tiers_valid`.
+- [x] **`supabase functions deploy issue-recovery-codes`** — DONE. Now writes both
+      halves of a regenerate through the atomic RPC. NOT yet exercised live: the
+      endpoint requires an email account, so an anonymous probe hits the 403 gate.
+      Next time you regenerate codes from `/account`, that confirms it.
+- [x] **`supabase functions deploy get-restaurants`** — DONE. 500s no longer return
+      upstream Google/PostgREST error text.
 
 ## GDPR/EU consent + legal pages (blocks the legal pages going live)
 
