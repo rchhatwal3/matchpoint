@@ -1,8 +1,7 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
 import {
   MAX_LOCATION_LEN,
-  lookupWindowStart,
-  isOverLookupBudget,
+  lookupRefusal,
   isLocationAllowed,
   priceLevelNum,
   describe,
@@ -112,8 +111,15 @@ Deno.serve(async (req) => {
         price_level: p.price_level,
       }));
 
+    // Ignore-conflict, not plain insert: `existingTitles` was read before the
+    // upstream call, so a concurrent request for this same location (both
+    // partners opening a new deck at once is the normal case) has its own copy
+    // of the same rows in flight. The UNIQUE (category, title, location) added
+    // in 023 collapses them; DO NOTHING keeps that from being an error.
     if (toInsert.length > 0) {
-      const { error } = await svc.from('items').insert(toInsert);
+      const { error } = await svc
+        .from('items')
+        .upsert(toInsert, { onConflict: 'category,title,location', ignoreDuplicates: true });
       if (error) console.error('insert items failed', error);
     }
 
@@ -132,46 +138,18 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// Count this user's upstream lookups in the trailing window and record this one.
+// Charge one upstream lookup against the per-user and global budgets.
 // Returns a refusal Response when the request must not proceed, else null.
-// Fails closed: if the ledger can't be read or written we cannot bound spend, so
-// we refuse rather than bill. Error detail is logged, never returned (the
-// response bodies here are fixed strings).
+//
+// One RPC, not three PostgREST calls: counting, checking and recording have to
+// happen inside one locked transaction or they bound nothing (see 023). Fails
+// closed — a failed RPC means spend is unbounded, so we refuse rather than bill.
+// Error detail is logged, never returned (the response bodies are fixed strings).
 async function spendLookupBudget(svc: SupabaseClient, userId: string): Promise<Response | null> {
-  const now = new Date();
-  const since = lookupWindowStart(now);
-
-  const { count, error: countErr } = await svc
-    .from('places_lookups')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('at', since);
-  if (countErr) {
-    console.error('places_lookups count failed', countErr);
-    return json({ error: 'Could not load restaurants' }, 500);
-  }
-  if (isOverLookupBudget(count ?? 0)) {
-    return json({ error: 'Daily restaurant search limit reached. Try again tomorrow.' }, 429);
-  }
-
-  const { error: insertErr } = await svc
-    .from('places_lookups')
-    .insert({ user_id: userId, at: now.toISOString() });
-  if (insertErr) {
-    console.error('places_lookups insert failed', insertErr);
-    return json({ error: 'Could not load restaurants' }, 500);
-  }
-
-  // Keep the ledger to one window per user. Best-effort: a failed prune costs
-  // storage, not correctness, since the count above is window-filtered anyway.
-  const { error: pruneErr } = await svc
-    .from('places_lookups')
-    .delete()
-    .eq('user_id', userId)
-    .lt('at', since);
-  if (pruneErr) console.error('places_lookups prune failed', pruneErr);
-
-  return null;
+  const { data, error } = await svc.rpc('spend_places_lookup', { p_user: userId });
+  if (error) console.error('spend_places_lookup failed', error);
+  const refusal = lookupRefusal({ data, error });
+  return refusal ? json({ error: refusal.error }, refusal.status) : null;
 }
 
 async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<ItemRow[]> {
