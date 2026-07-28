@@ -107,7 +107,7 @@ export default function DateNight() {
 
   return (
     <Screen>
-      <Header title="Date Night" onBack={() => router.back()} />
+      <Header title="Date Night" />
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
         {/* Category multiselect — flame-container when drawn from, neutral when not. */}
         <View style={{ gap: spacing.md }}>

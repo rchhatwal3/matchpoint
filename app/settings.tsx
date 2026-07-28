@@ -83,7 +83,7 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Header title="Settings" onBack={() => router.back()} />
+      <Header title="Settings" />
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
         <SettingsSection title="Appearance">
           <ThemeControl />

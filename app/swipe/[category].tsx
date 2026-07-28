@@ -127,7 +127,7 @@ export default function SwipeDeck() {
 
   return (
     <Screen>
-      <Header title={label} onBack={() => router.back()} />
+      <Header title={label} />
 
       {showLocationBar ? (
         <Pressable
