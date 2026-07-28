@@ -98,11 +98,12 @@ export default function Settings() {
           {confirmDelete ? (
             <View style={{ gap: spacing.sm }}>
               <Text variant="body" color={colors.danger}>
-                This permanently deletes your data from this room. Shared matches stay with your
-                partner unless they also delete. This can&apos;t be undone.
+                This permanently deletes your account — your data, login, and recovery codes if
+                you upgraded. Shared matches stay with your partner unless they also delete. This
+                can&apos;t be undone.
               </Text>
               <Button
-                label="Permanently delete my data"
+                label="Permanently delete my account"
                 variant="outlined"
                 onPress={() =>
                   deleteMyData()
@@ -113,7 +114,7 @@ export default function Settings() {
               <Button label="Cancel" variant="outlined" onPress={() => setConfirmDelete(false)} />
             </View>
           ) : (
-            <Button label="Delete my data" variant="outlined" onPress={() => setConfirmDelete(true)} />
+            <Button label="Delete my account" variant="outlined" onPress={() => setConfirmDelete(true)} />
           )}
         </SettingsSection>
 
