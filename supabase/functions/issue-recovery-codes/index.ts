@@ -36,11 +36,12 @@ Deno.serve(async (req) => {
       }),
     );
 
-    // Void the old set, then insert the new one (regenerate = replace).
-    const del = await svc.from('recovery_codes').delete().eq('user_id', user.id);
-    if (del.error) throw del.error;
-    const ins = await svc.from('recovery_codes').insert(rows);
-    if (ins.error) throw ins.error;
+    // Void the old set and insert the new one atomically (regenerate = replace).
+    const { error: rpcErr } = await svc.rpc('replace_recovery_codes', {
+      p_user: user.id,
+      p_rows: rows,
+    });
+    if (rpcErr) throw rpcErr;
 
     return json({ codes });
   } catch (e) {
