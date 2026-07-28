@@ -15,6 +15,41 @@ export function isLockedOut(failureTimestamps: number[], now: number): boolean {
   return inWindow.length >= LOCKOUT_THRESHOLD;
 }
 
+// Second cap, keyed on caller IP instead of email: a rotating unknown email
+// (a1b2c3@x.com, d4e5f6@x.com, ...) never repeats, so isLockedOut above never
+// trips and fail() would insert one row per request forever (P1: unbounded
+// write amplifier). Same threshold/window as the per-email lockout — this is
+// a second key on the same rule, not a different policy.
+export function isIpOverLimit(failureTimestamps: number[], now: number): boolean {
+  const cutoff = now - LOCKOUT_WINDOW_MS;
+  const inWindow = failureTimestamps.filter((t) => t >= cutoff);
+  return inWindow.length >= LOCKOUT_THRESHOLD;
+}
+
+// Rightmost hop in X-Forwarded-For — the address appended by the proxy
+// closest to the function, which a client cannot forge. The header
+// accumulates left to right (each proxy appends what it received from), so
+// the LEFTMOST entry is whatever the client itself sent and must not be
+// trusted; only the rightmost entry is proxy-supplied. Returns null if the
+// header is missing, empty, or otherwise unusable. Never throws: a
+// missing/malformed header degrades to "unknown IP" rather than crashing.
+export function lastForwardedIp(header: string | null | undefined): string | null {
+  if (!header) return null;
+  const parts = header.split(',');
+  const last = parts[parts.length - 1]?.trim();
+  return last ? last : null;
+}
+
+// Same shape check as lib/auth-logic.ts's isValidEmail, duplicated here because
+// edge functions (Deno) can't import from the app's lib/ directory. Rejects
+// non-email-shaped or over-long input before any DB write (P1: unauthenticated
+// callers were writing an unbounded number of rows with junk "emails").
+const MAX_EMAIL_LENGTH = 254;
+
+export function isValidEmail(email: string): boolean {
+  return email.length <= MAX_EMAIL_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // Normalize a user-entered code to the stored form: drop spaces/dashes, upper.
 export function normalizeCode(raw: string): string {
   return raw.replace(/[\s-]/g, '').toUpperCase();

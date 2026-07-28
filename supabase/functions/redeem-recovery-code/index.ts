@@ -1,5 +1,14 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
-import { hashCode, isLockedOut, LOCKOUT_WINDOW_MS, normalizeCode, timingSafeEqual } from './logic.ts';
+import {
+  hashCode,
+  isIpOverLimit,
+  isLockedOut,
+  isValidEmail,
+  lastForwardedIp,
+  LOCKOUT_WINDOW_MS,
+  normalizeCode,
+  timingSafeEqual,
+} from './logic.ts';
 
 // UNAUTHENTICATED (deploy with --no-verify-jwt). This is the whole point: the
 // user has no session — a saved recovery code + their email mints one, for the
@@ -27,7 +36,8 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
     const code = typeof body.code === 'string' ? normalizeCode(body.code) : '';
-    if (!email || !code) return json({ error: GENERIC }, 400);
+    if (!email || !code || !isValidEmail(email)) return json({ error: GENERIC }, 400);
+    const ip = lastForwardedIp(req.headers.get('x-forwarded-for'));
 
     const svc = createClient(SB_URL, SB_SVC);
 
@@ -49,7 +59,7 @@ Deno.serve(async (req) => {
     // one — otherwise the two are distinguishable by the sixth request (see
     // docs/security/2026-07-27-adversarial-qa.md, P2 enumeration finding).
     const { data: uid } = await svc.rpc('user_id_for_email', { p_email: email });
-    if (!uid) return await fail(svc, email);
+    if (!uid) return await fail(svc, email, ip);
 
     // Find a matching unused code by recomputing the hash per row salt.
     const { data: rows } = await svc
@@ -65,7 +75,7 @@ Deno.serve(async (req) => {
         break;
       }
     }
-    if (!matchId) return await fail(svc, email);
+    if (!matchId) return await fail(svc, email, ip);
 
     // Single-use, race-safe consume: only the writer that flips used_at wins.
     const { data: consumed } = await svc
@@ -74,7 +84,7 @@ Deno.serve(async (req) => {
       .eq('id', matchId)
       .is('used_at', null)
       .select('id');
-    if (!consumed || consumed.length === 0) return await fail(svc, email);
+    if (!consumed || consumed.length === 0) return await fail(svc, email, ip);
 
     // Mint a session without sending email: generateLink returns a hashed magic-
     // link token the client verifies with verifyOtp({ token_hash }).
@@ -94,9 +104,30 @@ Deno.serve(async (req) => {
 });
 
 // Record a failed attempt (feeds the lockout) and return the generic error (200
-// so the client can surface it — see the GENERIC note above).
-async function fail(svc: SupabaseClient, email: string) {
-  await svc.from('recovery_redeem_attempts').insert({ email, success: false });
+// so the client can surface it — see the GENERIC note above). A rotating,
+// never-repeating "unknown email" never trips the per-email lockout, so this
+// also caps writes per caller IP: over the recent-failure threshold for this
+// IP, skip the insert entirely (still returns the same generic response —
+// same observable behavior to the caller, no enumeration signal, just no row).
+// Unknown IP (missing/unparseable header, ip === null) is deliberately NOT
+// throttled here and always falls through to the insert below: exempting it
+// keeps the existing per-email lockout fully intact for that traffic, at the
+// accepted cost that a caller able to suppress the header still writes
+// unbounded rows (residual risk, not an oversight).
+async function fail(svc: SupabaseClient, email: string, ip: string | null) {
+  if (ip !== null) {
+    const cutoffIso = new Date(Date.now() - LOCKOUT_WINDOW_MS).toISOString();
+    const { data: ipFails } = await svc
+      .from('recovery_redeem_attempts')
+      .select('attempted_at')
+      .eq('ip', ip)
+      .eq('success', false)
+      .gte('attempted_at', cutoffIso);
+    if (isIpOverLimit((ipFails ?? []).map((f) => Date.parse(f.attempted_at as string)), Date.now())) {
+      return json({ error: GENERIC });
+    }
+  }
+  await svc.from('recovery_redeem_attempts').insert({ email, success: false, ip });
   return json({ error: GENERIC });
 }
 
