@@ -121,13 +121,7 @@ Deno.serve(async (req) => {
     return json({ items });
   } catch (e) {
     console.error(e);
-    const msg =
-      e instanceof Error
-        ? e.message
-        : e && typeof e === 'object'
-          ? JSON.stringify(e)
-          : String(e);
-    return json({ error: msg }, 500);
+    return json({ error: 'Could not load restaurants' }, 500);
   }
 });
 
