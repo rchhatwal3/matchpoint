@@ -21,3 +21,16 @@ export function normalizePriceTiers(raw: number[] | null | undefined): Set<numbe
   const tiers = (raw ?? []).filter((n) => Number.isInteger(n) && isTier(n));
   return tiers.length ? new Set(tiers) : allPriceTiers();
 }
+
+/**
+ * Toggle `level` in `current`. Refuses a toggle that would empty the set — an
+ * empty write round-trips through `normalizePriceTiers`' empty-means-all
+ * fallback and silently relights every chip, so the last selected tier can't
+ * be turned off. Returns null when the toggle is refused.
+ */
+export function nextPriceTiers(current: number[], level: number): number[] | null {
+  const next = new Set(current);
+  if (next.has(level)) next.delete(level);
+  else next.add(level);
+  return next.size ? [...next] : null;
+}
