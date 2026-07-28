@@ -456,8 +456,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setPartner(null);
       return;
     }
-    const { error } = await supabase.rpc('delete_my_data');
+    // delete-account is the account half of erasure (room data + the auth.users
+    // row with the email). Expected failures come back as HTTP 200 with
+    // { ok: false }, so a resolved invoke is NOT success on its own — check
+    // data.ok before treating this as done (supabase/functions/delete-account/logic.ts).
+    const { data, error } = await supabase.functions.invoke('delete-account');
     if (error) throw error;
+    if (!data?.ok) throw new Error(data?.error ?? 'Could not delete your account. Please try again.');
+    // The access token stays cryptographically valid until it expires even
+    // though the account is gone; local-scope sign-out (server session is
+    // already deleted, nothing left to revoke globally) plus the same state
+    // reset the auth listener does on a real sign-out (line ~184).
+    await supabase.auth.signOut({ scope: 'local' });
     setRoom(null);
     setMember(null);
     setPartner(null);

@@ -45,6 +45,26 @@ confirmed. Full reasoning in `docs/compliance/REQUIREMENTS.md` §6.
 - [ ] **Tell counsel the stated minimum age changed from 18 to 16** when they do the
       placeholder-fill below, so the eligibility clause is reviewed at the new number.
 
+## Erasure honesty — migration + one new edge function (2026-07-27)
+
+"Delete my data" now snapshots the room's matches so the partner keeps their
+history, erases recovery codes and redeem attempts, and — via a new edge
+function — deletes the `auth.users` row holding the email. Nothing here works
+until both steps below run.
+
+- [ ] **Run `021_erasure_honesty.sql`** in the SQL Editor. Adds the `matches`
+      snapshot table, re-creates `room_matches` as live rows UNION the snapshot,
+      rewrites `delete_my_data()`, and schedules a 30-day `pg_cron` purge of
+      `recovery_redeem_attempts`. If the `CREATE EXTENSION pg_cron` line errors,
+      enable pg_cron from Dashboard - Database - Extensions and re-run just that
+      block; everything above it is independent and already applied. Verify with
+      `SELECT jobname, schedule, active FROM cron.job;`.
+- [ ] **Deploy the new edge function:** `supabase functions deploy delete-account`
+      — JWT verification stays ON (do NOT pass `--no-verify-jwt`). No new secrets;
+      it uses the `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY`
+      the runtime already injects. Until it is deployed, the Settings delete
+      button fails — the client now calls this function, not the RPC.
+
 ## GDPR/EU consent + legal pages (blocks the legal pages going live)
 
 - [ ] **Fill legal draft placeholders and remove the DRAFT banner**: before

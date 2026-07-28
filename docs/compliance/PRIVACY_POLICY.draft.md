@@ -84,6 +84,7 @@ matchpoint does **not** use advertising or tracking cookies, analytics, or cross
 | Anonymous session data (swipes, room data) | Kept while the session/room is active; deleted when you delete the room/data or after **[X months]** of inactivity. |
 | Email + permanent-account data | Kept while your account exists; deleted on account deletion (subject to backups below). |
 | Recovery codes / OTP | OTP is short-lived; recovery codes are kept while your account exists. |
+| Failed recovery-code attempts | Purged automatically after 30 days. |
 | Technical/log data | Kept for a limited period for security and debugging, typically **[X days/months]**. |
 | Backups | Deleted data may persist in routine encrypted backups for up to **[X days]** before being overwritten. |
 
