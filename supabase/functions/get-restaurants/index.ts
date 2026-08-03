@@ -18,7 +18,8 @@ import {
 const PLACES_KEY = Deno.env.get('PLACES_API_KEY');
 const FOURSQUARE_KEY = Deno.env.get('FOURSQUARE_API_KEY');
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
-const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SB_SVC = Deno.env.get('SB_SECRET_KEY');
+if (!SB_SVC) throw new Error('Missing required secret: SB_SECRET_KEY');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',

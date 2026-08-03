@@ -2,6 +2,22 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
+## Set the new secret API keys (DO FIRST — blocks every edge function deploy, 2026-08-03)
+
+The four edge functions now read custom-named secrets instead of the legacy
+`SUPABASE_SERVICE_ROLE_KEY` env var (system-allocated `SUPABASE_` names can't hold
+custom secrets). Each function fails fast with a clear error if its secret is unset,
+but that only helps once deployed — set both secrets BEFORE deploying, or every one
+of these four functions breaks on its first request.
+
+- [ ] **`supabase secrets set SB_SECRET_REDEEM=<value>`** — used only by
+      `redeem-recovery-code` (the one function deployed `--no-verify-jwt`; it gets its
+      own key so a compromise there can be revoked without touching the other three).
+- [ ] **`supabase secrets set SB_SECRET_KEY=<value>`** — used by `get-restaurants`,
+      `issue-recovery-codes`, and `delete-account`.
+- [ ] Both values are the new Supabase secret API key (`sb_secret_...`), not the
+      legacy service_role JWT. Dashboard → Project Settings → API → API keys.
+
 ## Spend caps on the restaurant APIs (DO FIRST — decided 2026-07-27)
 
 Step 1 of the QA-findings work order in `TODO.md`. No code, no deploy; this is the
