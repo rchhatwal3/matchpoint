@@ -1,10 +1,7 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
   MAX_LOCATION_LEN,
-  LOOKUP_LIMIT,
-  LOOKUP_WINDOW_MS,
-  lookupWindowStart,
-  isOverLookupBudget,
+  lookupRefusal,
   isLocationAllowed,
   priceLevelNum,
   priceLabel,
@@ -32,20 +29,56 @@ Deno.test('an over-long location exceeds MAX_LOCATION_LEN', () => {
   assertEquals('New York'.length > MAX_LOCATION_LEN, false);
 });
 
-Deno.test('lookupWindowStart is exactly one window behind now', () => {
-  const now = new Date('2026-07-27T12:00:00.000Z');
-  assertEquals(lookupWindowStart(now), '2026-07-26T12:00:00.000Z');
-  assertEquals(
-    now.getTime() - new Date(lookupWindowStart(now)).getTime(),
-    LOOKUP_WINDOW_MS,
-  );
+// null is the ONLY value that lets the handler reach the Places call, so it must
+// be reachable by exactly one input: the RPC succeeding and returning 'ok'.
+Deno.test('lookupRefusal authorizes the spend only on a clean ok', () => {
+  assertEquals(lookupRefusal({ data: 'ok' }), null);
+  assertEquals(lookupRefusal({ data: 'ok', error: null }), null);
 });
 
-Deno.test('isOverLookupBudget refuses at the limit, not before', () => {
-  assertEquals(isOverLookupBudget(0), false);
-  assertEquals(isOverLookupBudget(LOOKUP_LIMIT - 1), false);
-  assertEquals(isOverLookupBudget(LOOKUP_LIMIT), true);
-  assertEquals(isOverLookupBudget(LOOKUP_LIMIT + 1), true);
+// Two different causes, two different things to tell the user: one is "you spent
+// your own budget", the other is "the app as a whole is at capacity". Neither may
+// collapse into the generic 500 failure message, or the honest user is told the
+// app is broken when it is actually rate-limiting them.
+Deno.test('lookupRefusal renders each budget verdict as its own distinct 429', () => {
+  const user = lookupRefusal({ data: 'user_limit' });
+  const global = lookupRefusal({ data: 'global_limit' });
+  assertEquals(user, {
+    status: 429,
+    error: 'Daily restaurant search limit reached. Try again tomorrow.',
+  });
+  assertEquals(global, {
+    status: 429,
+    error: 'Restaurant search is busy right now. Try again later.',
+  });
+  assertEquals(user!.error === global!.error, false);
+  assertEquals([user!.error, global!.error].includes('Could not load restaurants'), false);
+});
+
+// The property the whole fix rests on: anything the RPC can return other than a
+// recognised verdict has bounded no spend, so it must refuse rather than fall
+// through to the upstream call. An unknown verdict string is the case the SQL
+// function could produce if it ever grew a return value the handler lags behind.
+Deno.test('lookupRefusal fails closed on an unrecognised verdict', () => {
+  const closed = { status: 500, error: 'Could not load restaurants' };
+  assertEquals(lookupRefusal({ data: 'maybe' }), closed);
+  assertEquals(lookupRefusal({ data: 'OK' }), closed);
+  assertEquals(lookupRefusal({ data: '' }), closed);
+  assertEquals(lookupRefusal({ data: null }), closed);
+  assertEquals(lookupRefusal({}), closed);
+  assertEquals(lookupRefusal({ data: true }), closed);
+  assertEquals(lookupRefusal({ data: 0 }), closed);
+  assertEquals(lookupRefusal({ data: { verdict: 'ok' } }), closed);
+  assertEquals(lookupRefusal({ data: ['ok'] }), closed);
+});
+
+// A raised RPC — function not deployed yet, places_budget row missing, dead
+// connection — refuses too, and an error outranks even an 'ok' payload.
+Deno.test('lookupRefusal fails closed on an RPC error', () => {
+  const closed = { status: 500, error: 'Could not load restaurants' };
+  assertEquals(lookupRefusal({ error: { message: 'places_budget_unconfigured' } }), closed);
+  assertEquals(lookupRefusal({ data: null, error: { message: 'boom' } }), closed);
+  assertEquals(lookupRefusal({ data: 'ok', error: { message: 'boom' } }), closed);
 });
 
 Deno.test('priceLevelNum maps every Places enum, null otherwise', () => {

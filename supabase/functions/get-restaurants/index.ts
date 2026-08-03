@@ -1,8 +1,7 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
 import {
   MAX_LOCATION_LEN,
-  lookupWindowStart,
-  isOverLookupBudget,
+  lookupRefusal,
   isLocationAllowed,
   priceLevelNum,
   describe,
@@ -18,6 +17,7 @@ import {
 const PLACES_KEY = Deno.env.get('PLACES_API_KEY');
 const FOURSQUARE_KEY = Deno.env.get('FOURSQUARE_API_KEY');
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
+const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const cors = {
@@ -51,32 +51,57 @@ Deno.serve(async (req) => {
     if (loc.length > MAX_LOCATION_LEN) {
       return json({ error: 'Location too long' }, 400);
     }
-    const svc = createClient(SB_URL, SB_SVC);
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (!jwt) return json({ error: 'Unauthorized' }, 401);
+
+    // Client 1 — the CALLER, anon key + the caller's own JWT. Everything the
+    // room guard below does is the caller's own data, reachable under RLS:
+    // `members_select_same_room` (002_rls.sql:33-36) covers their own row and
+    // `rooms_select_members` (002_rls.sql:17-18) covers their room, with the
+    // SELECT grants from 004_grants.sql:12-13 (017:22 revoked only INSERT on
+    // members, 022:31 only UPDATE on rooms). None of it needs admin.
+    const caller = createClient(SB_URL, SB_ANON, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     // Restrict to the caller's own room: only locations the pair actually saved
     // can trigger a Places lookup. Without this, any anon user could bill the
     // Places API for arbitrary queries (cost-abuse / financial DoS).
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const jwt = authHeader.replace(/^Bearer\s+/i, '');
-    const { data: userData, error: userErr } = await svc.auth.getUser(jwt);
+    const { data: userData, error: userErr } = await caller.auth.getUser(jwt);
     if (userErr || !userData?.user) {
       return json({ error: 'Unauthorized' }, 401);
     }
-    const { data: member } = await svc
+    // Both reads are logged on error but still fall through to the same
+    // refusals: under RLS a denied row is an empty result, not an error, so
+    // "no rows" and "not allowed to see the rows" are indistinguishable here
+    // and both correctly refuse the lookup. The log is what tells a missing
+    // grant apart from a genuinely roomless caller.
+    const { data: member, error: memberErr } = await caller
       .from('members')
       .select('room_id')
       .eq('id', userData.user.id)
       .maybeSingle();
+    if (memberErr) console.error('members read failed', memberErr);
     if (!member) return json({ error: 'No room' }, 403);
-    const { data: room } = await svc
+    const { data: room, error: roomErr } = await caller
       .from('rooms')
       .select('locations')
       .eq('id', member.room_id)
       .maybeSingle();
+    if (roomErr) console.error('rooms read failed', roomErr);
     const allowed = (room?.locations ?? []) as string[];
     if (!isLocationAllowed(loc, allowed)) {
       return json({ error: 'Location not in your room' }, 403);
     }
+
+    // Client 2 — service_role, and only past the guard. Two things below
+    // genuinely require it: `spend_places_lookup` is granted to service_role
+    // alone (023_places_budget_atomic.sql:158-160) and the shared `items`
+    // catalogue gives `authenticated` no INSERT (004_grants.sql:11 is SELECT
+    // only; the write grant is service_role's, 007_service_role_grants.sql:10).
+    const svc = createClient(SB_URL, SB_SVC);
 
     // Cache-first: enough rows already stored -> return them, no API call.
     const existing = await selectRestaurants(svc, loc);
@@ -112,8 +137,15 @@ Deno.serve(async (req) => {
         price_level: p.price_level,
       }));
 
+    // Ignore-conflict, not plain insert: `existingTitles` was read before the
+    // upstream call, so a concurrent request for this same location (both
+    // partners opening a new deck at once is the normal case) has its own copy
+    // of the same rows in flight. The UNIQUE (category, title, location) added
+    // in 023 collapses them; DO NOTHING keeps that from being an error.
     if (toInsert.length > 0) {
-      const { error } = await svc.from('items').insert(toInsert);
+      const { error } = await svc
+        .from('items')
+        .upsert(toInsert, { onConflict: 'category,title,location', ignoreDuplicates: true });
       if (error) console.error('insert items failed', error);
     }
 
@@ -132,46 +164,18 @@ function json(body: unknown, status = 200) {
   });
 }
 
-// Count this user's upstream lookups in the trailing window and record this one.
+// Charge one upstream lookup against the per-user and global budgets.
 // Returns a refusal Response when the request must not proceed, else null.
-// Fails closed: if the ledger can't be read or written we cannot bound spend, so
-// we refuse rather than bill. Error detail is logged, never returned (the
-// response bodies here are fixed strings).
+//
+// One RPC, not three PostgREST calls: counting, checking and recording have to
+// happen inside one locked transaction or they bound nothing (see 023). Fails
+// closed — a failed RPC means spend is unbounded, so we refuse rather than bill.
+// Error detail is logged, never returned (the response bodies are fixed strings).
 async function spendLookupBudget(svc: SupabaseClient, userId: string): Promise<Response | null> {
-  const now = new Date();
-  const since = lookupWindowStart(now);
-
-  const { count, error: countErr } = await svc
-    .from('places_lookups')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('at', since);
-  if (countErr) {
-    console.error('places_lookups count failed', countErr);
-    return json({ error: 'Could not load restaurants' }, 500);
-  }
-  if (isOverLookupBudget(count ?? 0)) {
-    return json({ error: 'Daily restaurant search limit reached. Try again tomorrow.' }, 429);
-  }
-
-  const { error: insertErr } = await svc
-    .from('places_lookups')
-    .insert({ user_id: userId, at: now.toISOString() });
-  if (insertErr) {
-    console.error('places_lookups insert failed', insertErr);
-    return json({ error: 'Could not load restaurants' }, 500);
-  }
-
-  // Keep the ledger to one window per user. Best-effort: a failed prune costs
-  // storage, not correctness, since the count above is window-filtered anyway.
-  const { error: pruneErr } = await svc
-    .from('places_lookups')
-    .delete()
-    .eq('user_id', userId)
-    .lt('at', since);
-  if (pruneErr) console.error('places_lookups prune failed', pruneErr);
-
-  return null;
+  const { data, error } = await svc.rpc('spend_places_lookup', { p_user: userId });
+  if (error) console.error('spend_places_lookup failed', error);
+  const refusal = lookupRefusal({ data, error });
+  return refusal ? json({ error: refusal.error }, refusal.status) : null;
 }
 
 async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<ItemRow[]> {

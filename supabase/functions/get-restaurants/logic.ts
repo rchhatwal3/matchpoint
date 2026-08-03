@@ -12,20 +12,33 @@ export function isLocationAllowed(loc: string, allowed: string[]): boolean {
   return allowed.map((l) => l.trim().toLowerCase()).includes(loc.toLowerCase());
 }
 
-// Per-user cost budget. The room-locations guard above is self-authorizing —
-// members may UPDATE rooms.locations — so it cannot bound spend on its own.
-// This counts only lookups that actually go upstream to Places/Foursquare.
-export const LOOKUP_LIMIT = 50;
-export const LOOKUP_WINDOW_MS = 24 * 60 * 60 * 1000;
+// Cost budget. The room-locations guard above is self-authorizing — members may
+// UPDATE rooms.locations — so it cannot bound spend on its own. The counting,
+// the limits and the window all live in the spend_places_lookup SQL function
+// (023), because only there can the count and the row that spends it share one
+// locked transaction. All that is left here is rendering its verdict.
+export type LookupRefusal = { status: number; error: string };
 
-// Start of the trailing budget window, as an ISO timestamp for the `at` filter.
-export function lookupWindowStart(now: Date): string {
-  return new Date(now.getTime() - LOOKUP_WINDOW_MS).toISOString();
-}
-
-// True when the user has already spent the whole window's budget.
-export function isOverLookupBudget(countInWindow: number): boolean {
-  return countInWindow >= LOOKUP_LIMIT;
+// Decides the whole spend outcome from the RPC result, so BOTH fail-closed
+// branches are one testable expression rather than one being an `if` in the
+// handler. null = spend authorized, proceed upstream; anything else is the
+// response to return instead of calling Places.
+//
+// Fails closed twice over. A raised RPC (missing function, unconfigured budget,
+// dead connection) bounded nothing, and neither did a verdict this function does
+// not recognise — in both cases the only safe answer is to refuse, never to bill.
+export function lookupRefusal(res: { data?: unknown; error?: unknown }): LookupRefusal | null {
+  if (res.error) return { status: 500, error: 'Could not load restaurants' };
+  switch (res.data) {
+    case 'ok':
+      return null;
+    case 'user_limit':
+      return { status: 429, error: 'Daily restaurant search limit reached. Try again tomorrow.' };
+    case 'global_limit':
+      return { status: 429, error: 'Restaurant search is busy right now. Try again later.' };
+    default:
+      return { status: 500, error: 'Could not load restaurants' };
+  }
 }
 
 export type PlacesApiPlace = {
