@@ -16,7 +16,8 @@ import {
 // password. Being open makes it the primary attack surface; it is compensated,
 // not left open — per-email lockout here + CAPTCHA/rate limits (T16b) at the edge.
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
-const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SB_SVC = Deno.env.get('SB_SECRET_REDEEM');
+if (!SB_SVC) throw new Error('Missing required secret: SB_SECRET_REDEEM');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',

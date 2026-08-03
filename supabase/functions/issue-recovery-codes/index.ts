@@ -6,7 +6,8 @@ import { CODE_COUNT, hashCode, newCode, newSalt } from './logic.ts';
 // stored as salted hashes, never logged. Regenerating voids the prior set.
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
 const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
-const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const SB_SVC = Deno.env.get('SB_SECRET_KEY');
+if (!SB_SVC) throw new Error('Missing required secret: SB_SECRET_KEY');
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
