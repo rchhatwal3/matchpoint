@@ -5,6 +5,7 @@ import { CODE_COUNT, hashCode, newCode, newSalt } from './logic.ts';
 // calling permanent user. Returns the plaintext codes ONCE — they are only ever
 // stored as salted hashes, never logged. Regenerating voids the prior set.
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
+const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const cors = {
@@ -15,10 +16,18 @@ const cors = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const svc = createClient(SB_URL, SB_SVC);
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (!jwt) return json({ error: 'Unauthorized' }, 401);
 
-    const jwt = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '');
-    const { data: userData, error: userErr } = await svc.auth.getUser(jwt);
+    // Client 1 — the CALLER. Verifying the caller's own token is not an admin
+    // operation, and identity comes from the verified token and nowhere else,
+    // so the request body can never name someone else's account.
+    const caller = createClient(SB_URL, SB_ANON, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data: userData, error: userErr } = await caller.auth.getUser(jwt);
     if (userErr || !userData?.user) return json({ error: 'Unauthorized' }, 401);
     const user = userData.user;
 
@@ -36,7 +45,11 @@ Deno.serve(async (req) => {
       }),
     );
 
+    // Client 2 — service_role, for one operation that needs it:
+    // `replace_recovery_codes` is a SECURITY DEFINER RPC revoked from public
+    // and granted to service_role alone (022_p3_hardening.sql:174-175).
     // Void the old set and insert the new one atomically (regenerate = replace).
+    const svc = createClient(SB_URL, SB_SVC);
     const { error: rpcErr } = await svc.rpc('replace_recovery_codes', {
       p_user: user.id,
       p_rows: rows,

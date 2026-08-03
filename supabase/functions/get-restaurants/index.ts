@@ -17,6 +17,7 @@ import {
 const PLACES_KEY = Deno.env.get('PLACES_API_KEY');
 const FOURSQUARE_KEY = Deno.env.get('FOURSQUARE_API_KEY');
 const SB_URL = Deno.env.get('SUPABASE_URL')!;
+const SB_ANON = Deno.env.get('SUPABASE_ANON_KEY')!;
 const SB_SVC = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const cors = {
@@ -50,32 +51,57 @@ Deno.serve(async (req) => {
     if (loc.length > MAX_LOCATION_LEN) {
       return json({ error: 'Location too long' }, 400);
     }
-    const svc = createClient(SB_URL, SB_SVC);
+    const authHeader = req.headers.get('Authorization') ?? '';
+    const jwt = authHeader.replace(/^Bearer\s+/i, '');
+    if (!jwt) return json({ error: 'Unauthorized' }, 401);
+
+    // Client 1 — the CALLER, anon key + the caller's own JWT. Everything the
+    // room guard below does is the caller's own data, reachable under RLS:
+    // `members_select_same_room` (002_rls.sql:33-36) covers their own row and
+    // `rooms_select_members` (002_rls.sql:17-18) covers their room, with the
+    // SELECT grants from 004_grants.sql:12-13 (017:22 revoked only INSERT on
+    // members, 022:31 only UPDATE on rooms). None of it needs admin.
+    const caller = createClient(SB_URL, SB_ANON, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
 
     // Restrict to the caller's own room: only locations the pair actually saved
     // can trigger a Places lookup. Without this, any anon user could bill the
     // Places API for arbitrary queries (cost-abuse / financial DoS).
-    const authHeader = req.headers.get('Authorization') ?? '';
-    const jwt = authHeader.replace(/^Bearer\s+/i, '');
-    const { data: userData, error: userErr } = await svc.auth.getUser(jwt);
+    const { data: userData, error: userErr } = await caller.auth.getUser(jwt);
     if (userErr || !userData?.user) {
       return json({ error: 'Unauthorized' }, 401);
     }
-    const { data: member } = await svc
+    // Both reads are logged on error but still fall through to the same
+    // refusals: under RLS a denied row is an empty result, not an error, so
+    // "no rows" and "not allowed to see the rows" are indistinguishable here
+    // and both correctly refuse the lookup. The log is what tells a missing
+    // grant apart from a genuinely roomless caller.
+    const { data: member, error: memberErr } = await caller
       .from('members')
       .select('room_id')
       .eq('id', userData.user.id)
       .maybeSingle();
+    if (memberErr) console.error('members read failed', memberErr);
     if (!member) return json({ error: 'No room' }, 403);
-    const { data: room } = await svc
+    const { data: room, error: roomErr } = await caller
       .from('rooms')
       .select('locations')
       .eq('id', member.room_id)
       .maybeSingle();
+    if (roomErr) console.error('rooms read failed', roomErr);
     const allowed = (room?.locations ?? []) as string[];
     if (!isLocationAllowed(loc, allowed)) {
       return json({ error: 'Location not in your room' }, 403);
     }
+
+    // Client 2 — service_role, and only past the guard. Two things below
+    // genuinely require it: `spend_places_lookup` is granted to service_role
+    // alone (023_places_budget_atomic.sql:158-160) and the shared `items`
+    // catalogue gives `authenticated` no INSERT (004_grants.sql:11 is SELECT
+    // only; the write grant is service_role's, 007_service_role_grants.sql:10).
+    const svc = createClient(SB_URL, SB_SVC);
 
     // Cache-first: enough rows already stored -> return them, no API call.
     const existing = await selectRestaurants(svc, loc);
