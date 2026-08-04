@@ -1,6 +1,35 @@
 # HANDOFF — matchpoint
 
-Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-07-27.
+Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-03.
+
+## Second security review batch — SHIPPED, DEPLOYED, QA-VERIFIED LIVE (2026-08-03)
+
+Both P1s from `docs/security/2026-07-28-security-review.md` are fixed and verified in production. PRs #50–#54 merged; migrations 023, 024, 025 applied; all four edge functions redeployed.
+
+- **PR #50 — the Places budget now bounds spend.** `023` moves the spend into `spend_places_lookup`, a SECURITY DEFINER function holding `pg_advisory_xact_lock` (salt 1; `022` holds 0) so counting, checking and recording share one transaction. The lock key is a **constant, not per-user** — the global ceiling counts across users, so different users' spends must serialise or the global check has the same race. Adds a global ceiling (200/24h, retunable via `UPDATE places_budget`) and `UNIQUE (category, title, location)` on `items`.
+- **PR #51 — the room guard runs as the caller, not as admin.** `get-restaurants` and `issue-recovery-codes` now match `delete-account`'s shape: JWT verification and the caller's own `members`/`rooms` reads go through an anon-key client under RLS; the service client is built only after the guard passes.
+- **PR #52 — recovery redeem is bounded.** Email shape validation plus a per-IP cap on failed attempts (`024` adds the `ip` column).
+- **PR #53 — `025`** enforces the 80-char location cap in the database.
+- **PR #54 — new secret API keys.** All four functions read `SB_SECRET_KEY` / `SB_SECRET_REDEEM` instead of `SUPABASE_SERVICE_ROLE_KEY`, with fail-fast startup guards.
+
+**Live QA verified (2026-08-03), as an ordinary anonymous caller:** anon sign-in → `create_room` → set `locations` → `get-restaurants` returned **200 with 60 items**. That is the check that matters for PR #51 — it is the same flow that broke from PR #2 until `012` (see below), and it passes. Also verified: `spend_places_lookup` returns `42501 permission denied` to `authenticated`; `places_budget` is unreadable; `items` INSERT is refused; cross-room isolation holds (a second session sees empty `members`, empty `rooms`, swipes count 0); malformed email to redeem returns 400 with no write; `max(length(location))` is 17.
+
+### GOTCHA THAT TOOK PRODUCTION DOWN — secret names are case-sensitive
+
+After deploying #54, **all four functions returned `WORKER_ERROR` 500**, including OPTIONS preflight. Cause: the secrets were created as `sb_secret_key` / `sb_secret_redeem` (lowercase — the key *prefix* used as the variable *name*) while the code reads `SB_SECRET_KEY` / `SB_SECRET_REDEEM`. `Deno.env.get` returned undefined, the startup guard threw, and the module never loaded.
+
+Diagnostic worth reusing: **if OPTIONS preflight 500s, the failure is at module load, not in the handler** — the `OPTIONS` early-return is the first line of every function. Check `supabase secrets list` against the exact strings in the code before looking anywhere else.
+
+The fail-fast guard is what made this a loud one-line fix instead of a silent failure surfacing on some user's first recovery attempt. Keep that pattern.
+
+### Still open after this batch
+
+- **P2 — the `member_room_id` membership oracle. REPRODUCED LIVE 2026-08-03.** A fresh session that has never been a member of any room called `POST /rest/v1/rpc/member_room_id` with another user's member id and received that user's room UUID (200). `002_rls.sql:5-8` has no REVOKE and PostgreSQL grants EXECUTE to PUBLIC by default. A `REVOKE ... FROM public` is not enough — the attacker holds an anonymous session and therefore *is* `authenticated`. Fix is to move it to an unexposed schema (`private.member_room_id`), grant EXECUTE there, and re-point the six policies that call it. Note the parameter is `p_member`, not `p_uid`.
+- **P2 (new, found during this QA) — a location with fewer than `CACHE_TARGET` results never caches, so it spends a lookup on EVERY request, forever.** `CACHE_TARGET` is 60 (`get-restaurants/index.ts:29,82`). `"New York, NY"` currently holds **59** items and is a live instance of this. Chicago, Seattle, Los Angeles and San Francisco all sit at exactly 60 and are fine. The real remedy is a negative-cache marker so a legitimately sparse location stops re-querying. Until then the 200/day global ceiling is a bill ceiling, not a usage estimate.
+- **The `x-forwarded-for` hop is still unverified.** PR #52's IP cap reads the rightmost hop. Whether that is the real client address or a constant internal Supabase address cannot be settled from outside — and if it is constant, all traffic shares one bucket and the threshold could deny recovery to every user. Verify by sending a request from a machine whose public IP you know and reading the raw header in the function logs.
+- **The provider spend caps** (Google Maps Platform per-minute quotas + billing budget alert) remain the oldest open item. Still human-only.
+- **`APP_SERVICE_KEY`** is still set as an edge function secret. This file already recorded it as a temporary credential that can be deleted.
+- **PR #49** (the security review doc) is still open and public, describing both now-fixed P1s at file:line precision. Recommendation: close it unmerged and keep `docs/security/` in a private repo rather than a public one.
 
 ## Adversarial QA findings — ALL CLOSED except the provider spend caps (2026-07-28)
 
