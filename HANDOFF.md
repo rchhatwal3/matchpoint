@@ -4,7 +4,7 @@ Read this first when resuming. Snapshot of state, decisions, and what's next. La
 
 ## Second security review batch — SHIPPED, DEPLOYED, QA-VERIFIED LIVE (2026-08-03)
 
-Both P1s from `docs/security/2026-07-28-security-review.md` are fixed and verified in production. PRs #50–#54 merged; migrations 023, 024, 025 applied; all four edge functions redeployed.
+Both P1s from the 2026-07-28 review in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo are fixed and verified in production. PRs #50–#54 merged; migrations 023, 024, 025 applied; all four edge functions redeployed.
 
 - **PR #50 — the Places budget now bounds spend.** `023` moves the spend into `spend_places_lookup`, a SECURITY DEFINER function holding `pg_advisory_xact_lock` (salt 1; `022` holds 0) so counting, checking and recording share one transaction. The lock key is a **constant, not per-user** — the global ceiling counts across users, so different users' spends must serialise or the global check has the same race. Adds a global ceiling (200/24h, retunable via `UPDATE places_budget`) and `UNIQUE (category, title, location)` on `items`.
 - **PR #51 — the room guard runs as the caller, not as admin.** `get-restaurants` and `issue-recovery-codes` now match `delete-account`'s shape: JWT verification and the caller's own `members`/`rooms` reads go through an anon-key client under RLS; the service client is built only after the guard passes.
@@ -29,11 +29,11 @@ The fail-fast guard is what made this a loud one-line fix instead of a silent fa
 - **The `x-forwarded-for` hop is still unverified.** PR #52's IP cap reads the rightmost hop. Whether that is the real client address or a constant internal Supabase address cannot be settled from outside — and if it is constant, all traffic shares one bucket and the threshold could deny recovery to every user. Verify by sending a request from a machine whose public IP you know and reading the raw header in the function logs.
 - **The provider spend caps** (Google Maps Platform per-minute quotas + billing budget alert) remain the oldest open item. Still human-only.
 - **`APP_SERVICE_KEY`** is still set as an edge function secret. This file already recorded it as a temporary credential that can be deleted.
-- **PR #49** (the security review doc) is still open and public, describing both now-fixed P1s at file:line precision. Recommendation: close it unmerged and keep `docs/security/` in a private repo rather than a public one.
+- **Security reviews now live in a private repo — DONE 2026-08-03.** Both reviews moved to **[rchhatwal3/matchpoint-security](https://github.com/rchhatwal3/matchpoint-security)** (private), and `docs/security/` is gone from this repo; `docs/SECURITY.md` is the pointer. PR #49, which would have merged the 2026-07-28 review onto public `main`, was closed unmerged. Findings stay tracked as `TODO.md` items here — a backlog line saying a helper needs moving to an unexposed schema is not an attack guide; what moved is the reproduction detail. Note the 2026-07-27 review was public before the split and remains in this repo's git history — its findings are all shipped, so purging history was judged not worth the disruption.
 
 ## Adversarial QA findings — ALL CLOSED except the provider spend caps (2026-07-28)
 
-Every P1/P2/P3 from `docs/security/2026-07-27-adversarial-qa.md` is now shipped and deployed. The one open item is human-only: **per-minute quotas on Google Maps Platform** (their editable quotas are per-minute, not per-day — the earlier daily-cap instruction was wrong) plus a billing budget alert. Foursquare has no settable cap at all; its console offers keys and usage reporting only.
+Every P1/P2/P3 from the 2026-07-27 adversarial pass in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo is now shipped and deployed. The one open item is human-only: **per-minute quotas on Google Maps Platform** (their editable quotas are per-minute, not per-day — the earlier daily-cap instruction was wrong) plus a billing budget alert. Foursquare has no settable cap at all; its console offers keys and usage reporting only.
 
 - **PRs #37–#40** closed the P2 batch and the app-side lookup budget (migrations 016, 017, 018).
 - **PR #43** made erasure honest both ways (migration 021 + the `delete-account` edge function). **Live E2E passed:** two-member room, one side erases, the survivor still reads both matches through the `matches` snapshot, and the erased account returns `user_not_found`. The snapshot carries room + item only — never the departing member's identity.
@@ -61,7 +61,7 @@ PRs #32 (OTP length hint), #33 (legal parser hang), #34–#36 (QA report, decisi
 
 ## Adversarial QA pass — DONE 2026-07-27
 
-Read-only static audit against a hostile-caller threat model. Report: **`docs/security/2026-07-27-adversarial-qa.md`** (includes a "verified NOT a problem" section — per-table RLS walkthrough, definer hygiene, secret handling, edge-function JWT gating/CORS, recovery-code crypto, pure-logic fuzzing — so it isn't re-audited).
+Read-only static audit against a hostile-caller threat model. Report: **the 2026-07-27 adversarial pass in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo** (includes a "verified NOT a problem" section — per-table RLS walkthrough, definer hygiene, secret handling, edge-function JWT gating/CORS, recovery-code crypto, pure-logic fuzzing — so it isn't re-audited).
 
 **Decisions locked 2026-07-27 (user approved both recommendations, order kept).** Work order: (1) provider spend caps — Google Cloud + Foursquare daily quotas and a budget alert, human-only, in `MANUAL_TODOS.md`, do first; (2) erasure fixes — snapshot `room_matches` into a `matches` table keyed on room+item with **no member identity**, and extend `delete_my_data()` to actually erase (`recovery_codes`, `recovery_redeem_attempts`, plus a small edge function for the `auth.users` row), with a 30-day `pg_cron` purge on the attempts log; (3) app-side budget — `CHECK` of 10 locations per room + 50 lookups per user per day in a `places_lookups` table; (4) the P2 hardening batch (enumeration oracle, invite-code throttle, consent record). P3s after. Both decisions chose fixing the code over rewriting the published copy; the reasoning is recorded in each `TODO.md` item.
 

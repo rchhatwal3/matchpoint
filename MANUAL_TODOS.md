@@ -39,14 +39,16 @@ to all users at once.
       2026-07-26 service-role diagnosis. `HANDOFF.md` already records it as deletable,
       and it is still set.
 
-## Decide what happens to PR #49 and `docs/security/`
+## Security reviews moved to a private repo — DONE 2026-08-03
 
-- [ ] PR #49 is **open and public** and describes both (now-fixed) P1s at file:line
-      precision, along with the endpoint, why the lockout did not trip, and that CAPTCHA
-      is deliberately off. Recommendation: close it unmerged and keep security reviews in
-      a separate **private** repo. Making matchpoint itself private is the wrong trade —
-      GitHub Pages from a private repo needs a paid plan, so it would break the live site
-      to protect docs that do not need to live there at all.
+- [x] Both reviews now live in **rchhatwal3/matchpoint-security** (private). `docs/security/`
+      is removed from this repo; `docs/SECURITY.md` points at the new home.
+- [x] PR #49 closed unmerged — it would have published the 2026-07-28 review onto public
+      `main`, describing both P1s at file:line precision along with the endpoint, why the
+      lockout did not trip, and that CAPTCHA is deliberately off.
+- [ ] **Keep `matchpoint-security` private.** Making matchpoint itself private was the
+      alternative and it is the wrong trade — GitHub Pages needs a public repo on the free
+      plan, so it would break the live site to protect documents that need not live there.
 
 ## Spend caps on the restaurant APIs (DO FIRST — decided 2026-07-27)
 
@@ -74,7 +76,7 @@ only control that bounds the actual money, including against a bug in our own lo
 
 Why it matters: `get-restaurants`' location guard checks the caller's request against
 `rooms.locations`, but members hold UPDATE on `rooms`, so the caller writes their own
-allowlist. Full detail in `docs/security/2026-07-27-adversarial-qa.md`.
+allowlist. Full detail in the 2026-07-27 adversarial pass in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo.
 
 - [ ] **Confirm duplicate-email behaviour** — there may be no dashboard toggle by
       the name "Prevent use of duplicate emails" in the current Supabase UI, so do not

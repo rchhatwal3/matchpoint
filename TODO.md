@@ -4,7 +4,7 @@ Ordered by priority. Human-only steps (API keys, dashboard config, store account
 
 ## Next up
 
-### From the second security review (2026-07-28) — full detail in `docs/security/2026-07-28-security-review.md`
+### From the second security review (2026-07-28) — full detail in the 2026-07-28 review in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo
 
 Both P1s are **shipped, deployed and QA-verified live 2026-08-03** (PRs #50–#54, migrations 023/024/025). What remains:
 
@@ -14,7 +14,7 @@ Both P1s are **shipped, deployed and QA-verified live 2026-08-03** (PRs #50–#5
 - [ ] **P3 — revoke the now-dead `service_role` grants on `members` and `rooms`.** Migration `012` granted them purely for the old admin-client room guard in `get-restaurants`. PR #51 moved that guard to the caller's client, so nothing needs them any more.
 - [ ] **P3 — the erasure snapshot is visible to a later room member**, `matches.matched_at` discloses when the other member erased, `join_room`'s throttle is a TOCTOU, a deleted user's token can still write, free-text locations are world-readable via `items`, GitHub Actions are pinned to mutable tags, and `main`'s ruleset has no required-pull-request rule. All still open — see the review doc.
 
-### From the adversarial QA pass (2026-07-27) — full detail in `docs/security/2026-07-27-adversarial-qa.md`
+### From the adversarial QA pass (2026-07-27) — full detail in the 2026-07-27 adversarial pass in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo
 
 **Decisions locked 2026-07-27 (user approved). Work this list in order:**
 1. **Provider spend caps** — dashboard-only, no code, do first (`MANUAL_TODOS.md`).
@@ -77,7 +77,7 @@ P3s follow after. Rationale for each choice is recorded in the item it belongs t
 - [x] **T17 image caching — phase 1 DONE (PR #8, merged 2026-07-22).** This entry listed the whole item as open until 2026-07-27; it was stale. `components/SwipeCard.tsx` renders photos through `expo-image` (memory+disk cache), and the deck prefetches upcoming cards via the pure `upcomingImageUrls` in `lib/deck.ts`.
 - [ ] **T17 phase 2 (deferred, optional/ToS-gated)** — persistent mirror to Supabase Storage for ToS-safe sources ONLY (Wikimedia yes + attribution; Google Places photo bytes NO — their ToS restricts storing them). Only worth doing if the goal shifts from speed (done in phase 1) to decoupling from third parties.
 - [ ] **T13 multiple rooms** — many rooms per user + a switcher. Schema change: `members.id = auth.uid()` (one room/user) → a membership table (many-to-many). Pairs with T9 for durable identity.
-- [x] **Adversarial QA subagent pass — DONE 2026-07-27.** Read-only static audit against a hostile-caller threat model (attacker holds the public anon key, mints anonymous sessions, calls PostgREST/RPC/edge functions directly with curl). Full report: `docs/security/2026-07-27-adversarial-qa.md`, including a "verified NOT a problem" section (per-table RLS walkthrough, definer-function hygiene, secret handling, edge-function JWT gating + CORS, recovery-code crypto, upstream injection, pure-logic fuzzing) so the next session doesn't re-audit them. **No P0. Cross-room isolation holds.** Findings are filed as separate backlog items below.
+- [x] **Adversarial QA subagent pass — DONE 2026-07-27.** Read-only static audit against a hostile-caller threat model (attacker holds the public anon key, mints anonymous sessions, calls PostgREST/RPC/edge functions directly with curl). Full report: the 2026-07-27 adversarial pass in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo, including a "verified NOT a problem" section (per-table RLS walkthrough, definer-function hygiene, secret handling, edge-function JWT gating + CORS, recovery-code crypto, upstream injection, pure-logic fuzzing) so the next session doesn't re-audit them. **No P0. Cross-room isolation holds.** Findings are filed as separate backlog items below.
 
 ## Testing (new — enforced from now on)
 - [x] **Test suite + CI coverage gate** — jest-expo + RNTL (app logic) and `deno test` (edge function), 90% coverage gate scoped to `lib/`. GitHub Actions `test` + `deno-test` jobs gate deploy; husky `commit-msg` (commitlint) + `pre-push` (typecheck/lint/test) block bad commits; `.claude` PreToolUse hook reminds caveman-review before git. Branch protection = MANUAL_TODOS.
