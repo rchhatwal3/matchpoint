@@ -11,6 +11,23 @@ Read these three first — they carry state across compaction and fresh conversa
 
 `docs/PLAN.md` has the full phased plan; `DESIGN.md` / `PRODUCT.md` are required reading before UI work.
 
+## Security reviews live in a private repo (REQUIRED reading before security work)
+
+Full security reviews are **not** in this repository. They are in **[rchhatwal3/matchpoint-security](https://github.com/rchhatwal3/matchpoint-security)** (private), under `reviews/`. `docs/SECURITY.md` is the pointer; `docs/security/` no longer exists here.
+
+This repo is public and must stay public — GitHub Pages serves the live site from it on the free plan. The reviews name unfixed weaknesses down to the file and line, explain why particular controls do not trip, and record which protections are deliberately off. Published before the fixes ship, that is a working attack guide.
+
+**Before starting any security work, read the relevant review in that repo** — each one carries a "verified NOT a problem" section written specifically so the next session doesn't re-audit ground already covered. Clone it alongside this repo, or read it with `gh`:
+
+```
+gh api repos/rchhatwal3/matchpoint-security/contents/reviews -q '.[].name'
+gh api repos/rchhatwal3/matchpoint-security/contents/reviews/<file> -q .content | base64 -d
+```
+
+**When writing about security in THIS repo, describe what needs doing, not how to exploit it.** A `TODO.md` line saying a membership helper must move to an unexposed schema is fine; the reproduction steps, the curl that demonstrates it, and the reasoning about which control fails to fire belong in the private repo. Open findings stay tracked as `TODO.md` items here so the backlog remains complete — only the exploit detail moves.
+
+New reviews go in the private repo as `reviews/YYYY-MM-DD-<slug>.md`, then get filed as `TODO.md` items here.
+
 ## Keep the live status dashboard current (REQUIRED)
 
 There is a published Claude Artifact tracking build status — running subagents, PRs in review, shipped/deployed work, the queue, and the 7 goal items:
@@ -97,6 +114,7 @@ Push to `main` → `.github/workflows/deploy.yml` (typecheck + lint gate, `expo 
 ## Project docs
 
 - `docs/PLAN.md` — phased implementation plan + MVP2 roadmap (auth: email/Google/Apple)
+- `docs/SECURITY.md` — pointer only. The reviews themselves are in the private `matchpoint-security` repo; read them before any security work
 - `docs/SUPABASE_SETUP.md` — backend setup steps in order
 - `MANUAL_TODOS.md` — human-only steps (API keys, store accounts, secrets); check here before assuming something can be automated
 - `PRODUCT.md` / `DESIGN.md` — impeccable-skill context; read both before UI work
