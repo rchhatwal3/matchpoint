@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
     // via PostgREST). Unknown email: same fail() path as a wrong code, so an
     // unregistered email accumulates lockout state identically to a registered
     // one — otherwise the two are distinguishable by the sixth request (see
-    // docs/security/2026-07-27-adversarial-qa.md, P2 enumeration finding).
+    // the 2026-07-27 review in the private matchpoint-security repo, P2
+    // enumeration finding — see docs/SECURITY.md).
     const { data: uid } = await svc.rpc('user_id_for_email', { p_email: email });
     if (!uid) return await fail(svc, email, ip);
 

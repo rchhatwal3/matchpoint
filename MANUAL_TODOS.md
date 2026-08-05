@@ -2,21 +2,53 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
-## Set the new secret API keys (DO FIRST — blocks every edge function deploy, 2026-08-03)
+## Secret API keys — DONE 2026-08-03 (kept for the gotcha)
 
-The four edge functions now read custom-named secrets instead of the legacy
-`SUPABASE_SERVICE_ROLE_KEY` env var (system-allocated `SUPABASE_` names can't hold
-custom secrets). Each function fails fast with a clear error if its secret is unset,
-but that only helps once deployed — set both secrets BEFORE deploying, or every one
-of these four functions breaks on its first request.
+- [x] `SB_SECRET_KEY` (used by `get-restaurants`, `issue-recovery-codes`, `delete-account`)
+- [x] `SB_SECRET_REDEEM` (used only by `redeem-recovery-code`, the one function deployed
+      `--no-verify-jwt`, so a compromise there is revocable without touching the others)
 
-- [ ] **`supabase secrets set SB_SECRET_REDEEM=<value>`** — used only by
-      `redeem-recovery-code` (the one function deployed `--no-verify-jwt`; it gets its
-      own key so a compromise there can be revoked without touching the other three).
-- [ ] **`supabase secrets set SB_SECRET_KEY=<value>`** — used by `get-restaurants`,
-      `issue-recovery-codes`, and `delete-account`.
-- [ ] Both values are the new Supabase secret API key (`sb_secret_...`), not the
-      legacy service_role JWT. Dashboard → Project Settings → API → API keys.
+**GOTCHA — secret names are case-sensitive, and getting them wrong takes down every
+function.** They were first created as `sb_secret_key` / `sb_secret_redeem` (the key
+*prefix* used as the variable *name*) while the code reads `SB_SECRET_KEY` /
+`SB_SECRET_REDEEM`. `Deno.env.get` returned undefined, the startup guard threw, and all
+four functions returned `WORKER_ERROR` 500 until the names were corrected.
+
+Diagnostic: **if OPTIONS preflight 500s, the failure is at module load, not in the
+handler** — the `OPTIONS` early-return is the first line of every function. Run
+`supabase secrets list` and compare against the exact strings in the code before
+investigating anything else.
+
+## Verify the `x-forwarded-for` hop (blocks trusting the recovery IP cap)
+
+PR #52's per-IP cap on `redeem-recovery-code` reads the **rightmost** `x-forwarded-for`
+hop, which a client cannot forge. What cannot be determined from the code is whether
+that value is the real client address or a constant internal Supabase address. If it is
+constant, every caller shares one bucket and the threshold could deny the recovery path
+to all users at once.
+
+- [ ] Send a request to the deployed `redeem-recovery-code` from a machine whose public
+      IP you know (`curl ifconfig.me`), then read the raw `x-forwarded-for` for that
+      request in the Supabase dashboard's Edge Function logs. Rightmost entry equal to
+      your IP means the cap is trustworthy; the same fixed value across different source
+      IPs means it is not — tell Claude and the cap needs reworking.
+
+## Delete the leftover `APP_SERVICE_KEY` secret
+
+- [ ] `supabase secrets unset APP_SERVICE_KEY` — a temporary credential from the
+      2026-07-26 service-role diagnosis. `HANDOFF.md` already records it as deletable,
+      and it is still set.
+
+## Security reviews moved to a private repo — DONE 2026-08-03
+
+- [x] Both reviews now live in **rchhatwal3/matchpoint-security** (private). `docs/security/`
+      is removed from this repo; `docs/SECURITY.md` points at the new home.
+- [x] PR #49 closed unmerged — it would have published the 2026-07-28 review onto public
+      `main`, describing both P1s at file:line precision along with the endpoint, why the
+      lockout did not trip, and that CAPTCHA is deliberately off.
+- [ ] **Keep `matchpoint-security` private.** Making matchpoint itself private was the
+      alternative and it is the wrong trade — GitHub Pages needs a public repo on the free
+      plan, so it would break the live site to protect documents that need not live there.
 
 ## Spend caps on the restaurant APIs (DO FIRST — decided 2026-07-27)
 
@@ -44,7 +76,7 @@ only control that bounds the actual money, including against a bug in our own lo
 
 Why it matters: `get-restaurants`' location guard checks the caller's request against
 `rooms.locations`, but members hold UPDATE on `rooms`, so the caller writes their own
-allowlist. Full detail in `docs/security/2026-07-27-adversarial-qa.md`.
+allowlist. Full detail in the 2026-07-27 adversarial pass in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo.
 
 - [ ] **Confirm duplicate-email behaviour** — there may be no dashboard toggle by
       the name "Prevent use of duplicate emails" in the current Supabase UI, so do not
