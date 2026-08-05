@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2.109.0';
 import {
   MAX_LOCATION_LEN,
+  cacheVerdict,
   lookupRefusal,
   isLocationAllowed,
   priceLevelNum,
@@ -25,10 +26,6 @@ const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-// How many stored rows count as "already cached" for a location — at/above
-// this we skip the API entirely and serve what we have.
-const CACHE_TARGET = 60;
 
 type ItemRow = {
   id: string;
@@ -104,9 +101,13 @@ Deno.serve(async (req) => {
     // only; the write grant is service_role's, 007_service_role_grants.sql:10).
     const svc = createClient(SB_URL, SB_SVC);
 
-    // Cache-first: enough rows already stored -> return them, no API call.
+    // Cache-first: enough rows already stored, OR a recent complete fetch that
+    // established this location simply has few results -> return them, no API
+    // call. The marker RPC runs even when the count alone would decide, so the
+    // whole rule stays one expression in cacheVerdict; it is one local query
+    // against a two-column primary key, on a handler that already makes four.
     const existing = await selectRestaurants(svc, loc);
-    if (existing.length >= CACHE_TARGET) {
+    if (cacheVerdict(existing.length, await readCacheMarker(svc, loc)) === 'serve') {
       return json({ items: existing, cached: true });
     }
 
@@ -123,7 +124,7 @@ Deno.serve(async (req) => {
     const refusal = await spendLookupBudget(svc, userData.user.id);
     if (refusal) return refusal;
 
-    const googlePlaces = await fetchPlaces(loc);
+    const { places: googlePlaces, complete } = await fetchPlaces(loc);
     const places = await enrichPricesWithFoursquare(googlePlaces, loc);
     const existingTitles = new Set(existing.map((i) => i.title.toLowerCase()));
     const toInsert = places
@@ -143,14 +144,26 @@ Deno.serve(async (req) => {
     // partners opening a new deck at once is the normal case) has its own copy
     // of the same rows in flight. The UNIQUE (category, title, location) added
     // in 023 collapses them; DO NOTHING keeps that from being an error.
+    let stored = true;
     if (toInsert.length > 0) {
       const { error } = await svc
         .from('items')
         .upsert(toInsert, { onConflict: 'category,title,location', ignoreDuplicates: true });
-      if (error) console.error('insert items failed', error);
+      if (error) {
+        console.error('insert items failed', error);
+        stored = false;
+      }
     }
 
     const items = await selectRestaurants(svc, loc);
+    // Record the outcome so a legitimately sparse location stops re-querying —
+    // but ONLY when this round-trip is worth believing. `complete` is false when
+    // a later Places page failed and we kept the earlier ones, and `stored` is
+    // false when the rows we did get never made it into `items`; in either case
+    // the count below is an artefact of a failure, and writing it would cache a
+    // transient outage as "this city has few restaurants" for a whole TTL. A
+    // first-page failure never gets here at all — fetchPlaces throws.
+    if (complete && stored) await recordFetch(svc, loc, items.length);
     return json({ items });
   } catch (e) {
     console.error(e);
@@ -179,6 +192,30 @@ async function spendLookupBudget(svc: SupabaseClient, userId: string): Promise<R
   return refusal ? json({ error: refusal.error }, refusal.status) : null;
 }
 
+// Read the negative-cache marker for this location (027). Returned raw rather
+// than interpreted: cacheVerdict owns the whole rule, including what an error
+// means. Error detail is logged, never returned.
+async function readCacheMarker(svc: SupabaseClient, loc: string) {
+  const { data, error } = await svc.rpc('places_cache_verdict', {
+    p_category: 'restaurants',
+    p_location: loc,
+  });
+  if (error) console.error('places_cache_verdict failed', error);
+  return { data, error };
+}
+
+// Write the marker: this location was fetched to completion and left `count`
+// rows. Best-effort — a failure here only means the next request pays for
+// another lookup, so it must not fail a request whose items are already loaded.
+async function recordFetch(svc: SupabaseClient, loc: string, count: number): Promise<void> {
+  const { error } = await svc.rpc('record_places_fetch', {
+    p_category: 'restaurants',
+    p_location: loc,
+    p_count: count,
+  });
+  if (error) console.error('record_places_fetch failed', error);
+}
+
 async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<ItemRow[]> {
   const { data, error } = await svc
     .from('items')
@@ -193,9 +230,15 @@ async function selectRestaurants(svc: SupabaseClient, loc: string): Promise<Item
 // so up to 60 places) via `nextPageToken`, stopping early if a page has none.
 // `places.photos` is requested so we can resolve a keyless hotlinkable image per
 // place server-side (the API key never reaches the app or the stored image_url).
-async function fetchPlaces(loc: string): Promise<Place[]> {
+//
+// `complete` reports whether every page we asked for came back. It is false only
+// when a later page failed and we kept the earlier ones — a partial result that
+// looks exactly like a sparse location and must never be recorded as one. Ending
+// on "no nextPageToken" or on the 3-page cap is complete: nothing failed.
+async function fetchPlaces(loc: string): Promise<{ places: Place[]; complete: boolean }> {
   const rawPages: PlacesApiPlace[][] = [];
   let pageToken: string | undefined;
+  let complete = true;
   for (let page = 0; page < 3; page++) {
     const body: Record<string, unknown> = { textQuery: `best restaurants in ${loc}`, pageSize: 20 };
     if (pageToken) body.pageToken = pageToken;
@@ -209,6 +252,7 @@ async function fetchPlaces(loc: string): Promise<Place[]> {
     }
     if (!resp.ok) {
       if (page === 0) throw new Error(`Places API ${resp.status}: ${await resp.text()}`);
+      complete = false;
       break; // later-page failure: keep whatever pages we already have
     }
 
@@ -232,7 +276,7 @@ async function fetchPlaces(loc: string): Promise<Place[]> {
       ),
     ),
   );
-  return mergeDedupe(mappedPages).filter((p) => p.title);
+  return { places: mergeDedupe(mappedPages).filter((p) => p.title), complete };
 }
 
 function searchText(body: unknown): Promise<Response> {

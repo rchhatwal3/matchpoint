@@ -41,6 +41,37 @@ export function lookupRefusal(res: { data?: unknown; error?: unknown }): LookupR
   }
 }
 
+// How many stored rows count as "already cached" for a location — at/above
+// this we skip the API entirely and serve what we have.
+export const CACHE_TARGET = 60;
+
+// Whether the stored rows may be served as-is, or the location has to go
+// upstream. 'serve' is the only value that avoids an API call and a budget spend.
+export type CacheVerdict = 'serve' | 'fetch';
+
+// The cache short-circuit, whole. It used to be `count >= CACHE_TARGET` alone,
+// which asks the wrong question: a location the providers only have 59 results
+// for never reaches 60, so every request for it missed the cache and went
+// upstream, forever (the P2 from the 2026-08-03 QA — "New York, NY" was live
+// proof at 59). The count cannot tell "not fetched yet" from "fetched, and this
+// is all there is". The second fact is what places_fetches records and what
+// `marker` carries here, as the raw result of the places_cache_verdict RPC (027).
+//
+// Fails toward 'fetch', which is the opposite direction from lookupRefusal above
+// and deliberately so. An unreadable marker has vouched for nothing, so serving
+// on it would be inventing a cache hit; fetching instead is exactly the
+// behaviour that shipped before 027, still bounded by the budget that runs after
+// this. Being wrong here costs one lookup — being wrong the other way blanks a
+// deck until the TTL expires.
+export function cacheVerdict(
+  count: number,
+  marker: { data?: unknown; error?: unknown },
+): CacheVerdict {
+  if (count >= CACHE_TARGET) return 'serve';
+  if (marker.error) return 'fetch';
+  return marker.data === 'fresh' ? 'serve' : 'fetch';
+}
+
 export type PlacesApiPlace = {
   displayName?: { text?: string };
   rating?: number;

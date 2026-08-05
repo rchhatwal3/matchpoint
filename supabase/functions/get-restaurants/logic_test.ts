@@ -1,6 +1,8 @@
 import { assertEquals } from 'https://deno.land/std@0.224.0/assert/mod.ts';
 import {
+  CACHE_TARGET,
   MAX_LOCATION_LEN,
+  cacheVerdict,
   lookupRefusal,
   isLocationAllowed,
   priceLevelNum,
@@ -79,6 +81,53 @@ Deno.test('lookupRefusal fails closed on an RPC error', () => {
   assertEquals(lookupRefusal({ error: { message: 'places_budget_unconfigured' } }), closed);
   assertEquals(lookupRefusal({ data: null, error: { message: 'boom' } }), closed);
   assertEquals(lookupRefusal({ data: 'ok', error: { message: 'boom' } }), closed);
+});
+
+// The regression itself. Before 027 the whole rule was `count >= CACHE_TARGET`,
+// so a location the providers only have 59 results for went upstream on every
+// single request, forever — "New York, NY" was live proof at 59. The marker is
+// what breaks that loop, and nothing else about the short-circuit changed.
+Deno.test('cacheVerdict serves a sparse location once its fetch has been recorded', () => {
+  assertEquals(cacheVerdict(59, {}), 'fetch');
+  assertEquals(cacheVerdict(59, { data: 'fresh' }), 'serve');
+});
+
+Deno.test('cacheVerdict serves a full cache without consulting the marker', () => {
+  assertEquals(cacheVerdict(CACHE_TARGET, {}), 'serve');
+  assertEquals(cacheVerdict(CACHE_TARGET + 1, { data: 'miss' }), 'serve');
+  assertEquals(cacheVerdict(CACHE_TARGET, { error: { message: 'boom' } }), 'serve');
+});
+
+// A location that genuinely has nothing — a typo'd or nonsense location string —
+// is the case that burns the most budget for the least value, so a recorded
+// empty fetch has to short-circuit too. Serving zero items is correct here: the
+// app renders its empty state, and it stops paying Google to confirm it.
+Deno.test('cacheVerdict serves a recorded empty location rather than re-fetching it', () => {
+  assertEquals(cacheVerdict(0, { data: 'fresh' }), 'serve');
+  assertEquals(cacheVerdict(0, { data: 'miss' }), 'fetch');
+});
+
+// The mirror image of lookupRefusal's fail-closed, and it must stay this way
+// round: an unreadable or unrecognised marker has vouched for nothing, so
+// serving on it would invent a cache hit and could blank a deck for a whole TTL.
+// Fetching instead is the pre-027 behaviour, still behind the budget.
+Deno.test('cacheVerdict falls back to fetching on any marker it cannot trust', () => {
+  const unusable = [
+    { error: { message: 'places_cache_verdict does not exist' } },
+    { data: 'fresh', error: { message: 'boom' } },
+    { data: 'stale' },
+    { data: 'FRESH' },
+    { data: '' },
+    { data: null },
+    { data: true },
+    { data: 1 },
+    { data: { verdict: 'fresh' } },
+    { data: ['fresh'] },
+    {},
+  ];
+  for (const marker of unusable) {
+    assertEquals(cacheVerdict(CACHE_TARGET - 1, marker), 'fetch');
+  }
 });
 
 Deno.test('priceLevelNum maps every Places enum, null otherwise', () => {
