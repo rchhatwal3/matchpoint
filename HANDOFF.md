@@ -2,6 +2,28 @@
 
 Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-03.
 
+## Both P2s shipped and QA-verified live (2026-08-03, later the same day)
+
+PRs #56 and #57 merged, migrations `026` and `027` applied, `get-restaurants` redeployed (now version 27). CI green on both.
+
+**`026` — the membership oracle is closed.** `public.member_room_id` is gone; `POST /rest/v1/rpc/member_room_id` returns 404. QA attacked it by every route we could devise — schema-qualified name, `Content-Profile: private`, `Accept-Profile: private`, reading it as a table, GraphQL — and all fail. `private` is refused with `PGRST106 "Only the following schemas are exposed: public, graphql_public"`. **Treat that exposed-schema list as a config invariant: adding `private` to it in the Dashboard reopens the oracle.** `pg_graphql` is not enabled, so there is no GraphQL surface at all.
+
+The five rewritten policies were verified from both sides: two sessions with separate rooms can each read their own `rooms`/`members`/`swipes`/`matches` and neither can read the other's — by direct id, by PostgREST embedding, or by `Prefer: count=exact` (each returns `0-0/1`, its own row only). A two-member room with a mutual like surfaces in `room_matches` for **both** members while a non-mutual swipe does not, and a third session sees nothing. That exercises `swipes_select_same_room`, which calls the moved function twice in one expression and was the likeliest of the five to break.
+
+**`027` — the sparse-location cache trap is fixed, and QA corrected the diagnosis.** `places_fetches`, `places_cache_verdict` and `record_places_fetch` are all live and locked down: every one returns `42501 permission denied` to `authenticated`, with or without a session. `record_places_fetch` being callable would have been a P0 — an anonymous caller could pin any location as freshly-fetched and blank that deck for every room that saved it for a whole TTL.
+
+**The important correction:** `"New York, NY"` was recorded as a *sparse* location stuck at 59. It was not. A QA re-fetch took it to **73** — it was a **truncated fetch**, where `fetchPlaces` swallowed a later-page failure and kept the partial result. One bad Google page permanently minted a location that re-queried on every request. `027` covers this because it only writes a marker when `complete && stored`, so a truncated fetch is never recorded as sparse. The design anticipated the case; the QA established it was the actual mechanism.
+
+Live distribution after deploy: New York 73, Chicago / Los Angeles / San Francisco / `Seattle, WA` 60, **Houston, TX 59** (one page short — the clean test case for the marker), and **New Orleans / `Portland` / `Seattle` at exactly 20** (one page, so probably also truncated).
+
+Also found: **location strings are not normalized**, so `Seattle` and `Seattle, WA` are separate paid cache buckets. Filed as P3.
+
+**Live site verified clean** — landing screen renders, **zero console messages of any kind**, all six network requests 200. The bundle carries no privileged key: `service_role` and `SUPABASE_SERVICE` have zero occurrences, and the single `sb_secret_` match is supabase-js's own key-format check (`e.startsWith("sb_publishable_")||e.startsWith("sb_secret_")`), not a key.
+
+**Process note for whoever runs QA next:** one QA agent reported that `026`/`027` did not exist and that the fix was not deployed. It was reading a **stale working tree** — the repo had not been pulled after the merges. Its live observations were sound and its file-based conclusions were wrong. Pull before dispatching agents, and check any "this doesn't exist" claim against the live database rather than the tree.
+
+**Test data left behind:** rooms `XTJRKP`, `N7M3LX`, `PRJ3BA`, `2ATLRT`, `4KFK68` plus their member and swipe rows, from QA sessions. Clients hold no DELETE grant, so agents cannot clean up after themselves — removal needs `delete-account` or SQL. Add these to the two older probe rooms already listed below.
+
 ## Second security review batch — SHIPPED, DEPLOYED, QA-VERIFIED LIVE (2026-08-03)
 
 Both P1s from the 2026-07-28 review in the private [matchpoint-security](https://github.com/rchhatwal3/matchpoint-security) repo are fixed and verified in production. PRs #50–#54 merged; migrations 023, 024, 025 applied; all four edge functions redeployed.
