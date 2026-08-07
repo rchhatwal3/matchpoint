@@ -90,8 +90,8 @@
 --   3. trim (AFTER step 2, which leaves a trailing space on a string ending in
 --      a comma — that ordering is what makes the whole thing idempotent)
 --   4. case each letter/digit RUN, PER COMMA PART:
---        a. a small word (de, del, la, of, the, van, ...) that is NOT the run
---           opening its part -> lowercase, so `Rio de Janeiro`, `Isle of Man`
+--        a. a small word (de, del, du, di, of, the, and, upon) that is NOT the
+--           run opening its part -> lowercase, so `Rio de Janeiro`, `Isle of Man`
 --        b. otherwise a run of 1-2 characters in any part but the FIRST ->
 --           uppercase whole, so state and country codes survive as WA / NY / UK
 --        c. otherwise `Mc` + two or more letters -> Mc + capital + rest lower,
@@ -195,9 +195,14 @@ AS $$
            string_agg(
              CASE
                WHEN NOT is_run THEN t
+               -- Kept deliberately short, and it must match lib/location.ts's
+               -- SMALL_WORDS exactly. `la`/`las`/`los` were here and produced
+               -- `North las Vegas`: English place names capitalise those
+               -- wherever they fall, and `Las Vegas` only looked right because
+               -- it opens its part. A wrong entry mangles a real city; a
+               -- missing one only leaves a name Title Cased.
                WHEN run_idx > 1 AND lower(t) IN (
-                      'de', 'del', 'la', 'las', 'los', 'da', 'do', 'dos', 'di', 'du',
-                      'le', 'les', 'van', 'von', 'der', 'den', 'of', 'the', 'and', 'upon')
+                      'de', 'del', 'du', 'di', 'of', 'the', 'and', 'upon')
                  THEN lower(t)
                WHEN pord > 1 AND length(t) <= 2 THEN upper(t)
                WHEN t ~* '^mc[[:alpha:]]{2,}$'
@@ -308,6 +313,11 @@ BEGIN
       ('ho chi minh city, vietnam','Ho Chi Minh City, Vietnam'),
       ('st. petersburg, fl',       'St. Petersburg, FL'),
       ('las vegas, nv',            'Las Vegas, NV'),
+      -- Regression: `las`/`los` were once in the small-word list, which
+      -- lowercased them anywhere but the start of a part. `Las Vegas` hid it;
+      -- `North Las Vegas` is the case that exposed it.
+      ('north las vegas, nv',      'North Las Vegas, NV'),
+      ('east los angeles, ca',     'East Los Angeles, CA'),
       ('washington, dc',           'Washington, DC'),
       ('new  york , ny',           'New York, NY'),
       -- 4c, Mc. `~*` and [[:alpha:]] are the SQL spelling of the TS
@@ -387,6 +397,7 @@ BEGIN
       ('ho chi minh city, vietnam'), ('rio de janeiro, brazil'),
       ('st. petersburg, fl'), ('las vegas, nv'), ('washington, dc'),
       ('new  york , ny'), ('the dalles, or'), ('de pere, wi'), ('isle of man'),
+      ('north las vegas, nv'), ('east los angeles, ca'),
       ('macon, ga'), ('el paso'), (','), (',,,'), ('  ,  ,  '),
       ('McKinney, TX'), ('Rio de Janeiro, Brazil'), ('São Paulo, Brazil')
     ) AS t(input)

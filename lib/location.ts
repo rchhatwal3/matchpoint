@@ -36,28 +36,16 @@ const WORD_RUN = /[\p{L}\p{N}]+/gu;
 // leading capital. Checked BEFORE the region-code rule below, which is what
 // keeps a middle part like `Île de France` from coming out as `Île DE France`;
 // a real region code is the first run of its part, so it never reaches here.
-const SMALL_WORDS = new Set([
-  'de',
-  'del',
-  'la',
-  'las',
-  'los',
-  'da',
-  'do',
-  'dos',
-  'di',
-  'du',
-  'le',
-  'les',
-  'van',
-  'von',
-  'der',
-  'den',
-  'of',
-  'the',
-  'and',
-  'upon',
-]);
+//
+// KEPT DELIBERATELY SHORT. The Spanish articles `la`/`las`/`los` were in this
+// list and produced `North las Vegas` — in English place names those words are
+// capitalised wherever they fall, and `Las Vegas` only looked right because it
+// opens its part. `van`/`von`/`der`/`den`/`le`/`les`/`da`/`do`/`dos` came out
+// for the same reason: each one risks lowercasing a word an English name
+// capitalises, to fix a case no location in this app has. A wrong entry here is
+// worse than a missing one — a missing one leaves a name Title Cased, which is
+// merely plain, while a wrong one mangles a real city.
+const SMALL_WORDS = new Set(['de', 'del', 'du', 'di', 'of', 'the', 'and', 'upon']);
 
 // `Mc` + at least two more letters: `mckinney` -> `McKinney`, `mcallen` ->
 // `McAllen`. Deliberately NOT extended to `Mac` — `Macon` and `Madison` also

@@ -50,28 +50,11 @@ const WORD_RUN = /[\p{L}\p{N}]+/gu;
 // Checked BEFORE the region-code rule so a middle part like `Île de France` is
 // not turned into `Île DE France`; a real region code opens its part, so it
 // never reaches this list.
-const SMALL_WORDS = new Set([
-  'de',
-  'del',
-  'la',
-  'las',
-  'los',
-  'da',
-  'do',
-  'dos',
-  'di',
-  'du',
-  'le',
-  'les',
-  'van',
-  'von',
-  'der',
-  'den',
-  'of',
-  'the',
-  'and',
-  'upon',
-]);
+// KEPT DELIBERATELY SHORT — see the note in lib/location.ts. `la`/`las`/`los`
+// produced `North las Vegas`; English place names capitalise those wherever
+// they fall. A wrong entry here mangles a real city; a missing one only leaves
+// a name Title Cased.
+const SMALL_WORDS = new Set(['de', 'del', 'du', 'di', 'of', 'the', 'and', 'upon']);
 
 // `Mc` + at least two more letters: `mckinney` -> `McKinney`. NOT extended to
 // `Mac`: `Macon` and `Madison` fit the same shape as `MacArthur` and only a name

@@ -80,6 +80,11 @@ describe('normalizeLocation', () => {
     expect(normalizeLocation('the dalles, or')).toBe('The Dalles, OR');
     expect(normalizeLocation('de pere, wi')).toBe('De Pere, WI');
     expect(normalizeLocation('los angeles, ca')).toBe('Los Angeles, CA');
+    // Regression: `las`/`los` were once small words, so they lowercased
+    // anywhere but the start of a part. `Las Vegas` hid it because it opens
+    // its part; these two are the cases that exposed it.
+    expect(normalizeLocation('north las vegas, nv')).toBe('North Las Vegas, NV');
+    expect(normalizeLocation('east los angeles, ca')).toBe('East Los Angeles, CA');
     // A region code is the first run of its part, so the small-word rule never
     // reaches it: `de` after the comma is Germany, not a joiner.
     expect(normalizeLocation('münchen, de')).toBe('München, DE');

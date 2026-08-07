@@ -108,6 +108,10 @@ Deno.test('normalizeLocation lowercases a small word that does not open its part
 
 Deno.test('normalizeLocation keeps a small word capitalized when it opens its part', () => {
   assertEquals(normalizeLocation('the dalles, or'), 'The Dalles, OR');
+  // Regression: `las`/`los` were once small words and lowercased anywhere but
+  // the start of a part. `Las Vegas` hid it; `North Las Vegas` exposed it.
+  assertEquals(normalizeLocation('north las vegas, nv'), 'North Las Vegas, NV');
+  assertEquals(normalizeLocation('east los angeles, ca'), 'East Los Angeles, CA');
   assertEquals(normalizeLocation('de pere, wi'), 'De Pere, WI');
   assertEquals(normalizeLocation('los angeles, ca'), 'Los Angeles, CA');
   // A region code opens its part, so the small-word rule never reaches it:
