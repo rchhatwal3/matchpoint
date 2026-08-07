@@ -71,6 +71,77 @@ Deno.test('normalizeLocation title-cases runs longer than two characters, code o
   assertEquals(normalizeLocation('seattle, wa, usa'), 'Seattle, WA, Usa');
 });
 
+// The defect the per-part rule exists to fix: whole-uppercasing every 1-2
+// character run mangled the CITY, which is the half the user reads back.
+Deno.test('normalizeLocation title-cases short runs in the first comma part', () => {
+  assertEquals(normalizeLocation('el paso, tx'), 'El Paso, TX');
+  assertEquals(normalizeLocation('santa fe, nm'), 'Santa Fe, NM');
+  assertEquals(normalizeLocation('ho chi minh city, vietnam'), 'Ho Chi Minh City, Vietnam');
+  assertEquals(normalizeLocation('st. petersburg, fl'), 'St. Petersburg, FL');
+  assertEquals(normalizeLocation('las vegas, nv'), 'Las Vegas, NV');
+});
+
+Deno.test('normalizeLocation uppercases a 1-2 character run after the first part', () => {
+  assertEquals(normalizeLocation('seattle, wa'), 'Seattle, WA');
+  assertEquals(normalizeLocation('washington, dc'), 'Washington, DC');
+  assertEquals(normalizeLocation('new  york , ny'), 'New York, NY');
+});
+
+Deno.test('normalizeLocation cases a Mc name on the syllable', () => {
+  assertEquals(normalizeLocation('mckinney, tx'), 'McKinney, TX');
+  assertEquals(normalizeLocation('mcallen, tx'), 'McAllen, TX');
+  assertEquals(normalizeLocation('MCKINNEY'), 'McKinney');
+});
+
+// `Mac` is deliberately not in the rule — no string-shape test separates
+// `MacArthur` from `Macon`, so these stay plain Title Case.
+Deno.test('normalizeLocation leaves Mac words alone', () => {
+  assertEquals(normalizeLocation('macon, ga'), 'Macon, GA');
+  assertEquals(normalizeLocation('madison, wi'), 'Madison, WI');
+});
+
+Deno.test('normalizeLocation lowercases a small word that does not open its part', () => {
+  assertEquals(normalizeLocation('rio de janeiro, brazil'), 'Rio de Janeiro, Brazil');
+  assertEquals(normalizeLocation('isle of man'), 'Isle of Man');
+  assertEquals(normalizeLocation('newcastle upon tyne, uk'), 'Newcastle upon Tyne, UK');
+});
+
+Deno.test('normalizeLocation keeps a small word capitalized when it opens its part', () => {
+  assertEquals(normalizeLocation('the dalles, or'), 'The Dalles, OR');
+  assertEquals(normalizeLocation('de pere, wi'), 'De Pere, WI');
+  assertEquals(normalizeLocation('los angeles, ca'), 'Los Angeles, CA');
+  // A region code opens its part, so the small-word rule never reaches it:
+  // `de` after the comma is Germany, not a joiner.
+  assertEquals(normalizeLocation('münchen, de'), 'München, DE');
+});
+
+Deno.test('normalizeLocation handles a value with no comma at all', () => {
+  assertEquals(normalizeLocation('el paso'), 'El Paso');
+  assertEquals(normalizeLocation('são paulo'), 'São Paulo');
+  assertEquals(normalizeLocation('mckinney'), 'McKinney');
+});
+
+Deno.test('normalizeLocation passes a comma-only value through', () => {
+  assertEquals(normalizeLocation(','), ',');
+  assertEquals(normalizeLocation(',,,'), ', , ,');
+  assertEquals(normalizeLocation('  ,  ,  '), ', ,');
+});
+
+Deno.test('normalizeLocation leaves an already-canonical value untouched', () => {
+  for (
+    const canonical of [
+      'Seattle, WA',
+      'El Paso, TX',
+      'McKinney, TX',
+      'Rio de Janeiro, Brazil',
+      'St. Petersburg, FL',
+      'São Paulo, Brazil',
+    ]
+  ) {
+    assertEquals(normalizeLocation(canonical), canonical);
+  }
+});
+
 Deno.test('normalizeLocation leaves punctuation other than commas alone', () => {
   assertEquals(normalizeLocation("coeur d'alene, id"), "Coeur D'Alene, ID");
   assertEquals(normalizeLocation('winston-salem, nc'), 'Winston-Salem, NC');
@@ -85,6 +156,7 @@ Deno.test('normalizeLocation handles digits in a location', () => {
 // non-latin city name must case like any other, not be left as an opaque blob.
 Deno.test('normalizeLocation title-cases accented and non-latin city names', () => {
   assertEquals(normalizeLocation('são paulo, br'), 'São Paulo, BR');
+  assertEquals(normalizeLocation('são paulo, brazil'), 'São Paulo, Brazil');
   assertEquals(normalizeLocation('ZÜRICH'), 'Zürich');
   assertEquals(normalizeLocation('münchen,de'), 'München, DE');
   assertEquals(normalizeLocation('東京'), '東京');
@@ -112,6 +184,24 @@ Deno.test('normalizeLocation is idempotent', () => {
     '   ',
     "coeur d'alene, id",
     'seattle, wa, usa',
+    'el paso, tx',
+    'mckinney, tx',
+    'santa fe, nm',
+    'ho chi minh city, vietnam',
+    'rio de janeiro, brazil',
+    'st. petersburg, fl',
+    'las vegas, nv',
+    'washington, dc',
+    'new  york , ny',
+    'the dalles, or',
+    'de pere, wi',
+    'isle of man',
+    'macon, ga',
+    'el paso',
+    ',',
+    ',,,',
+    'McKinney, TX',
+    'Rio de Janeiro, Brazil',
   ];
   for (const input of inputs) {
     const once = normalizeLocation(input);

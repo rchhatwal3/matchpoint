@@ -41,6 +41,75 @@ describe('normalizeLocation', () => {
     expect(normalizeLocation('seattle, wa, usa')).toBe('Seattle, WA, Usa');
   });
 
+  // The defect this file's rule 1 exists to fix: whole-uppercasing every 1–2
+  // character run mangled the CITY, which is the part the user actually reads.
+  it('title-cases short runs in the first comma part instead of uppercasing them', () => {
+    expect(normalizeLocation('el paso, tx')).toBe('El Paso, TX');
+    expect(normalizeLocation('santa fe, nm')).toBe('Santa Fe, NM');
+    expect(normalizeLocation('ho chi minh city, vietnam')).toBe('Ho Chi Minh City, Vietnam');
+    expect(normalizeLocation('st. petersburg, fl')).toBe('St. Petersburg, FL');
+    expect(normalizeLocation('las vegas, nv')).toBe('Las Vegas, NV');
+  });
+
+  it('uppercases a 1–2 character run in any part after the first', () => {
+    expect(normalizeLocation('seattle, wa')).toBe('Seattle, WA');
+    expect(normalizeLocation('washington, dc')).toBe('Washington, DC');
+    expect(normalizeLocation('new  york , ny')).toBe('New York, NY');
+  });
+
+  it('cases a Mc name on the syllable', () => {
+    expect(normalizeLocation('mckinney, tx')).toBe('McKinney, TX');
+    expect(normalizeLocation('mcallen, tx')).toBe('McAllen, TX');
+    expect(normalizeLocation('MCKINNEY')).toBe('McKinney');
+  });
+
+  // `Mac` is deliberately NOT in the rule: no string-shape test separates
+  // `MacArthur` from `Macon`, so these have to stay plain Title Case.
+  it('leaves Mac words alone', () => {
+    expect(normalizeLocation('macon, ga')).toBe('Macon, GA');
+    expect(normalizeLocation('madison, wi')).toBe('Madison, WI');
+  });
+
+  it('lowercases a small word that is not the first run of its part', () => {
+    expect(normalizeLocation('rio de janeiro, brazil')).toBe('Rio de Janeiro, Brazil');
+    expect(normalizeLocation('isle of man')).toBe('Isle of Man');
+    expect(normalizeLocation('newcastle upon tyne, uk')).toBe('Newcastle upon Tyne, UK');
+  });
+
+  it('keeps a small word capitalized when it opens its part', () => {
+    expect(normalizeLocation('the dalles, or')).toBe('The Dalles, OR');
+    expect(normalizeLocation('de pere, wi')).toBe('De Pere, WI');
+    expect(normalizeLocation('los angeles, ca')).toBe('Los Angeles, CA');
+    // A region code is the first run of its part, so the small-word rule never
+    // reaches it: `de` after the comma is Germany, not a joiner.
+    expect(normalizeLocation('münchen, de')).toBe('München, DE');
+  });
+
+  it('leaves a value with no comma at all as one part', () => {
+    expect(normalizeLocation('el paso')).toBe('El Paso');
+    expect(normalizeLocation('são paulo')).toBe('São Paulo');
+    expect(normalizeLocation('mckinney')).toBe('McKinney');
+  });
+
+  it('passes a comma-only value through unchanged', () => {
+    expect(normalizeLocation(',')).toBe(',');
+    expect(normalizeLocation(',,,')).toBe(', , ,');
+    expect(normalizeLocation('  ,  ,  ')).toBe(', ,');
+  });
+
+  it('leaves an already-canonical value untouched', () => {
+    for (const canonical of [
+      'Seattle, WA',
+      'El Paso, TX',
+      'McKinney, TX',
+      'Rio de Janeiro, Brazil',
+      'St. Petersburg, FL',
+      'São Paulo, Brazil',
+    ]) {
+      expect(normalizeLocation(canonical)).toBe(canonical);
+    }
+  });
+
   it('leaves punctuation other than commas alone', () => {
     expect(normalizeLocation("coeur d'alene, id")).toBe("Coeur D'Alene, ID");
     expect(normalizeLocation('winston-salem, nc')).toBe('Winston-Salem, NC');
@@ -53,6 +122,7 @@ describe('normalizeLocation', () => {
 
   it('title-cases accented and non-latin city names', () => {
     expect(normalizeLocation('são paulo, br')).toBe('São Paulo, BR');
+    expect(normalizeLocation('são paulo, brazil')).toBe('São Paulo, Brazil');
     expect(normalizeLocation('ZÜRICH')).toBe('Zürich');
     expect(normalizeLocation('münchen,de')).toBe('München, DE');
     expect(normalizeLocation('東京')).toBe('東京');
@@ -75,6 +145,24 @@ describe('normalizeLocation', () => {
       '   ',
       "coeur d'alene, id",
       'seattle, wa, usa',
+      'el paso, tx',
+      'mckinney, tx',
+      'santa fe, nm',
+      'ho chi minh city, vietnam',
+      'rio de janeiro, brazil',
+      'st. petersburg, fl',
+      'las vegas, nv',
+      'washington, dc',
+      'new  york , ny',
+      'the dalles, or',
+      'de pere, wi',
+      'isle of man',
+      'macon, ga',
+      'el paso',
+      ',',
+      ',,,',
+      'McKinney, TX',
+      'Rio de Janeiro, Brazil',
     ];
     for (const input of inputs) {
       const once = normalizeLocation(input);

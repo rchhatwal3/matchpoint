@@ -89,8 +89,27 @@
 --   2. normalize comma spacing to ', '
 --   3. trim (AFTER step 2, which leaves a trailing space on a string ending in
 --      a comma — that ordering is what makes the whole thing idempotent)
---   4. Title Case each letter/digit RUN, except runs of 1-2 characters which
---      uppercase whole, so state and country codes survive as WA / NY / UK
+--   4. case each letter/digit RUN, PER COMMA PART:
+--        a. a small word (de, del, la, of, the, van, ...) that is NOT the run
+--           opening its part -> lowercase, so `Rio de Janeiro`, `Isle of Man`
+--        b. otherwise a run of 1-2 characters in any part but the FIRST ->
+--           uppercase whole, so state and country codes survive as WA / NY / UK
+--        c. otherwise `Mc` + two or more letters -> Mc + capital + rest lower,
+--           so `mckinney` -> `McKinney`
+--        d. otherwise Title Case
+--
+-- WHY 4b IS SCOPED TO A PART. The whole-uppercase rule exists for exactly one
+-- reason: region codes. Applied to every part it mangled the CITY, which is the
+-- half a user reads back in Settings — `EL Paso`, `Santa FE`, `HO Chi Minh
+-- City`, `ST. Petersburg`. The first part is excluded rather than "every part
+-- but the last" because in `city, region, country` the code is the MIDDLE part:
+-- `seattle, wa, usa` must still give `Seattle, WA, Usa`. 4a is checked before
+-- 4b so a middle part like `Île de France` does not come out `Île DE France`; a
+-- real region code opens its part, so it never reaches the small-word list.
+--
+-- `Mac` is deliberately NOT part of 4c. `Macon` and `Madison` fit the same shape
+-- as `MacArthur`, and no string-shape test separates them — only a name list
+-- would, which is semantics, and this function is shape only.
 --
 -- STRICT is load-bearing: normalize_location(NULL) must be NULL, not ''. The
 -- location-independent catalogue rows (food, vacations, shows — 001:26-29) carry
@@ -103,15 +122,18 @@
 -- upper() — which is not a scenario this project has.
 --
 -- WHY THE TOKEN LOOP RATHER THAN regexp_replace. The rule is per-match ("this
--- run is 2 characters, uppercase it whole; that one is 7, title-case it") and
--- regexp_replace's replacement is a template string, not a callback — there is
--- no way to branch on the matched text. So the string is split into its
--- alternating alnum-runs and separator-runs, each token is transformed on its
--- own, and the pieces are concatenated back in order. That is what makes this
--- per-RUN and not per-word, which is the whole reason `seattle, wa, 98101`
--- comes out as `Seattle, WA, 98101`: the comma is not part of the run, so `wa`
--- is two characters whether or not one follows it. initcap() is deliberately
--- not used — it has no length rule and would give `Seattle, Wa`.
+-- run is 2 characters and sits after a comma, uppercase it whole; that one is
+-- 7, title-case it") and regexp_replace's replacement is a template string, not
+-- a callback — there is no way to branch on the matched text. So the string is
+-- split on commas into parts, each part is split into its alternating
+-- alnum-runs and separator-runs, each token is transformed from its own text
+-- plus its position (which part, which run within the part), and the pieces are
+-- concatenated back in order. That is what makes this per-RUN and not per-word,
+-- which is the whole reason `seattle, wa, 98101` comes out as `Seattle, WA,
+-- 98101`: the comma is not part of the run, so `wa` is two characters whether
+-- or not one follows it. initcap() is deliberately not used — it has no length
+-- rule, no position rule and no small-word rule, and would give `Seattle, Wa`
+-- and `Rio De Janeiro`.
 --
 -- [[:alnum:]] is the Postgres spelling of the JS `[\p{L}\p{N}]` the other two
 -- mirrors use. Under this database's UTF-8 ctype it matches accented and
@@ -140,28 +162,58 @@ AS $$
                ' *, *', ', ', 'g'),
              ' ') AS v
   ),
-  -- Every character of `v` lands in exactly one token: at any position either
-  -- the alnum branch or the non-alnum branch matches, never both, so the
-  -- concatenation below is lossless.
-  tok AS (
-    SELECT m[1] AS t, ord
+  -- One row per comma part, in order. The commas themselves are in no part;
+  -- they come back as the final string_agg's ',' delimiter, so an empty part
+  -- (`Seattle,` splits to {'Seattle',''}) still holds its place and the round
+  -- trip stays lossless. An empty `v` splits to ZERO rows, which is what makes
+  -- normalize_location('') = '' fall out of the coalesce at the bottom.
+  part AS (
+    SELECT p AS ptext, pord
       FROM collapsed,
-           LATERAL regexp_matches(collapsed.v, '[[:alnum:]]+|[^[:alnum:]]+', 'g')
+           LATERAL unnest(string_to_array(collapsed.v, ',')) WITH ORDINALITY AS x(p, pord)
+  ),
+  -- Every character of a part lands in exactly one token: at any position
+  -- either the alnum branch or the non-alnum branch matches, never both, so the
+  -- concatenation below is lossless. `run_idx` counts the alnum runs seen so far
+  -- within the part, so run_idx = 1 is the run that OPENS its part — the test
+  -- the small-word rule needs, and the reason `Las Vegas` and `The Dalles` keep
+  -- their capital while `Rio de Janeiro` does not.
+  tok AS (
+    SELECT part.pord,
+           x.ord,
+           x.m[1] AS t,
+           x.m[1] ~ '^[[:alnum:]]' AS is_run,
+           count(*) FILTER (WHERE x.m[1] ~ '^[[:alnum:]]')
+             OVER (PARTITION BY part.pord ORDER BY x.ord) AS run_idx
+      FROM part,
+           LATERAL regexp_matches(part.ptext, '[[:alnum:]]+|[^[:alnum:]]+', 'g')
              WITH ORDINALITY AS x(m, ord)
-  )
-  SELECT coalesce(
-    string_agg(
-      CASE
-        WHEN t ~ '^[[:alnum:]]' THEN
-          CASE WHEN length(t) <= 2
-               THEN upper(t)
+  ),
+  -- The four casing branches, in the same order the TS mirrors apply them.
+  cased AS (
+    SELECT pord,
+           string_agg(
+             CASE
+               WHEN NOT is_run THEN t
+               WHEN run_idx > 1 AND lower(t) IN (
+                      'de', 'del', 'la', 'las', 'los', 'da', 'do', 'dos', 'di', 'du',
+                      'le', 'les', 'van', 'von', 'der', 'den', 'of', 'the', 'and', 'upon')
+                 THEN lower(t)
+               WHEN pord > 1 AND length(t) <= 2 THEN upper(t)
+               WHEN t ~* '^mc[[:alpha:]]{2,}$'
+                 THEN 'Mc' || upper(substr(t, 3, 1)) || lower(substr(t, 4))
                ELSE upper(substr(t, 1, 1)) || lower(substr(t, 2))
-          END
-        ELSE t
-      END,
-      '' ORDER BY ord),
-    '')
-  FROM tok;
+             END,
+             '' ORDER BY ord) AS ptext
+      FROM tok
+     GROUP BY pord
+  )
+  -- LEFT JOIN, not JOIN: a part with no tokens at all — the empty part on
+  -- either side of a bare comma — has no row in `cased` and must still
+  -- contribute its empty string, and with it its comma.
+  SELECT coalesce(string_agg(coalesce(c.ptext, p.ptext), ',' ORDER BY p.pord), '')
+    FROM part p
+    LEFT JOIN cased c USING (pord);
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -245,8 +297,55 @@ BEGIN
       -- per-RUN, not per-word: a trailing comma is not part of the run
       ('seattle, wa, 98101', 'Seattle, WA, 98101'),
       ('d.c.',               'D.C.'),
-      -- documented consequence of the length rule: `usa` is three characters
+      -- documented consequence of the length rule: `usa` is three characters.
+      -- Also the reason 4b excludes the FIRST part rather than every part but
+      -- the last: here the region code is the middle one.
       ('seattle, wa, usa',   'Seattle, WA, Usa'),
+      -- 4b, the part rule. Short runs in the first part are Title Case; short
+      -- runs after the first comma are codes and uppercase whole.
+      ('el paso, tx',              'El Paso, TX'),
+      ('santa fe, nm',             'Santa Fe, NM'),
+      ('ho chi minh city, vietnam','Ho Chi Minh City, Vietnam'),
+      ('st. petersburg, fl',       'St. Petersburg, FL'),
+      ('las vegas, nv',            'Las Vegas, NV'),
+      ('washington, dc',           'Washington, DC'),
+      ('new  york , ny',           'New York, NY'),
+      -- 4c, Mc. `~*` and [[:alpha:]] are the SQL spelling of the TS
+      -- /^mc\p{L}{2,}$/iu, and this is where a ctype that does not follow
+      -- Unicode would show up as a divergence.
+      ('mckinney, tx',       'McKinney, TX'),
+      ('mcallen, tx',        'McAllen, TX'),
+      ('MCKINNEY',           'McKinney'),
+      -- ... and the Mac words 4c must NOT touch
+      ('macon, ga',          'Macon, GA'),
+      ('madison, wi',        'Madison, WI'),
+      -- 4a, small words: lowercase only when something precedes them in their
+      -- part, so the leading capital survives in `The Dalles` and `De Pere`
+      ('rio de janeiro, brazil',   'Rio de Janeiro, Brazil'),
+      ('isle of man',              'Isle of Man'),
+      ('newcastle upon tyne, uk',  'Newcastle upon Tyne, UK'),
+      ('the dalles, or',           'The Dalles, OR'),
+      ('de pere, wi',              'De Pere, WI'),
+      ('los angeles, ca',          'Los Angeles, CA'),
+      -- 4b beats 4a in a later part, because a code opens its part and so is
+      -- never a candidate for the small-word rule: this `de` is Germany
+      ('münchen, de',        'München, DE'),
+      -- no comma at all: the whole string is the first part
+      ('el paso',            'El Paso'),
+      ('são paulo',          'São Paulo'),
+      ('mckinney',           'McKinney'),
+      -- commas with nothing between them: every part keeps its place, so the
+      -- string_agg round trip is lossless
+      (',',                  ','),
+      (',,,',                ', , ,'),
+      ('  ,  ,  ',           ', ,'),
+      -- already canonical, asserted as the fixed points they are
+      ('Seattle, WA',            'Seattle, WA'),
+      ('El Paso, TX',            'El Paso, TX'),
+      ('McKinney, TX',           'McKinney, TX'),
+      ('Rio de Janeiro, Brazil', 'Rio de Janeiro, Brazil'),
+      ('St. Petersburg, FL',     'St. Petersburg, FL'),
+      ('São Paulo, Brazil',      'São Paulo, Brazil'),
       -- punctuation other than commas is passed through untouched
       ('coeur d''alene, id', 'Coeur D''Alene, ID'),
       ('winston-salem, nc',  'Winston-Salem, NC'),
@@ -255,6 +354,7 @@ BEGIN
       ('area 51',            'Area 51'),
       -- the [[:alnum:]]-follows-Unicode assumption, stated as assertions
       ('são paulo, br',      'São Paulo, BR'),
+      ('são paulo, brazil',  'São Paulo, Brazil'),
       ('ZÜRICH',             'Zürich'),
       ('münchen,de',         'München, DE'),
       ('東京',               '東京'),
@@ -278,7 +378,17 @@ BEGIN
     INTO bad
     FROM (VALUES
       ('  seattle ,  wa '), ('Seattle, WA'), ('new york,ny'), ('são paulo, br'),
-      ('Seattle,'), (''), ('   '), ('coeur d''alene, id'), ('seattle, wa, usa')
+      ('Seattle,'), (''), ('   '), ('coeur d''alene, id'), ('seattle, wa, usa'),
+      -- and the per-part rules, each of which is a new chance to not be a
+      -- fixed point: a second pass re-splits on the same commas, re-finds the
+      -- same runs, and every branch below is decided on lower(t), so an
+      -- already-cased run takes the branch it took the first time
+      ('el paso, tx'), ('mckinney, tx'), ('santa fe, nm'),
+      ('ho chi minh city, vietnam'), ('rio de janeiro, brazil'),
+      ('st. petersburg, fl'), ('las vegas, nv'), ('washington, dc'),
+      ('new  york , ny'), ('the dalles, or'), ('de pere, wi'), ('isle of man'),
+      ('macon, ga'), ('el paso'), (','), (',,,'), ('  ,  ,  '),
+      ('McKinney, TX'), ('Rio de Janeiro, Brazil'), ('São Paulo, Brazil')
     ) AS t(input)
    WHERE normalize_location(normalize_location(input))
          IS DISTINCT FROM normalize_location(input);

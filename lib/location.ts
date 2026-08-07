@@ -24,11 +24,65 @@
 
 // Runs of letters/digits are what gets cased; everything else (commas, dots,
 // hyphens, apostrophes) is passed through untouched. Matching on runs rather
-// than on space-separated words is what makes `seattle, wa, usa` come out as
-// `Seattle, WA, USA` — a trailing comma does not change a token's length.
+// than on space-separated words is what makes `seattle, wa, 98101` come out as
+// `Seattle, WA, 98101` — a trailing comma does not change a token's length.
 // `[\p{L}\p{N}]` is the JS spelling of Postgres' `[[:alnum:]]` under a UTF-8
 // ctype, which is what the SQL mirror uses.
 const WORD_RUN = /[\p{L}\p{N}]+/gu;
+
+// Words that stay lowercase inside a name — but only when something precedes
+// them in their comma part, so `Rio de Janeiro` and `Isle of Man` keep the
+// lowercase joiner while `The Dalles`, `De Pere` and `Las Vegas` keep their
+// leading capital. Checked BEFORE the region-code rule below, which is what
+// keeps a middle part like `Île de France` from coming out as `Île DE France`;
+// a real region code is the first run of its part, so it never reaches here.
+const SMALL_WORDS = new Set([
+  'de',
+  'del',
+  'la',
+  'las',
+  'los',
+  'da',
+  'do',
+  'dos',
+  'di',
+  'du',
+  'le',
+  'les',
+  'van',
+  'von',
+  'der',
+  'den',
+  'of',
+  'the',
+  'and',
+  'upon',
+]);
+
+// `Mc` + at least two more letters: `mckinney` -> `McKinney`, `mcallen` ->
+// `McAllen`. Deliberately NOT extended to `Mac` — `Macon` and `Madison` also
+// begin `Mac` + two letters, and no string-shape rule separates them from
+// `MacArthur`. Distinguishing them needs a name list, which is semantics, and
+// this function is deterministic string shape only. `Mc` has no such collision:
+// `mc` is not a syllable onset in ordinary words.
+const MC_PREFIX = /^mc\p{L}{2,}$/iu;
+
+/**
+ * Case one letter/digit run.
+ *
+ * `firstPart` / `firstRun` are the run's position: which comma part it is in,
+ * and whether anything precedes it inside that part. Both rules that are not
+ * plain Title Case are positional, because position is the only deterministic
+ * evidence available — `WA` is a region code because it sits after the comma,
+ * not because this function knows what Washington is.
+ */
+function caseRun(run: string, firstPart: boolean, firstRun: boolean): string {
+  const lower = run.toLowerCase();
+  if (!firstRun && SMALL_WORDS.has(lower)) return lower;
+  if (!firstPart && run.length <= 2) return run.toUpperCase();
+  if (MC_PREFIX.test(run)) return 'Mc' + run[2].toUpperCase() + run.slice(3).toLowerCase();
+  return run[0].toUpperCase() + lower.slice(1);
+}
 
 /**
  * Canonicalize one location string. Idempotent: `f(f(x)) === f(x)`.
@@ -37,8 +91,20 @@ const WORD_RUN = /[\p{L}\p{N}]+/gu;
  * 2. normalize comma spacing to `", "`
  * 3. trim (step 2 can leave a trailing space on a string ending in a comma —
  *    trimming after it, not before, is what keeps this idempotent)
- * 4. Title Case each letter/digit run, except runs of 1–2 characters which
- *    uppercase whole, so state and country codes survive as `WA` / `NY` / `UK`
+ * 4. case each letter/digit run, PER COMMA PART, by the rules in caseRun:
+ *    small word -> lowercase, 1–2 characters outside the first part ->
+ *    uppercase whole, `Mc`-prefixed -> `McKinney`, everything else Title Case
+ *
+ * Step 4 is per part because the whole-uppercase rule exists for ONE reason —
+ * preserving region codes (`WA`, `NY`, `DC`, `UK`) — and those live after the
+ * first comma. Applying it everywhere is what used to produce `EL Paso`,
+ * `Santa FE`, `HO Chi Minh City` and `ST. Petersburg`, all of which are shown
+ * to the user as-is in Settings.
+ *
+ * The first part is excluded rather than "every part but the last" so that
+ * `seattle, wa, usa` still gives `Seattle, WA, Usa`: in `city, region, country`
+ * the code is in the middle. The city is always the first part, and that is
+ * where every mangled example above sits.
  *
  * No length cap here on purpose. The 80-char cap (MAX_LOCATION_LEN) is the edge
  * function's input guard and a CHECK on items.location (025); no client call
@@ -50,9 +116,12 @@ export function normalizeLocation(raw: string): string {
     .replace(/\s+/g, ' ')
     .replace(/\s*,\s*/g, ', ')
     .trim()
-    .replace(WORD_RUN, (run) =>
-      run.length <= 2 ? run.toUpperCase() : run[0].toUpperCase() + run.slice(1).toLowerCase(),
-    );
+    .split(',')
+    .map((part, i) => {
+      let runs = 0;
+      return part.replace(WORD_RUN, (run) => caseRun(run, i === 0, runs++ === 0));
+    })
+    .join(',');
 }
 
 /**

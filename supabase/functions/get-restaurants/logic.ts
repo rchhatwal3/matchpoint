@@ -23,8 +23,17 @@ export const MAX_LOCATION_LEN = 80;
 //   2. comma spacing -> ", "
 //   3. trim (AFTER step 2, which can leave a trailing space on a string ending
 //      in a comma — that ordering is what makes this idempotent)
-//   4. Title Case each letter/digit run, except runs of 1-2 characters which
-//      uppercase whole, so `wa` -> `WA` and `ny` -> `NY`
+//   4. case each letter/digit run, PER COMMA PART: a small word that is not the
+//      first run of its part -> lowercase; a run of 1-2 characters in any part
+//      but the FIRST -> uppercase whole, so `wa` -> `WA` and `ny` -> `NY`; a
+//      `Mc` name -> `McKinney`; everything else Title Case
+//
+// Step 4 is per part because the whole-uppercase rule exists only to preserve
+// region codes, which live after the first comma. Applied to the first part it
+// mangles the city — `EL Paso`, `Santa FE`, `HO Chi Minh City` — and the city is
+// what the user reads back in Settings. The first part is excluded rather than
+// "every part but the last" so `seattle, wa, usa` still gives `Seattle, WA, Usa`:
+// in `city, region, country` the code is the MIDDLE part.
 //
 // Cased per letter/digit run rather than per space-separated word so a trailing
 // comma cannot change a token's length: `seattle, wa, 98101` -> `Seattle, WA,
@@ -36,14 +45,61 @@ export const MAX_LOCATION_LEN = 80;
 // comma. Truncating silently here would hide that rejection instead.
 const WORD_RUN = /[\p{L}\p{N}]+/gu;
 
+// Lowercase inside a name, but only with something before them in their part:
+// `Rio de Janeiro` and `Isle of Man`, yet `The Dalles`, `De Pere`, `Las Vegas`.
+// Checked BEFORE the region-code rule so a middle part like `Île de France` is
+// not turned into `Île DE France`; a real region code opens its part, so it
+// never reaches this list.
+const SMALL_WORDS = new Set([
+  'de',
+  'del',
+  'la',
+  'las',
+  'los',
+  'da',
+  'do',
+  'dos',
+  'di',
+  'du',
+  'le',
+  'les',
+  'van',
+  'von',
+  'der',
+  'den',
+  'of',
+  'the',
+  'and',
+  'upon',
+]);
+
+// `Mc` + at least two more letters: `mckinney` -> `McKinney`. NOT extended to
+// `Mac`: `Macon` and `Madison` fit the same shape as `MacArthur` and only a name
+// list could tell them apart, which is semantics. `mc` has no such collision.
+const MC_PREFIX = /^mc\p{L}{2,}$/iu;
+
+// `firstPart` / `firstRun` are the run's position — the only deterministic
+// evidence there is. `WA` uppercases because it sits after the comma, not
+// because this function knows what Washington is.
+function caseRun(run: string, firstPart: boolean, firstRun: boolean): string {
+  const lower = run.toLowerCase();
+  if (!firstRun && SMALL_WORDS.has(lower)) return lower;
+  if (!firstPart && run.length <= 2) return run.toUpperCase();
+  if (MC_PREFIX.test(run)) return 'Mc' + run[2].toUpperCase() + run.slice(3).toLowerCase();
+  return run[0].toUpperCase() + lower.slice(1);
+}
+
 export function normalizeLocation(raw: string): string {
   return raw
     .replace(/\s+/g, ' ')
     .replace(/\s*,\s*/g, ', ')
     .trim()
-    .replace(WORD_RUN, (run) =>
-      run.length <= 2 ? run.toUpperCase() : run[0].toUpperCase() + run.slice(1).toLowerCase(),
-    );
+    .split(',')
+    .map((part, i) => {
+      let runs = 0;
+      return part.replace(WORD_RUN, (run) => caseRun(run, i === 0, runs++ === 0));
+    })
+    .join(',');
 }
 
 // True when `loc` is one of the caller's room locations. The T16 guard: only
