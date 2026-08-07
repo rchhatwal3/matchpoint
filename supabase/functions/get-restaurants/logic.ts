@@ -6,10 +6,58 @@
 // oversized input.
 export const MAX_LOCATION_LEN = 80;
 
-// True when `loc` is one of the caller's room locations (case/space-insensitive).
-// The T16 guard: only locations the pair saved can trigger a Places lookup.
+// Canonical form for a free-text location string. Byte-for-byte identical in
+// behaviour to normalizeLocation in lib/location.ts (Deno cannot import from
+// lib/, so this is a deliberate copy) and to normalize_location(text) in
+// supabase/migrations/028_normalize_locations.sql. All three must change
+// together or the Places cache splits again along the seam.
+//
+// Why: every distinct spelling is its own `.eq('location', loc)` cache bucket
+// below, so `Seattle`, `seattle` and `Seattle,WA` each spend a separate Places
+// lookup and insert a parallel set of `items` rows. 023's global ceiling bounds
+// the bill but not the waste.
+//
+// Deterministic only — no geocoding, no requiring a region, and `Seattle` is
+// NOT resolved to `Seattle, WA`. Idempotent: f(f(x)) === f(x).
+//   1. collapse whitespace runs to one space
+//   2. comma spacing -> ", "
+//   3. trim (AFTER step 2, which can leave a trailing space on a string ending
+//      in a comma — that ordering is what makes this idempotent)
+//   4. Title Case each letter/digit run, except runs of 1-2 characters which
+//      uppercase whole, so `wa` -> `WA` and `ny` -> `NY`
+//
+// Cased per letter/digit run rather than per space-separated word so a trailing
+// comma cannot change a token's length: `seattle, wa, 98101` -> `Seattle, WA,
+// 98101`. `[\p{L}\p{N}]` is the JS spelling of Postgres' `[[:alnum:]]` under a
+// UTF-8 ctype, which is what the SQL mirror matches on.
+//
+// No length cap in here: MAX_LOCATION_LEN is checked by the caller against the
+// NORMALIZED value, because step 2 can lengthen a string by one character per
+// comma. Truncating silently here would hide that rejection instead.
+const WORD_RUN = /[\p{L}\p{N}]+/gu;
+
+export function normalizeLocation(raw: string): string {
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .trim()
+    .replace(WORD_RUN, (run) =>
+      run.length <= 2 ? run.toUpperCase() : run[0].toUpperCase() + run.slice(1).toLowerCase(),
+    );
+}
+
+// True when `loc` is one of the caller's room locations. The T16 guard: only
+// locations the pair saved can trigger a Places lookup.
+//
+// Both sides go through normalizeLocation, which subsumes the old trim +
+// lowercase comparison and additionally makes the guard survive the window
+// where this function is deployed but 028's rooms trigger is not yet applied:
+// a room row still holding `Seattle,WA` would otherwise no longer match the
+// caller's normalized `Seattle, WA` and every request for it would 403.
+// Normalizing `loc` a second time here is free — it is idempotent.
 export function isLocationAllowed(loc: string, allowed: string[]): boolean {
-  return allowed.map((l) => l.trim().toLowerCase()).includes(loc.toLowerCase());
+  const want = normalizeLocation(loc);
+  return allowed.some((l) => normalizeLocation(l) === want);
 }
 
 // Cost budget. The room-locations guard above is self-authorizing — members may

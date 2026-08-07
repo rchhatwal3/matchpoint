@@ -4,6 +4,7 @@ import {
   cacheVerdict,
   lookupRefusal,
   isLocationAllowed,
+  normalizeLocation,
   priceLevelNum,
   describe,
   mergeDedupe,
@@ -42,10 +43,28 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
     const { location } = await req.json().catch(() => ({ location: undefined }));
-    if (!location || typeof location !== 'string' || !location.trim()) {
+    if (!location || typeof location !== 'string') {
       return json({ error: 'Missing location' }, 400);
     }
-    const loc = location.trim();
+    // Canonicalize FIRST, and use `loc` for everything downstream. It used to be
+    // `location.trim()`, which left every spelling of a city as its own paid
+    // cache bucket: the allowlist check, the `.eq('location', loc)` cache read,
+    // the `items` insert and both places_fetches marker calls all key off this
+    // one variable, so a raw string here re-splits all five at once.
+    //
+    // ORDER MATTERS, twice over:
+    //   - emptiness is checked on the NORMALIZED value, so a whitespace-only
+    //     body is still a 400 (normalizeLocation('   ') === '') — this subsumes
+    //     the old `!location.trim()` guard rather than dropping it;
+    //   - MAX_LOCATION_LEN is checked on the NORMALIZED value because comma
+    //     spacing can LENGTHEN the input by one character per comma
+    //     (`Seattle,WA` -> `Seattle, WA`). Checking the raw string would let an
+    //     80-char input grow past 80 and then hit the 80-char CHECK on
+    //     items.location (025) as a 500 from the insert, instead of this 400.
+    const loc = normalizeLocation(location);
+    if (!loc) {
+      return json({ error: 'Missing location' }, 400);
+    }
     if (loc.length > MAX_LOCATION_LEN) {
       return json({ error: 'Location too long' }, 400);
     }
