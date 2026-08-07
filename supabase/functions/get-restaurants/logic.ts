@@ -85,6 +85,31 @@ export function normalizeLocation(raw: string): string {
     .join(',');
 }
 
+// One letter or digit — the same class the casing rule above matches on, and
+// what 031's SQL mirror spells `[[:alnum:]]`.
+const HAS_ALNUM = /[\p{L}\p{N}]/u;
+
+// Whether a location carries a region as well as a city. Mirrored, byte-for-byte
+// in behaviour, in lib/location.ts (hasRegion) and in has_location_region(text)
+// in supabase/migrations/031_require_location_region.sql. All three must change
+// together — this is the same one-rule-three-languages arrangement as
+// normalizeLocation above, and the same seam.
+//
+// The rule: split on commas; at least two parts, and EVERY part must contain a
+// letter or a digit. `Seattle, WA` and `Paris, France` pass; `Seattle`,
+// `Seattle,` and `, WA` do not. More than two parts is allowed on purpose —
+// `Brooklyn, New York, NY` is more specific than what is being demanded, not
+// less valid.
+//
+// Shape only, no geocoding: `Seattle, Wakanda` passes. Anywhere Places and
+// Foursquare serve is a legitimate location, so a real-region check would need
+// an upstream call — which is the per-session billing this whole change exists
+// to avoid.
+export function hasRegion(loc: string): boolean {
+  const parts = loc.split(',');
+  return parts.length >= 2 && parts.every((p) => HAS_ALNUM.test(p));
+}
+
 // True when `loc` is one of the caller's room locations. The T16 guard: only
 // locations the pair saved can trigger a Places lookup.
 //

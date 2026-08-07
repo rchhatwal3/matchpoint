@@ -13,7 +13,11 @@ import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
 import { JOIN_FAILED } from '@/lib/room-errors';
-import { normalizeLocations } from '@/lib/location';
+import {
+  REGION_REQUIRED_HINT,
+  newLocationsMissingRegion,
+  normalizeLocations,
+} from '@/lib/location';
 import { consentRpcArgs, type ConsentState } from '@/lib/consent/consent-logic';
 import seedData from '@/data/seed.json';
 
@@ -352,6 +356,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // and dedupe case-insensitively while keeping the first spelling, which
       // left `Seattle` and `Seattle, WA` as separate buckets.
       const clean = normalizeLocations(locations);
+      // A location must name a region. Checked here, not only in the settings
+      // screen, because this is the one door every caller goes through — and
+      // refused rather than silently dropped, so a caller that skips the screen's
+      // hint still learns why.
+      //
+      // Only NEWLY added entries are checked. Live rooms hold bare-city
+      // locations from before this rule and nothing guesses a region for them
+      // (`Portland` is genuinely ambiguous between Oregon and Maine); a flat
+      // check would freeze those lists, because removing any other chip re-sends
+      // the legacy entry too. 031's rooms trigger grandfathers identically.
+      const missingRegion = newLocationsMissingRegion(clean, room?.locations ?? []);
+      if (missingRegion.length > 0) {
+        throw new Error(`"${missingRegion[0]}" needs a region. ${REGION_REQUIRED_HINT}`);
+      }
       // Optimistic local update — offline mode stops here (in-memory only).
       setRoom((prev) => (prev ? { ...prev, locations: clean } : prev));
       if (!supabase || !room) return;

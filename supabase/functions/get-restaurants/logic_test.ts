@@ -3,6 +3,7 @@ import {
   CACHE_TARGET,
   MAX_LOCATION_LEN,
   cacheVerdict,
+  hasRegion,
   lookupRefusal,
   isLocationAllowed,
   normalizeLocation,
@@ -221,6 +222,64 @@ Deno.test('normalizing can push a string that fits MAX_LOCATION_LEN past it', ()
   const raw = 'a'.repeat(MAX_LOCATION_LEN - 3) + ',bb';
   assertEquals(raw.length, MAX_LOCATION_LEN);
   assertEquals(normalizeLocation(raw).length, MAX_LOCATION_LEN + 1);
+});
+
+// ---------------------------------------------------------------------------
+// hasRegion — MIRROR TESTS
+// ---------------------------------------------------------------------------
+// Same cases as the hasRegion block in lib/location.test.ts and the DO block in
+// 031_require_location_region.sql, duplicated for the same reason as the
+// normalizeLocation mirror above: three implementations of one rule, and these
+// assertions are the only thing that says so.
+
+Deno.test('hasRegion accepts a city with a state or country', () => {
+  assertEquals(hasRegion('Seattle, WA'), true);
+  assertEquals(hasRegion('Paris, France'), true);
+  assertEquals(hasRegion('Washington, DC'), true);
+});
+
+Deno.test('hasRegion rejects a bare city', () => {
+  assertEquals(hasRegion('Seattle'), false);
+  assertEquals(hasRegion('New Orleans'), false);
+  assertEquals(hasRegion(''), false);
+});
+
+Deno.test('hasRegion rejects a dangling comma on either side', () => {
+  assertEquals(hasRegion('Seattle,'), false);
+  assertEquals(hasRegion('Seattle, '), false);
+  assertEquals(hasRegion(', WA'), false);
+  assertEquals(hasRegion(','), false);
+});
+
+Deno.test('hasRegion rejects a part that is only punctuation or whitespace', () => {
+  assertEquals(hasRegion('Seattle, .'), false);
+  assertEquals(hasRegion('Seattle, , WA'), false);
+});
+
+Deno.test('hasRegion allows more than two parts', () => {
+  assertEquals(hasRegion('Brooklyn, New York, NY'), true);
+  assertEquals(hasRegion('Seattle, WA, USA'), true);
+});
+
+Deno.test('hasRegion checks shape, not that the region is real', () => {
+  assertEquals(hasRegion('Seattle, Wakanda'), true);
+  assertEquals(hasRegion('Springfield, ZZ'), true);
+});
+
+Deno.test('hasRegion accepts non-latin, accented and digit-only parts', () => {
+  assertEquals(hasRegion('東京, 日本'), true);
+  assertEquals(hasRegion('München, DE'), true);
+  assertEquals(hasRegion('Seattle, 98101'), true);
+});
+
+// index.ts checks the NORMALIZED value; this is why that is safe to do — the
+// answer is the same either way, so normalizing first cannot smuggle a
+// regionless location past the guard or reject one that carried a region.
+Deno.test('hasRegion agrees with itself before and after normalization', () => {
+  const inputs = ['seattle,wa', '  seattle ,  wa ', 'Seattle', 'Seattle,', ', wa', 'paris,france'];
+  for (const input of inputs) {
+    assertEquals(hasRegion(normalizeLocation(input)), hasRegion(input));
+  }
 });
 
 Deno.test('isLocationAllowed matches a room location case/space-insensitively', () => {
