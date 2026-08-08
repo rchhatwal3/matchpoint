@@ -194,9 +194,11 @@ export function locationRegionHint(value: string): string | null {
  *
  * Entries already in `existing` are grandfathered, and that is the whole point
  * of taking two arguments. Live rooms hold bare-city locations from before this
- * rule (`Seattle`, `Portland`, `New Orleans` are real rows); `Portland` alone is
- * genuinely ambiguous between Oregon and Maine, so nothing here guesses a region
- * for them. If removing one chip from such a room re-sent the whole list through
+ * rule (`Seattle`, `Portland`, `New Orleans` are real rows). Migration 032
+ * corrects the ones the owner decided on, from an explicit written-down mapping;
+ * nothing HERE ever guesses a region, and a name that mapping does not cover
+ * stays grandfathered indefinitely. If removing one chip from such a room re-sent
+ * the whole list through
  * a flat check, the untouched legacy entries would block the edit — the user
  * could never clean the list up. 031's rooms trigger grandfathers the same way,
  * against OLD.locations, for the same reason.

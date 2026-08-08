@@ -362,8 +362,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // hint still learns why.
       //
       // Only NEWLY added entries are checked. Live rooms hold bare-city
-      // locations from before this rule and nothing guesses a region for them
-      // (`Portland` is genuinely ambiguous between Oregon and Maine); a flat
+      // locations from before this rule and nothing here guesses a region for
+      // them (`Portland` is ambiguous between Oregon and Maine — migration 032
+      // corrects the names the owner explicitly decided, and only those); a flat
       // check would freeze those lists, because removing any other chip re-sends
       // the legacy entry too. 031's rooms trigger grandfathers identically.
       const missingRegion = newLocationsMissingRegion(clean, room?.locations ?? []);

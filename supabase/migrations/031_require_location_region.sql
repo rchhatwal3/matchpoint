@@ -60,7 +60,18 @@
 --
 -- So: section 3 REPORTS the affected rows and changes nothing. The owner decides
 -- per row, in the app (removing the bare chip and adding the right city from the
--- picker is the whole fix) or by hand in SQL. Section 4 enforces from then on,
+-- picker is the whole fix) or by hand in SQL.
+--
+-- THE OWNER HAS SINCE DECIDED A SUBSET, in 032_backfill_bare_city_locations.sql.
+-- That file carries an explicit `bare name -> canonical form` table — `Portland`
+-- means Portland, Oregon, and so on for the metros listed there — and corrects
+-- rooms.locations and items.location for exactly those names. It still does not
+-- infer: a name is corrected because it is written down in that table, or not at
+-- all. Nothing in THIS file changes; the grandfathering below remains the safety
+-- net for every regionless value 032 has no row for, and 032's own report lists
+-- what that leaves. Apply 032 after this file.
+--
+-- Section 4 enforces from then on,
 -- and enforces only against entries that are NEW in a given write, so a room
 -- holding a legacy `Portland` can still edit the rest of its list — see the note
 -- there for why a CHECK constraint cannot do this.
@@ -174,6 +185,10 @@ $$;
 -- This is the deliberate half of "grandfather what exists". Every regionless
 -- location currently stored is listed by room, with its invite code, so the
 -- owner can go fix them one at a time knowing which pair each belongs to.
+--
+-- 032 later corrects the names the owner decided on and re-runs this report
+-- against the corrected data, so on a database that has both applied it is 032's
+-- notices, not these, that name what is actually left to fix.
 --
 -- In the Supabase SQL editor these arrive under Messages/Notices, not in the
 -- results grid. If that panel is easy to miss, run the SELECT in section 5(c)
@@ -297,10 +312,13 @@ $$;
 --    ORDER BY id;
 --
 --   -- (d) the same question for the cached catalogue. NOT enforced and not
---   --     cleaned up: these rows are real restaurants that real members have
---   --     already swiped, and deleting them would cascade into swipes and
---   --     matches (001:36, 021:38). They stay until the room that sourced them
---   --     is fixed and the deck refills under the correct location.
+--   --     cleaned up BY THIS FILE: these rows are real restaurants that real
+--   --     members have already swiped, and deleting them would cascade into
+--   --     swipes and matches (001:36, 021:38). 032 handles the names the owner
+--   --     decided on — repointing the rows something references and deleting
+--   --     only the ones nothing does — so after it, what this returns is the
+--   --     rows for names 032 has no mapping for. Those stay until the room that
+--   --     sourced them is fixed and the deck refills under the correct location.
 --   SELECT location, count(*) AS items
 --     FROM items
 --    WHERE location IS NOT NULL AND NOT has_location_region(location)
