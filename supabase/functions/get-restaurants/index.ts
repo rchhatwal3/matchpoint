@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import {
   MAX_LOCATION_LEN,
   cacheVerdict,
+  hasRegion,
   lookupRefusal,
   isLocationAllowed,
   normalizeLocation,
@@ -67,6 +68,32 @@ Deno.serve(async (req) => {
     }
     if (loc.length > MAX_LOCATION_LEN) {
       return json({ error: 'Location too long' }, 400);
+    }
+    // A location must name a region. This function is reachable directly — any
+    // anon JWT can POST to it — so the room-locations guard below is the only
+    // thing standing between a caller and a Places lookup, and that guard is
+    // self-authorizing (members hold a column UPDATE grant on rooms.locations,
+    // 022:32). 031's trigger closes that at the database; this closes it here
+    // too, for the window before 031 is applied and for any room row that
+    // predates it.
+    //
+    // Why it matters upstream and not just for tidiness: a bare `Portland` is
+    // ambiguous between Oregon and Maine, and Places answers it by picking one.
+    // The couple then swipes a deck of restaurants in a city they did not
+    // choose, and the result is cached under `Portland` for everyone else too.
+    //
+    // Checked on the NORMALIZED value, which is safe because hasRegion gives
+    // the same answer on both (logic_test.ts asserts exactly that).
+    //
+    // GRANDFATHERED ROOMS DEGRADE, THEY DO NOT BREAK. A live room still holding
+    // `Seattle` now gets this 400 instead of a lookup — and
+    // getRestaurantsForLocation (SessionProvider.tsx:42-60) catches any error
+    // from this function and falls back to reading the `items` rows already
+    // stored for that location. So those decks keep serving what is cached; they
+    // just stop spending on an ambiguous query, which is the outcome we want
+    // until the owner fixes the row by hand (031 lists them).
+    if (!hasRegion(loc)) {
+      return json({ error: 'Location needs a state or country, e.g. Seattle, WA' }, 400);
     }
     const authHeader = req.headers.get('Authorization') ?? '';
     const jwt = authHeader.replace(/^Bearer\s+/i, '');
