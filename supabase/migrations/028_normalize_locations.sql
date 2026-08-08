@@ -77,7 +77,8 @@
 -- failed repoint destroys real user swipes and matches, permanently and
 -- silently. Applying this file statement-by-statement — any tool that
 -- autocommits per statement — is exactly that scenario. Run section 5 as one
--- transaction. Sections 1-4 are pure DDL and are safe to re-run.
+-- transaction, over the connection its own header specifies. Sections 1-4 are
+-- pure DDL and are safe to re-run.
 
 -- ---------------------------------------------------------------------------
 -- 1. normalize_location(text) — the canonical form of one location string
@@ -470,8 +471,36 @@ CREATE TRIGGER rooms_normalize_locations_trg
   FOR EACH ROW EXECUTE FUNCTION rooms_normalize_locations();
 
 -- ---------------------------------------------------------------------------
--- 5. Backfill — ONE TRANSACTION, see the header
+-- 5. Backfill — ONE TRANSACTION, ONE EXECUTION, ONE SESSION
 -- ---------------------------------------------------------------------------
+-- Everything from `BEGIN;` to `COMMIT;` below must be submitted as a SINGLE
+-- EXECUTION over a DIRECT, NON-POOLED connection — the `db.<project-ref>.
+-- supabase.co` host on port 5432, not the transaction-mode pooler on 6543.
+-- Both halves of that matter, for different reasons:
+--
+--   ONE EXECUTION, because the atomicity IS the safety argument. `swipes.item_id`
+--   and `matches.item_id` are ON DELETE CASCADE (001:36, 021:38), so a DELETE of
+--   duplicate items that commits after a failed repoint destroys real user swipes
+--   and the erasure snapshots 021 exists to preserve — permanently and silently.
+--   Any tool that autocommits per statement turns this file into precisely that.
+--   Select the whole range and run it once; do not paste it in pieces.
+--
+--   ONE SESSION, because a transaction split across backends is not a
+--   transaction. A real apply of this section failed with
+--       ERROR: 42P01: relation "items_locnorm_dupe_map" does not exist
+--   on the statement that READ the scratch table 5c had just created. The SQL
+--   was in order and the CREATE ran; it simply ran on a different backend from
+--   the read, where an uncommitted CREATE TABLE does not exist. That can only
+--   happen if consecutive statements did not share one session — which is what a
+--   pooled connection, or a client that submits each statement as its own
+--   request, will do to you.
+--
+-- 5c has been restructured into a single DO block so that it cannot be split
+-- that way again (see its own note). The BEGIN/COMMIT spanning the whole section
+-- still can be, and a split THERE does not announce itself with an error — it is
+-- the silent cascade-deletion case above. Hence both rules, not just the second.
+--
+-- Sections 1-4 are pure DDL, safe to re-run and safe to run on their own.
 BEGIN;
 
 -- Blocks concurrent writers to `items` for the rest of the transaction, for the
@@ -540,59 +569,95 @@ $$;
 -- Scoped to `location IS NOT NULL`: the constraint uses PostgreSQL's default
 -- NULLS DISTINCT, so the location-independent catalogue rows never conflict with
 -- each other and must not be touched. Same scope as 023's constraint.
-DROP TABLE IF EXISTS items_locnorm_dupe_map;
-
--- Keeper preference copied from 023:206-216, and for the same reason:
--- duplicates are NOT interchangeable. resolvePhotoUrl returns null on any photo
--- failure and price_level stays null until Foursquare fills it, so choosing
--- blind by uuid can keep the impoverished copy and delete the enriched one —
--- irreversible once the DELETE below runs. Prefer a row with an image and a
--- price, then fall back to id so the result is deterministic.
 --
--- A real table, not TEMP, and dropped first: an apply that aborted partway
--- leaves it behind, and every retry would then fail here rather than at the
--- statement that actually broke.
-CREATE TABLE items_locnorm_dupe_map AS
-  SELECT id AS dupe_id,
-         first_value(id) OVER (
-           PARTITION BY category, title, normalize_location(location)
-           ORDER BY (image_url IS NULL), (price_level IS NULL), id
-         ) AS keep_id
-    FROM items
-   WHERE location IS NOT NULL;
-
-DELETE FROM items_locnorm_dupe_map WHERE dupe_id = keep_id;
-
--- Repoint swipes BEFORE deleting the rows they point at — swipes.item_id is ON
--- DELETE CASCADE (001:36), so deleting a duplicate otherwise destroys real user
--- swipes and, through them, matches. INSERT ... ON CONFLICT rather than UPDATE
--- because a member may have swiped both copies, which would collide on the
--- (member_id, item_id) primary key.
+-- ONE STATEMENT, AND THAT IS THE POINT OF THE SHAPE. This was six consecutive
+-- top-level statements sharing a real table called items_locnorm_dupe_map, and a
+-- live apply died on the first one to READ it:
 --
--- The GROUP BY is load-bearing, exactly as in 023:228-234: ON CONFLICT DO UPDATE
--- raises "command cannot affect row a second time" when the source emits two
--- rows with the same conflict key, and that is the normal case here — a member
--- who swiped `Joe's` under `Seattle` and again under `Seattle, WA` produces
--- (member, keeper) twice. bool_or preserves a like on either copy so no existing
--- match is lost; min keeps the earlier swipe time.
-INSERT INTO swipes (member_id, item_id, liked, created_at)
-  SELECT s.member_id, m.keep_id, bool_or(s.liked), min(s.created_at)
-    FROM swipes s
-    JOIN items_locnorm_dupe_map m ON m.dupe_id = s.item_id
-   GROUP BY s.member_id, m.keep_id
-  ON CONFLICT (member_id, item_id)
-  DO UPDATE SET liked = swipes.liked OR excluded.liked;
+--     ERROR: 42P01: relation "items_locnorm_dupe_map" does not exist
+--
+-- The SQL was in order — the CREATE preceded every use — and the CREATE ran. What
+-- was wrong was the assumption underneath it: that consecutive top-level
+-- statements share a session. Over a pooled connection, or through any client
+-- that submits each statement as its own request, they need not, and an
+-- uncommitted CREATE TABLE does not exist for a reader on another backend. See
+-- the section header for the connection this file must be applied over.
+--
+-- A DO block is ONE statement. Nothing can dispatch the create, the four uses and
+-- the drop separately, so the map cannot fail to exist for its own readers and
+-- cannot outlive them either.
+--
+-- WHY A TEMP TABLE RATHER THAN CTEs. The three consumers must run in this ORDER:
+-- repoint swipes, repoint matches, and only then delete the losers. Data-modifying
+-- CTEs in a single statement all see the same snapshot and execute in no defined
+-- order, so folding them together would put the DELETE's ON DELETE CASCADE
+-- (001:36, 021:38) into a race with the INSERTs that rescue those exact rows —
+-- the loss this ordering exists to prevent. Recomputing the map as a CTE inside
+-- each of the three statements would be correct, but would restate the keeper
+-- preference below three times, and a rule that must never drift belongs in one
+-- place. So: one scratch relation, three ordered consumers, all inside one block.
+--
+-- ON COMMIT DROP replaces the old `DROP TABLE IF EXISTS` preamble and the DROP
+-- that used to follow. It is strictly better than both: the map goes away when
+-- this transaction ends whether it commits or aborts, so no retry can trip over
+-- residue from the previous attempt. TEMP also makes it private to this session,
+-- so two people applying this file at once cannot read each other's map.
+DO $$
+BEGIN
+  -- Residue from the failed apply above: a PERMANENT table of this name may have
+  -- been created and autocommitted on some backend. Schema-qualified so it
+  -- unambiguously targets that leftover and never the TEMP map created next.
+  DROP TABLE IF EXISTS public.items_locnorm_dupe_map;
 
--- Same for the erasure snapshot (021:36-41), also ON DELETE CASCADE.
-INSERT INTO matches (room_id, item_id, matched_at)
-  SELECT ms.room_id, m.keep_id, ms.matched_at
-    FROM matches ms
-    JOIN items_locnorm_dupe_map m ON m.dupe_id = ms.item_id
-  ON CONFLICT (room_id, item_id) DO NOTHING;
+  -- Keeper preference copied from 023:206-216, and for the same reason:
+  -- duplicates are NOT interchangeable. resolvePhotoUrl returns null on any photo
+  -- failure and price_level stays null until Foursquare fills it, so choosing
+  -- blind by uuid can keep the impoverished copy and delete the enriched one —
+  -- irreversible once the DELETE below runs. Prefer a row with an image and a
+  -- price, then fall back to id so the result is deterministic.
+  CREATE TEMP TABLE items_locnorm_dupe_map ON COMMIT DROP AS
+    SELECT id AS dupe_id,
+           first_value(id) OVER (
+             PARTITION BY category, title, normalize_location(location)
+             ORDER BY (image_url IS NULL), (price_level IS NULL), id
+           ) AS keep_id
+      FROM items
+     WHERE location IS NOT NULL;
 
-DELETE FROM items WHERE id IN (SELECT dupe_id FROM items_locnorm_dupe_map);
+  DELETE FROM items_locnorm_dupe_map WHERE dupe_id = keep_id;
 
-DROP TABLE items_locnorm_dupe_map;
+  -- Repoint swipes BEFORE deleting the rows they point at — swipes.item_id is ON
+  -- DELETE CASCADE (001:36), so deleting a duplicate otherwise destroys real user
+  -- swipes and, through them, matches. INSERT ... ON CONFLICT rather than UPDATE
+  -- because a member may have swiped both copies, which would collide on the
+  -- (member_id, item_id) primary key.
+  --
+  -- The GROUP BY is load-bearing, exactly as in 023:228-234: ON CONFLICT DO UPDATE
+  -- raises "command cannot affect row a second time" when the source emits two
+  -- rows with the same conflict key, and that is the normal case here — a member
+  -- who swiped `Joe's` under `Seattle` and again under `Seattle, WA` produces
+  -- (member, keeper) twice. bool_or preserves a like on either copy so no existing
+  -- match is lost; min keeps the earlier swipe time.
+  INSERT INTO swipes (member_id, item_id, liked, created_at)
+    SELECT s.member_id, m.keep_id, bool_or(s.liked), min(s.created_at)
+      FROM swipes s
+      JOIN items_locnorm_dupe_map m ON m.dupe_id = s.item_id
+     GROUP BY s.member_id, m.keep_id
+    ON CONFLICT (member_id, item_id)
+    DO UPDATE SET liked = swipes.liked OR excluded.liked;
+
+  -- Same for the erasure snapshot (021:36-41), also ON DELETE CASCADE.
+  INSERT INTO matches (room_id, item_id, matched_at)
+    SELECT ms.room_id, m.keep_id, ms.matched_at
+      FROM matches ms
+      JOIN items_locnorm_dupe_map m ON m.dupe_id = ms.item_id
+    ON CONFLICT (room_id, item_id) DO NOTHING;
+
+  -- Now safe: every swipe and every snapshot row that pointed at a loser points
+  -- at its keeper, so this cascade reaches nothing not already represented there.
+  DELETE FROM items WHERE id IN (SELECT dupe_id FROM items_locnorm_dupe_map);
+END;
+$$;
 
 -- 5d. Now the rename itself. Every surviving (category, title,
 -- normalize_location(location)) is unique, so this cannot collide.
