@@ -1,0 +1,54 @@
+-- 029_revoke_dead_service_role_grants.sql
+-- 012_service_role_room_grants.sql granted service_role SELECT on members and
+-- rooms for exactly one reason: the old room-location guard in get-restaurants
+-- read those two tables with the service_role admin client, and on this
+-- project service_role starts with no blanket table privileges (007's comment)
+-- — RLS bypass is not the same as a GRANT. Without 012, that guard's reads hit
+-- 42501 "permission denied", the guard read null, and the restaurants deck
+-- returned "No room" for every caller. That exact outage is the P0 recorded in
+-- HANDOFF.md under "restaurants deck was broken" (2026-07-26).
+--
+-- PR #51 moved the guard to the caller's own client (anon key + the caller's
+-- JWT), reading members/rooms under RLS instead of as service_role — see
+-- supabase/functions/get-restaurants/index.ts:62-95, and the comment at
+-- index.ts:56-61 spelling out which RLS policies and grants now cover it
+-- (`members_select_same_room`, `rooms_select_members`, 004_grants.sql:12-13).
+-- The service_role client in that function (index.ts:102, `svc`) is created
+-- and used only after the guard has already passed, and it never touches
+-- members or rooms: its calls are `items` SELECT/UPSERT and the RPCs
+-- spend_places_lookup, places_cache_verdict, and record_places_fetch.
+--
+-- Verified dead, not just in get-restaurants: none of the other three edge
+-- functions' service_role clients ever call `.from('members')` or
+-- `.from('rooms')` either —
+--   issue-recovery-codes/index.ts:53-57  svc only calls replace_recovery_codes
+--   redeem-recovery-code/index.ts:43-100 svc touches recovery_codes,
+--                                         recovery_redeem_attempts, and the
+--                                         user_id_for_email / auth.admin RPCs
+--   delete-account/index.ts:58-59        svc only calls auth.admin.deleteUser
+-- delete-account's `delete_my_data()` RPC (021_erasure_honesty.sql:110) does
+-- read/write members, but it is SECURITY DEFINER — it runs as the function
+-- owner regardless of which role calls it, so a service_role table GRANT is
+-- not consulted there either, and it is invoked through the caller client
+-- (delete-account/index.ts:50), not the service_role one, regardless.
+-- 026_member_room_id_private.sql:112-122 independently reached the same
+-- conclusion when it audited every service_role path for a different reason
+-- (whether service_role needed USAGE on the new `private` schema) and called
+-- the 012 grants "vestigial".
+--
+-- If this turns out to be wrong — some path still needs it — the symptom is
+-- exactly the 012 story repeating: a service_role read of members or rooms
+-- fails with `42501 permission denied` (Postgres error code, visible in the
+-- edge function's logged error, e.g. "members read failed" / "rooms read
+-- failed" style console.error calls), and the caller-facing symptom is a
+-- silent-looking failure like get-restaurants' "No room" 403 rather than a
+-- loud one, because RLS-style denials and permission denials both come back
+-- as empty/errored reads. Rollback if that happens:
+--   GRANT SELECT ON public.members TO service_role;
+--   GRANT SELECT ON public.rooms TO service_role;
+--
+-- MANUAL: like every migration in this repo, this is applied by a human
+-- pasting into the Supabase SQL editor — there is no CI step that runs it.
+
+REVOKE SELECT ON public.members FROM service_role;
+REVOKE SELECT ON public.rooms FROM service_role;
