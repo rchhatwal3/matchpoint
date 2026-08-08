@@ -13,6 +13,7 @@ import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
 import { JOIN_FAILED } from '@/lib/room-errors';
+import { normalizeLocations } from '@/lib/location';
 import { consentRpcArgs, type ConsentState } from '@/lib/consent/consent-logic';
 import seedData from '@/data/seed.json';
 
@@ -346,17 +347,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const updateLocations = useCallback(
     async (locations: string[]): Promise<void> => {
-      // Normalize: trim, drop empties, dedupe (case-insensitive, keep first spelling).
-      const seen = new Set<string>();
-      const clean: string[] = [];
-      for (const raw of locations) {
-        const v = raw.trim();
-        if (!v) continue;
-        const key = v.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        clean.push(v);
-      }
+      // Canonicalize before writing: every spelling variant is its own paid
+      // Places cache bucket downstream (see lib/location.ts). This used to trim
+      // and dedupe case-insensitively while keeping the first spelling, which
+      // left `Seattle` and `Seattle, WA` as separate buckets.
+      const clean = normalizeLocations(locations);
       // Optimistic local update — offline mode stops here (in-memory only).
       setRoom((prev) => (prev ? { ...prev, locations: clean } : prev));
       if (!supabase || !room) return;

@@ -5,6 +5,7 @@ import {
   cacheVerdict,
   lookupRefusal,
   isLocationAllowed,
+  normalizeLocation,
   priceLevelNum,
   priceLabel,
   cuisineLabel,
@@ -15,11 +16,231 @@ import {
   type Place,
 } from './logic.ts';
 
+// ---------------------------------------------------------------------------
+// normalizeLocation — MIRROR TESTS
+// ---------------------------------------------------------------------------
+// These are the same cases as lib/location.test.ts, deliberately duplicated
+// rather than shared: Deno cannot import from lib/, so the only way the two
+// copies of normalizeLocation stay provably in step is for both suites to
+// assert the same inputs and the same outputs. If you change one, change both,
+// and change normalize_location(text) in 028_normalize_locations.sql with them —
+// a divergence in any of the three re-splits the Places cache along that seam.
+
+Deno.test('normalizeLocation trims leading and trailing whitespace of every kind', () => {
+  assertEquals(normalizeLocation('  Seattle  '), 'Seattle');
+  assertEquals(normalizeLocation('\t\nSeattle\n\t'), 'Seattle');
+});
+
+Deno.test('normalizeLocation collapses runs of internal whitespace to one space', () => {
+  assertEquals(normalizeLocation('New    York'), 'New York');
+  assertEquals(normalizeLocation('New\t\nYork'), 'New York');
+});
+
+Deno.test('normalizeLocation normalizes comma spacing to ", "', () => {
+  assertEquals(normalizeLocation('Seattle,WA'), 'Seattle, WA');
+  assertEquals(normalizeLocation('Seattle , WA'), 'Seattle, WA');
+  assertEquals(normalizeLocation('Seattle ,WA'), 'Seattle, WA');
+  assertEquals(normalizeLocation('Seattle,   WA'), 'Seattle, WA');
+});
+
+// The trim runs AFTER the comma rule, which is what makes this idempotent: the
+// comma rule leaves a trailing space on a string that ends in a comma, and a
+// second pass over an untrimmed result would not be a fixed point.
+Deno.test('normalizeLocation leaves no trailing space on a string ending in a comma', () => {
+  assertEquals(normalizeLocation('Seattle,'), 'Seattle,');
+  assertEquals(normalizeLocation('Seattle, '), 'Seattle,');
+});
+
+Deno.test('normalizeLocation title-cases words and uppercases 1-2 character runs', () => {
+  assertEquals(normalizeLocation('seattle, wa'), 'Seattle, WA');
+  assertEquals(normalizeLocation('new york, ny'), 'New York, NY');
+  assertEquals(normalizeLocation('SEATTLE, WA'), 'Seattle, WA');
+  assertEquals(normalizeLocation('sEaTtLe'), 'Seattle');
+});
+
+// Cased per letter/digit run, not per space-separated word: a trailing comma is
+// not part of the run, so `wa` is two characters whether or not one follows it.
+Deno.test('normalizeLocation cases a 2-letter run the same with or without a comma', () => {
+  assertEquals(normalizeLocation('seattle, wa, 98101'), 'Seattle, WA, 98101');
+  assertEquals(normalizeLocation('d.c.'), 'D.C.');
+});
+
+// Documented consequence of the length rule, asserted so nobody "fixes" it by
+// accident: `usa` is three characters, so it title-cases like any other word.
+Deno.test('normalizeLocation title-cases runs longer than two characters, code or not', () => {
+  assertEquals(normalizeLocation('seattle, wa, usa'), 'Seattle, WA, Usa');
+});
+
+// The defect the per-part rule exists to fix: whole-uppercasing every 1-2
+// character run mangled the CITY, which is the half the user reads back.
+Deno.test('normalizeLocation title-cases short runs in the first comma part', () => {
+  assertEquals(normalizeLocation('el paso, tx'), 'El Paso, TX');
+  assertEquals(normalizeLocation('santa fe, nm'), 'Santa Fe, NM');
+  assertEquals(normalizeLocation('ho chi minh city, vietnam'), 'Ho Chi Minh City, Vietnam');
+  assertEquals(normalizeLocation('st. petersburg, fl'), 'St. Petersburg, FL');
+  assertEquals(normalizeLocation('las vegas, nv'), 'Las Vegas, NV');
+});
+
+Deno.test('normalizeLocation uppercases a 1-2 character run after the first part', () => {
+  assertEquals(normalizeLocation('seattle, wa'), 'Seattle, WA');
+  assertEquals(normalizeLocation('washington, dc'), 'Washington, DC');
+  assertEquals(normalizeLocation('new  york , ny'), 'New York, NY');
+});
+
+Deno.test('normalizeLocation cases a Mc name on the syllable', () => {
+  assertEquals(normalizeLocation('mckinney, tx'), 'McKinney, TX');
+  assertEquals(normalizeLocation('mcallen, tx'), 'McAllen, TX');
+  assertEquals(normalizeLocation('MCKINNEY'), 'McKinney');
+});
+
+// `Mac` is deliberately not in the rule — no string-shape test separates
+// `MacArthur` from `Macon`, so these stay plain Title Case.
+Deno.test('normalizeLocation leaves Mac words alone', () => {
+  assertEquals(normalizeLocation('macon, ga'), 'Macon, GA');
+  assertEquals(normalizeLocation('madison, wi'), 'Madison, WI');
+});
+
+Deno.test('normalizeLocation lowercases a small word that does not open its part', () => {
+  assertEquals(normalizeLocation('rio de janeiro, brazil'), 'Rio de Janeiro, Brazil');
+  assertEquals(normalizeLocation('isle of man'), 'Isle of Man');
+  assertEquals(normalizeLocation('newcastle upon tyne, uk'), 'Newcastle upon Tyne, UK');
+});
+
+Deno.test('normalizeLocation keeps a small word capitalized when it opens its part', () => {
+  assertEquals(normalizeLocation('the dalles, or'), 'The Dalles, OR');
+  // Regression: `las`/`los` were once small words and lowercased anywhere but
+  // the start of a part. `Las Vegas` hid it; `North Las Vegas` exposed it.
+  assertEquals(normalizeLocation('north las vegas, nv'), 'North Las Vegas, NV');
+  assertEquals(normalizeLocation('east los angeles, ca'), 'East Los Angeles, CA');
+  assertEquals(normalizeLocation('de pere, wi'), 'De Pere, WI');
+  assertEquals(normalizeLocation('los angeles, ca'), 'Los Angeles, CA');
+  // A region code opens its part, so the small-word rule never reaches it:
+  // `de` after the comma is Germany, not a joiner.
+  assertEquals(normalizeLocation('münchen, de'), 'München, DE');
+});
+
+Deno.test('normalizeLocation handles a value with no comma at all', () => {
+  assertEquals(normalizeLocation('el paso'), 'El Paso');
+  assertEquals(normalizeLocation('são paulo'), 'São Paulo');
+  assertEquals(normalizeLocation('mckinney'), 'McKinney');
+});
+
+Deno.test('normalizeLocation passes a comma-only value through', () => {
+  assertEquals(normalizeLocation(','), ',');
+  assertEquals(normalizeLocation(',,,'), ', , ,');
+  assertEquals(normalizeLocation('  ,  ,  '), ', ,');
+});
+
+Deno.test('normalizeLocation leaves an already-canonical value untouched', () => {
+  for (
+    const canonical of [
+      'Seattle, WA',
+      'El Paso, TX',
+      'McKinney, TX',
+      'Rio de Janeiro, Brazil',
+      'St. Petersburg, FL',
+      'São Paulo, Brazil',
+    ]
+  ) {
+    assertEquals(normalizeLocation(canonical), canonical);
+  }
+});
+
+Deno.test('normalizeLocation leaves punctuation other than commas alone', () => {
+  assertEquals(normalizeLocation("coeur d'alene, id"), "Coeur D'Alene, ID");
+  assertEquals(normalizeLocation('winston-salem, nc'), 'Winston-Salem, NC');
+});
+
+Deno.test('normalizeLocation handles digits in a location', () => {
+  assertEquals(normalizeLocation('paris 11e'), 'Paris 11e');
+  assertEquals(normalizeLocation('area 51'), 'Area 51');
+});
+
+// `[\p{L}\p{N}]` is the whole point of the unicode flag: an accented or
+// non-latin city name must case like any other, not be left as an opaque blob.
+Deno.test('normalizeLocation title-cases accented and non-latin city names', () => {
+  assertEquals(normalizeLocation('são paulo, br'), 'São Paulo, BR');
+  assertEquals(normalizeLocation('são paulo, brazil'), 'São Paulo, Brazil');
+  assertEquals(normalizeLocation('ZÜRICH'), 'Zürich');
+  assertEquals(normalizeLocation('münchen,de'), 'München, DE');
+  assertEquals(normalizeLocation('東京'), '東京');
+});
+
+// The empty result is load-bearing: index.ts checks emptiness on the NORMALIZED
+// value, so this is what turns a whitespace-only body into a 400.
+Deno.test('normalizeLocation returns an empty string for empty or whitespace-only input', () => {
+  assertEquals(normalizeLocation(''), '');
+  assertEquals(normalizeLocation('   '), '');
+  assertEquals(normalizeLocation('\t\n '), '');
+});
+
+// Idempotence is what lets isLocationAllowed normalize an already-normalized
+// room location for free, and what lets 028's trigger run over rows the client
+// already normalized without churning them.
+Deno.test('normalizeLocation is idempotent', () => {
+  const inputs = [
+    '  seattle ,  wa ',
+    'Seattle, WA',
+    'new york,ny',
+    'são paulo, br',
+    'Seattle,',
+    '',
+    '   ',
+    "coeur d'alene, id",
+    'seattle, wa, usa',
+    'el paso, tx',
+    'mckinney, tx',
+    'santa fe, nm',
+    'ho chi minh city, vietnam',
+    'rio de janeiro, brazil',
+    'st. petersburg, fl',
+    'las vegas, nv',
+    'washington, dc',
+    'new  york , ny',
+    'the dalles, or',
+    'de pere, wi',
+    'isle of man',
+    'macon, ga',
+    'el paso',
+    ',',
+    ',,,',
+    'McKinney, TX',
+    'Rio de Janeiro, Brazil',
+  ];
+  for (const input of inputs) {
+    const once = normalizeLocation(input);
+    assertEquals(normalizeLocation(once), once);
+  }
+});
+
+// The reason index.ts checks the length of the NORMALIZED string: comma spacing
+// can only ever lengthen the input, by one character per comma. An 80-character
+// raw string can therefore normalize past 80 and, unchecked, would reach the
+// 80-char CHECK on items.location (025) as a 500 instead of this 400.
+Deno.test('normalizing can push a string that fits MAX_LOCATION_LEN past it', () => {
+  const raw = 'a'.repeat(MAX_LOCATION_LEN - 3) + ',bb';
+  assertEquals(raw.length, MAX_LOCATION_LEN);
+  assertEquals(normalizeLocation(raw).length, MAX_LOCATION_LEN + 1);
+});
+
 Deno.test('isLocationAllowed matches a room location case/space-insensitively', () => {
   const allowed = ['New York', '  Chicago  '];
   assertEquals(isLocationAllowed('new york', allowed), true);
   assertEquals(isLocationAllowed('chicago', allowed), true);
   assertEquals(isLocationAllowed('Boston', allowed), false);
+});
+
+// The property that makes the deploy order of 028 free either way. A room row
+// still holding a raw spelling — this function deployed but 028's trigger and
+// backfill not yet applied — must still authorize the caller's normalized
+// request, or every restaurant deck for that room 403s until the migration runs.
+Deno.test('isLocationAllowed matches an un-normalized room row against a normalized request', () => {
+  assertEquals(isLocationAllowed('Seattle, WA', ['seattle,wa']), true);
+  assertEquals(isLocationAllowed('Seattle, WA', ['SEATTLE , WA']), true);
+  assertEquals(isLocationAllowed('New York, NY', ['new york ,ny']), true);
+  // And it does NOT start matching places that merely look similar.
+  assertEquals(isLocationAllowed('Seattle, WA', ['Seattle']), false);
+  assertEquals(isLocationAllowed('Portland, OR', ['Portland, ME']), false);
 });
 
 Deno.test('isLocationAllowed rejects when the room has no locations', () => {

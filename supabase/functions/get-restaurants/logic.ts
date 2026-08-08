@@ -6,10 +6,97 @@
 // oversized input.
 export const MAX_LOCATION_LEN = 80;
 
-// True when `loc` is one of the caller's room locations (case/space-insensitive).
-// The T16 guard: only locations the pair saved can trigger a Places lookup.
+// Canonical form for a free-text location string. Byte-for-byte identical in
+// behaviour to normalizeLocation in lib/location.ts (Deno cannot import from
+// lib/, so this is a deliberate copy) and to normalize_location(text) in
+// supabase/migrations/028_normalize_locations.sql. All three must change
+// together or the Places cache splits again along the seam.
+//
+// Why: every distinct spelling is its own `.eq('location', loc)` cache bucket
+// below, so `Seattle`, `seattle` and `Seattle,WA` each spend a separate Places
+// lookup and insert a parallel set of `items` rows. 023's global ceiling bounds
+// the bill but not the waste.
+//
+// Deterministic only — no geocoding, no requiring a region, and `Seattle` is
+// NOT resolved to `Seattle, WA`. Idempotent: f(f(x)) === f(x).
+//   1. collapse whitespace runs to one space
+//   2. comma spacing -> ", "
+//   3. trim (AFTER step 2, which can leave a trailing space on a string ending
+//      in a comma — that ordering is what makes this idempotent)
+//   4. case each letter/digit run, PER COMMA PART: a small word that is not the
+//      first run of its part -> lowercase; a run of 1-2 characters in any part
+//      but the FIRST -> uppercase whole, so `wa` -> `WA` and `ny` -> `NY`; a
+//      `Mc` name -> `McKinney`; everything else Title Case
+//
+// Step 4 is per part because the whole-uppercase rule exists only to preserve
+// region codes, which live after the first comma. Applied to the first part it
+// mangles the city — `EL Paso`, `Santa FE`, `HO Chi Minh City` — and the city is
+// what the user reads back in Settings. The first part is excluded rather than
+// "every part but the last" so `seattle, wa, usa` still gives `Seattle, WA, Usa`:
+// in `city, region, country` the code is the MIDDLE part.
+//
+// Cased per letter/digit run rather than per space-separated word so a trailing
+// comma cannot change a token's length: `seattle, wa, 98101` -> `Seattle, WA,
+// 98101`. `[\p{L}\p{N}]` is the JS spelling of Postgres' `[[:alnum:]]` under a
+// UTF-8 ctype, which is what the SQL mirror matches on.
+//
+// No length cap in here: MAX_LOCATION_LEN is checked by the caller against the
+// NORMALIZED value, because step 2 can lengthen a string by one character per
+// comma. Truncating silently here would hide that rejection instead.
+const WORD_RUN = /[\p{L}\p{N}]+/gu;
+
+// Lowercase inside a name, but only with something before them in their part:
+// `Rio de Janeiro` and `Isle of Man`, yet `The Dalles`, `De Pere`, `Las Vegas`.
+// Checked BEFORE the region-code rule so a middle part like `Île de France` is
+// not turned into `Île DE France`; a real region code opens its part, so it
+// never reaches this list.
+// KEPT DELIBERATELY SHORT — see the note in lib/location.ts. `la`/`las`/`los`
+// produced `North las Vegas`; English place names capitalise those wherever
+// they fall. A wrong entry here mangles a real city; a missing one only leaves
+// a name Title Cased.
+const SMALL_WORDS = new Set(['de', 'del', 'du', 'di', 'of', 'the', 'and', 'upon']);
+
+// `Mc` + at least two more letters: `mckinney` -> `McKinney`. NOT extended to
+// `Mac`: `Macon` and `Madison` fit the same shape as `MacArthur` and only a name
+// list could tell them apart, which is semantics. `mc` has no such collision.
+const MC_PREFIX = /^mc\p{L}{2,}$/iu;
+
+// `firstPart` / `firstRun` are the run's position — the only deterministic
+// evidence there is. `WA` uppercases because it sits after the comma, not
+// because this function knows what Washington is.
+function caseRun(run: string, firstPart: boolean, firstRun: boolean): string {
+  const lower = run.toLowerCase();
+  if (!firstRun && SMALL_WORDS.has(lower)) return lower;
+  if (!firstPart && run.length <= 2) return run.toUpperCase();
+  if (MC_PREFIX.test(run)) return 'Mc' + run[2].toUpperCase() + run.slice(3).toLowerCase();
+  return run[0].toUpperCase() + lower.slice(1);
+}
+
+export function normalizeLocation(raw: string): string {
+  return raw
+    .replace(/\s+/g, ' ')
+    .replace(/\s*,\s*/g, ', ')
+    .trim()
+    .split(',')
+    .map((part, i) => {
+      let runs = 0;
+      return part.replace(WORD_RUN, (run) => caseRun(run, i === 0, runs++ === 0));
+    })
+    .join(',');
+}
+
+// True when `loc` is one of the caller's room locations. The T16 guard: only
+// locations the pair saved can trigger a Places lookup.
+//
+// Both sides go through normalizeLocation, which subsumes the old trim +
+// lowercase comparison and additionally makes the guard survive the window
+// where this function is deployed but 028's rooms trigger is not yet applied:
+// a room row still holding `Seattle,WA` would otherwise no longer match the
+// caller's normalized `Seattle, WA` and every request for it would 403.
+// Normalizing `loc` a second time here is free — it is idempotent.
 export function isLocationAllowed(loc: string, allowed: string[]): boolean {
-  return allowed.map((l) => l.trim().toLowerCase()).includes(loc.toLowerCase());
+  const want = normalizeLocation(loc);
+  return allowed.some((l) => normalizeLocation(l) === want);
 }
 
 // Cost budget. The room-locations guard above is self-authorizing — members may
