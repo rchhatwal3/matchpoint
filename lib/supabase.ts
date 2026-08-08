@@ -2,8 +2,8 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { AppState, Platform } from 'react-native';
 
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
-const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL?.trim();
+const anon = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY?.trim();
 
 /**
  * True when both env vars are present. The app runs without them in an offline
