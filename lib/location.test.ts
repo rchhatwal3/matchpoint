@@ -1,4 +1,11 @@
-import { normalizeLocation, normalizeLocations } from './location';
+import {
+  REGION_REQUIRED_HINT,
+  hasRegion,
+  locationRegionHint,
+  newLocationsMissingRegion,
+  normalizeLocation,
+  normalizeLocations,
+} from './location';
 
 describe('normalizeLocation', () => {
   it('trims leading and trailing whitespace of every kind', () => {
@@ -203,5 +210,113 @@ describe('normalizeLocations', () => {
 
   it('returns an empty list for an empty list', () => {
     expect(normalizeLocations([])).toEqual([]);
+  });
+});
+
+// These cases are duplicated verbatim in get-restaurants/logic_test.ts and in
+// the DO block of 031_require_location_region.sql. Change one, change all three.
+describe('hasRegion', () => {
+  it('accepts a city with a state or country', () => {
+    expect(hasRegion('Seattle, WA')).toBe(true);
+    expect(hasRegion('Paris, France')).toBe(true);
+    expect(hasRegion('Washington, DC')).toBe(true);
+  });
+
+  it('rejects a bare city', () => {
+    expect(hasRegion('Seattle')).toBe(false);
+    expect(hasRegion('New Orleans')).toBe(false);
+    expect(hasRegion('')).toBe(false);
+  });
+
+  it('rejects a dangling comma on either side', () => {
+    expect(hasRegion('Seattle,')).toBe(false);
+    expect(hasRegion('Seattle, ')).toBe(false);
+    expect(hasRegion(', WA')).toBe(false);
+    expect(hasRegion(',')).toBe(false);
+  });
+
+  it('rejects a part that is only punctuation or whitespace', () => {
+    expect(hasRegion('Seattle, .')).toBe(false);
+    expect(hasRegion('Seattle, , WA')).toBe(false);
+  });
+
+  it('allows more than two parts — more specific is not less valid', () => {
+    expect(hasRegion('Brooklyn, New York, NY')).toBe(true);
+    expect(hasRegion('Seattle, WA, USA')).toBe(true);
+  });
+
+  it('does not check that the region is real — shape only, no geocoding', () => {
+    expect(hasRegion('Seattle, Wakanda')).toBe(true);
+    expect(hasRegion('Springfield, ZZ')).toBe(true);
+  });
+
+  it('accepts non-latin and accented parts', () => {
+    expect(hasRegion('東京, 日本')).toBe(true);
+    expect(hasRegion('München, DE')).toBe(true);
+  });
+
+  it('accepts a digit-only part — a postcode still names somewhere', () => {
+    expect(hasRegion('Seattle, 98101')).toBe(true);
+  });
+
+  it('agrees with itself before and after normalization', () => {
+    const inputs = ['seattle,wa', '  seattle ,  wa ', 'Seattle', 'Seattle,', ', wa', 'paris,france'];
+    for (const input of inputs) {
+      expect(hasRegion(normalizeLocation(input))).toBe(hasRegion(input));
+    }
+  });
+});
+
+describe('locationRegionHint', () => {
+  it('is null while the field is empty', () => {
+    expect(locationRegionHint('')).toBeNull();
+    expect(locationRegionHint('   ')).toBeNull();
+  });
+
+  it('is null once the value carries a region', () => {
+    expect(locationRegionHint('Seattle, WA')).toBeNull();
+    expect(locationRegionHint('seattle,wa')).toBeNull();
+  });
+
+  it('tells the user what to add, not just that it is wrong', () => {
+    expect(locationRegionHint('Seattle')).toBe(REGION_REQUIRED_HINT);
+    expect(locationRegionHint('Seattle,')).toBe(REGION_REQUIRED_HINT);
+    expect(REGION_REQUIRED_HINT).toContain('e.g. Seattle, WA');
+  });
+});
+
+describe('newLocationsMissingRegion', () => {
+  it('flags a newly added bare city', () => {
+    expect(newLocationsMissingRegion(['Seattle, WA', 'Portland'], ['Seattle, WA'])).toEqual([
+      'Portland',
+    ]);
+  });
+
+  it('grandfathers a bare city that is already stored', () => {
+    expect(newLocationsMissingRegion(['Portland'], ['Portland'])).toEqual([]);
+  });
+
+  it('lets a room with a legacy bare city still edit the rest of its list', () => {
+    expect(newLocationsMissingRegion(['Portland'], ['Portland', 'Seattle, WA'])).toEqual([]);
+  });
+
+  it('compares canonical forms on both sides', () => {
+    expect(newLocationsMissingRegion(['portland'], ['Portland'])).toEqual([]);
+    expect(newLocationsMissingRegion(['  seattle,wa '], [])).toEqual([]);
+  });
+
+  it('ignores entries that normalize away entirely', () => {
+    expect(newLocationsMissingRegion(['', '   '], [])).toEqual([]);
+  });
+
+  it('returns every offending entry, not just the first', () => {
+    expect(newLocationsMissingRegion(['Portland', 'Seattle,'], [])).toEqual([
+      'Portland',
+      'Seattle,',
+    ]);
+  });
+
+  it('is empty for an empty write', () => {
+    expect(newLocationsMissingRegion([], ['Portland'])).toEqual([]);
   });
 });

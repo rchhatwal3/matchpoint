@@ -20,6 +20,9 @@
  *   - normalize_location(text) in supabase/migrations/028_normalize_locations.sql
  *     (the server-side backstop: members hold a column UPDATE grant on
  *     rooms.locations, so a raw PATCH can bypass this module entirely)
+ *
+ * hasRegion below is mirrored the same way, in the same three places
+ * (has_location_region(text) in 031_require_location_region.sql).
  */
 
 // Runs of letters/digits are what gets cased; everything else (commas, dots,
@@ -129,4 +132,78 @@ export function normalizeLocations(list: string[]): string[] {
     out.push(v);
   }
   return out;
+}
+
+// One letter or digit, the same class the casing rule above matches on and the
+// same class 031's SQL mirror spells `[[:alnum:]]`. A part made only of spaces
+// or punctuation (`, .` / `Seattle, -`) names no region.
+const HAS_ALNUM = /[\p{L}\p{N}]/u;
+
+/**
+ * Whether a location carries a region as well as a city.
+ *
+ * The rule: split on commas; there must be at least two parts and EVERY part
+ * must contain a letter or a digit. So `Seattle, WA` and `Paris, France` pass;
+ * `Seattle`, `Seattle,`, `, WA` and `Seattle, ,WA` do not.
+ *
+ * Multi-part values are deliberately ALLOWED — `Brooklyn, New York, NY` and
+ * `Seattle, WA, USA` both pass. The requirement is "says more than the bare city
+ * name", not "has exactly two parts": Places resolves the longer forms fine, and
+ * rejecting them would refuse values that are strictly more specific than the
+ * ones we demand. The trailing-comma case is the only shape this is strict
+ * about, and on purpose — `Seattle, WA,` is a typo that would otherwise become
+ * its own cache bucket alongside `Seattle, WA`.
+ *
+ * Deliberately not semantic, same as normalizeLocation: it does not check that
+ * `WA` is a real state or that `Paris, France` exists. `Seattle, Wakanda`
+ * passes. Anywhere Places and Foursquare serve is legitimate, so the only thing
+ * that can be checked without geocoding is the shape.
+ *
+ * Normalization-invariant on non-empty input — normalizeLocation only touches
+ * whitespace and case, never the comma structure — so callers may check either
+ * the raw or the canonical value. Prefer the canonical one anyway: it is what
+ * gets stored, and normalizeLocation('   ') === '' turns whitespace-only input
+ * into a dropped entry rather than a rejected one.
+ */
+export function hasRegion(value: string): boolean {
+  const parts = value.split(',');
+  return parts.length >= 2 && parts.every((p) => HAS_ALNUM.test(p));
+}
+
+/**
+ * What to say when a location has no region. Says what to DO, not just that the
+ * value is wrong — same reason codeEntryHint (lib/auth-logic.ts) exists: a
+ * silently disabled Add button teaches the user nothing.
+ */
+export const REGION_REQUIRED_HINT = 'Add a state or country, e.g. Seattle, WA.';
+
+/**
+ * Hint for the "add a city" field: null while it is empty or already valid,
+ * otherwise the message above. Mirrors codeEntryHint's shape so the screen can
+ * render it the same way.
+ */
+export function locationRegionHint(value: string): string | null {
+  const v = normalizeLocation(value);
+  if (!v || hasRegion(v)) return null;
+  return REGION_REQUIRED_HINT;
+}
+
+/**
+ * The canonical entries in `next` that are new AND have no region — i.e. exactly
+ * what a write of `next` would be adding that the region rule forbids.
+ *
+ * Entries already in `existing` are grandfathered, and that is the whole point
+ * of taking two arguments. Live rooms hold bare-city locations from before this
+ * rule (`Seattle`, `Portland`, `New Orleans` are real rows). Migration 032
+ * corrects the ones the owner decided on, from an explicit written-down mapping;
+ * nothing HERE ever guesses a region, and a name that mapping does not cover
+ * stays grandfathered indefinitely. If removing one chip from such a room re-sent
+ * the whole list through
+ * a flat check, the untouched legacy entries would block the edit — the user
+ * could never clean the list up. 031's rooms trigger grandfathers the same way,
+ * against OLD.locations, for the same reason.
+ */
+export function newLocationsMissingRegion(next: string[], existing: string[]): string[] {
+  const kept = new Set(normalizeLocations(existing));
+  return normalizeLocations(next).filter((l) => !kept.has(l) && !hasRegion(l));
 }

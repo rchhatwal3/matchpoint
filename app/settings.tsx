@@ -1,43 +1,16 @@
 import { useState, type ReactNode } from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
+import { POPULAR_METROS } from '@/lib/cities';
 import { useSession } from '@/providers/SessionProvider';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Header } from '@/components/Header';
 import { Button } from '@/components/Button';
+import { CityAutocomplete } from '@/components/CityAutocomplete';
 import { LocationChip } from '@/components/LocationChip';
 import { ThemeControl } from '@/components/ThemeControl';
-
-/** Curated popular US metros for the quick-pick list. Free text covers the rest. */
-const POPULAR_METROS = [
-  'New York, NY',
-  'Los Angeles, CA',
-  'Chicago, IL',
-  'San Francisco, CA',
-  'Seattle, WA',
-  'Austin, TX',
-  'Boston, MA',
-  'Washington, DC',
-  'Miami, FL',
-  'Denver, CO',
-  'Portland, OR',
-  'San Diego, CA',
-  'Nashville, TN',
-  'New Orleans, LA',
-  'Atlanta, GA',
-  'Philadelphia, PA',
-  'Houston, TX',
-  'Dallas, TX',
-  'Phoenix, AZ',
-  'Las Vegas, NV',
-  'Minneapolis, MN',
-  'Charleston, SC',
-  'San Antonio, TX',
-  'Detroit, MI',
-  'Honolulu, HI',
-];
 
 /** Title + content wrapper shared by every settings section. */
 function SettingsSection({ title, children }: { title: string; children: ReactNode }) {
@@ -54,7 +27,6 @@ export default function Settings() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
   const { loading, room, updateLocations, deleteMyData } = useSession();
-  const [draft, setDraft] = useState('');
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const selected = room?.locations ?? [];
@@ -73,12 +45,12 @@ export default function Settings() {
     );
   };
 
-  const addDraft = () => {
-    const v = draft.trim();
-    if (!v) return;
-    setDraft('');
-    if (selectedKeys.has(v.toLowerCase())) return;
-    updateLocations([...selected, v]).catch((e) => console.warn('updateLocations failed', e));
+  // CityAutocomplete only ever hands back a canonical, region-bearing value, so
+  // there is nothing left to validate here — just the same duplicate check the
+  // metro chips use.
+  const add = (city: string) => {
+    if (selectedKeys.has(city.toLowerCase())) return;
+    updateLocations([...selected, city]).catch((e) => console.warn('updateLocations failed', e));
   };
 
   return (
@@ -163,32 +135,8 @@ export default function Settings() {
                 )}
               </View>
 
-              {/* Free-text add */}
-              <View style={{ gap: spacing.sm }}>
-                <Text variant="label">Add a city</Text>
-                <View style={[styles.addRow, { gap: spacing.sm }]}>
-                  <TextInput
-                    accessibilityLabel="Add a city"
-                    value={draft}
-                    onChangeText={setDraft}
-                    onSubmitEditing={addDraft}
-                    returnKeyType="done"
-                    placeholder="e.g. Brooklyn, NY"
-                    placeholderTextColor={colors.inkMuted}
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: colors.surface,
-                        color: colors.ink,
-                        borderRadius: radii.md,
-                        borderColor: colors.outline,
-                        paddingHorizontal: spacing.lg,
-                      },
-                    ]}
-                  />
-                  <Button label="Add" variant="tonal" onPress={addDraft} disabled={!draft.trim()} />
-                </View>
-              </View>
+              {/* Type-ahead add — suggestions from the bundled city list */}
+              <CityAutocomplete onAdd={add} alreadyAdded={new Set(selected)} />
 
               {/* Popular metros — toggle chips */}
               <View style={{ gap: spacing.md }}>
@@ -233,14 +181,6 @@ export default function Settings() {
 const styles = StyleSheet.create({
   note: { alignSelf: 'stretch' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap' },
-  addRow: { flexDirection: 'row', alignItems: 'center' },
-  input: {
-    flex: 1,
-    height: 48,
-    fontSize: 16,
-    fontFamily: 'Figtree_400Regular',
-    borderWidth: 1,
-  },
   stubRow: {
     flexDirection: 'row',
     alignItems: 'center',
