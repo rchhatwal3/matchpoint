@@ -34,6 +34,45 @@ export function deckLoadKey(category: string, locations: string[]): string {
 }
 
 /**
+ * Merge per-location restaurant results into one deck that mixes cities instead
+ * of serving them a city at a time.
+ *
+ * Each city's own results are shuffled, then drawn round-robin, so consecutive
+ * cards come from different cities wherever cities still have cards left. A
+ * plain shuffle of the merged list would satisfy "random" and still clump; a
+ * plain interleave would spread perfectly and deal the same order every time.
+ * Uneven cities degrade gracefully — once the short ones run out, the rest of
+ * the long one follows in its own shuffled order.
+ *
+ * Deduped by id, first occurrence winning, since one restaurant can be returned
+ * for two nearby cities. `rng` is injectable so the order is testable. Pure.
+ */
+export function mixByLocation(groups: Item[][], rng: () => number = Math.random): Item[] {
+  const queues = groups.map((g) => shuffle(g, rng)).filter((g) => g.length > 0);
+  const seen = new Set<string>();
+  const out: Item[] = [];
+  for (let i = 0; queues.length > 0; i = i % queues.length) {
+    const item = queues[i].pop() as Item;
+    if (queues[i].length === 0) queues.splice(i, 1);
+    else i += 1;
+    if (seen.has(item.id)) continue;
+    seen.add(item.id);
+    out.push(item);
+  }
+  return out;
+}
+
+/** Fisher-Yates on a copy — the caller's array is never reordered. Pure. */
+function shuffle(items: Item[], rng: () => number): Item[] {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+/**
  * The city to print under a card's title, or null to print nothing. Orienting
  * information only: with one location saved every card carries the same string,
  * so it is noise and stays off. `items.location` is canonical and region-bearing
