@@ -14,6 +14,7 @@ import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
 import { JOIN_FAILED } from '@/lib/room-errors';
 import type { FetchProgress } from '@/lib/progress';
+import { mixByLocation } from '@/lib/deck';
 import {
   REGION_REQUIRED_HINT,
   newLocationsMissingRegion,
@@ -423,9 +424,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             }),
           ),
         );
-        const byId = new Map<string, Item>();
-        for (const item of perLocation.flat()) byId.set(item.id, item);
-        return [...byId.values()];
+        // Mixed, not concatenated: a two-city room should not deal every
+        // Seattle card before the first New York one.
+        return mixByLocation(perLocation);
       }
 
       onProgress?.({ done: 0, total: 1 });

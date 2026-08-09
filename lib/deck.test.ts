@@ -1,4 +1,4 @@
-import { cardLocationLabel, deckLoadKey, filterDeck, upcomingImageUrls } from './deck';
+import { cardLocationLabel, deckLoadKey, filterDeck, mixByLocation, upcomingImageUrls } from './deck';
 import type { Item } from './types';
 
 function item(id: string, price_level: number | null = null, image_url: string | null = null): Item {
@@ -108,5 +108,68 @@ describe('cardLocationLabel', () => {
   it('prints nothing for an item that carries no location', () => {
     expect(cardLocationLabel(null, 3)).toBeNull();
     expect(cardLocationLabel('   ', 3)).toBeNull();
+  });
+});
+
+describe('mixByLocation', () => {
+  const at = (id: string, location: string): Item => ({ ...item(id), location });
+  // Deterministic rng: cycles a fixed sequence so a test asserts a real order,
+  // not a lucky one.
+  const seeded = (seq: number[]) => {
+    let i = 0;
+    return () => seq[i++ % seq.length];
+  };
+
+  it('alternates cities instead of dealing one city at a time', () => {
+    const out = mixByLocation(
+      [
+        [at('s1', 'Seattle, WA'), at('s2', 'Seattle, WA'), at('s3', 'Seattle, WA')],
+        [at('n1', 'New York, NY'), at('n2', 'New York, NY'), at('n3', 'New York, NY')],
+      ],
+      seeded([0.5]),
+    );
+    const cities = out.map((i) => i.location);
+    expect(out).toHaveLength(6);
+    for (let i = 1; i < cities.length; i++) expect(cities[i]).not.toBe(cities[i - 1]);
+  });
+
+  it('keeps every card when the cities are uneven, tailing with the longer one', () => {
+    const out = mixByLocation(
+      [
+        [at('s1', 'Seattle, WA'), at('s2', 'Seattle, WA'), at('s3', 'Seattle, WA')],
+        [at('n1', 'New York, NY')],
+      ],
+      seeded([0.5]),
+    );
+    expect(out.map((i) => i.id).sort()).toEqual(['n1', 's1', 's2', 's3']);
+    expect(out.slice(-2).map((i) => i.location)).toEqual(['Seattle, WA', 'Seattle, WA']);
+  });
+
+  it('dedupes a restaurant returned for two nearby cities', () => {
+    const out = mixByLocation(
+      [[at('shared', 'Seattle, WA')], [at('shared', 'Bellevue, WA'), at('b1', 'Bellevue, WA')]],
+      seeded([0.5]),
+    );
+    expect(out.map((i) => i.id)).toEqual(expect.arrayContaining(['shared', 'b1']));
+    expect(out).toHaveLength(2);
+  });
+
+  it('shuffles within a city rather than preserving the source order', () => {
+    const group = ['a', 'b', 'c', 'd', 'e'].map((id) => at(id, 'Seattle, WA'));
+    const out = mixByLocation([group], seeded([0.9, 0.1, 0.7, 0.3]));
+    expect(out.map((i) => i.id)).not.toEqual(['a', 'b', 'c', 'd', 'e']);
+    expect(out.map((i) => i.id).sort()).toEqual(['a', 'b', 'c', 'd', 'e']);
+  });
+
+  it('does not reorder the caller’s arrays', () => {
+    const group = [at('s1', 'Seattle, WA'), at('s2', 'Seattle, WA'), at('s3', 'Seattle, WA')];
+    const before = group.map((i) => i.id);
+    mixByLocation([group], seeded([0.9, 0.2]));
+    expect(group.map((i) => i.id)).toEqual(before);
+  });
+
+  it('handles no cities and empty cities', () => {
+    expect(mixByLocation([])).toEqual([]);
+    expect(mixByLocation([[], []])).toEqual([]);
   });
 });
