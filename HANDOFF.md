@@ -1,21 +1,30 @@
 # HANDOFF — matchpoint
 
-Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-08.
+Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-09.
 
-## The 2026-08-08 QA batch — four PRs open, nothing merged yet
+## The 2026-08-08 batch — MERGED, DEPLOYED, QA-VERIFIED LIVE 2026-08-09
 
-Everything below is in review. Nothing here is deployed; `main` is unchanged.
+PRs #68–#73 merged; both deploy runs green; the user re-saved the two `EXPO_PUBLIC_SUPABASE_*` Actions secrets. **No migrations, no RPC changes, no edge-function changes in this batch** — nothing to apply or redeploy on Supabase. Three agents then tested production.
 
-- **[#68](https://github.com/rchhatwal3/matchpoint/pull/68) — `.trim()` the Supabase URL and anon key.** The Actions secrets carry a trailing newline and the deployed bundle carries it too, so the key reaches the realtime socket's query parameter as `%0A` and the socket reconnect-loops. That socket is the asynchronous half of match detection. **The other half of this fix is yours:** re-save both repo secrets without the newline, then confirm the loop is gone.
-- **[#69](https://github.com/rchhatwal3/matchpoint/pull/69) — a swipe can be lost.** `recordSwipe` was only reachable from the two `withSpring` completion callbacks, so a swipe made just before the tab is backgrounded or the phone is locked was deferred, and lost outright if the page went away. Persistence now happens at the commit points; the spring only advances the deck. The commit policy is pure in `lib/swipe.ts`, so the zero-frames case is tested directly.
-- **[#70](https://github.com/rchhatwal3/matchpoint/pull/70) — the city field announces its suggestions.** Combobox roles on the input, the region hint as a polite live region wired by `aria-describedby`, `autocomplete="off"`. One part is only partly closed: the disabled Add still has `tabindex="-1"` because react-native-web will not forward `aria-disabled` from `Pressable` — details on the PR.
-- **[#71](https://github.com/rchhatwal3/matchpoint/pull/71) — the city on the card, and loading feedback.** **Stacked on #69** (both edit `SwipeCard.tsx` and the deck screen), so merge #69 first. Your decision was recorded: skeleton **and** a determinate progress bar, which `DESIGN.md` now carries as a dated amendment rather than a quiet exception.
+- **#68 — the credential newline is gone, end to end.** The bundle reads `const o="https://kchrpzeqcionxspctbbl.supabase.co"?.trim(),c="eyJ…"?.trim()`, with zero `%0A` in 2.7 MB. The decisive check is not the bytes but the socket: one opened with the deployed key subscribed (`{"message":"Subscribed to PostgreSQL","status":"ok"}`) and then delivered a `postgres_changes` INSERT when ♥ was pressed. Over 152 s of an idle page the instrumented `WebSocket` constructor fired exactly once — the old loop would have produced ~1,500. **The asynchronous half of match detection works.**
+- **#69 — a swipe survives with zero animation frames.** Tab genuinely hidden, a self-registering `requestAnimationFrame` chain fired **0** times in five seconds, and the row still landed. Foregrounding caught the card mid-flight with the next already promoted: the animation resumed minutes after the write. A 60px drag wrote nothing through the same dispatch that committed at 250px.
+- **#70 — combobox semantics confirmed on the deployed input**, every state. **Correction to that PR's description:** the disabled Add *is* announced as disabled — react-native-web emits `aria-disabled="true"` from the `disabled` prop. Only `tabindex="-1"` remains, and the button carries `aria-describedby` to the reason anyway.
+- **#71 — city line and loading feedback confirmed.** Skeleton first, bar directly beneath it, fill measured 200px on a 400px track at 1 of 2, consecutive 16 ms samples jumping 0→200px with no intermediate widths.
+- **Security: nothing opened, 40 of 40 controls still closed.** The new per-location progress path issues the same one-invoke-per-location fan-out (`.finally` bookkeeping only, still bounded at 10 by `rooms_locations_max_10`), and the swipe commit path writes strictly fewer rows than before. The bundle carries exactly one JWT, `role: anon`. **One new LOW/P3 filed:** `rooms.locations` bounds the array but not an entry's size (5,004 characters accepted) — not a money path, since `get-restaurants` rejects over-80 before auth, the guard, the budget spend and any upstream call.
 
-**Two verification lessons from this batch, both found by driving the real browser:**
-- **`@testing-library/react-native` does not work in this repo right now.** `render` returns an empty object under the current React/jest-expo versions — `screen.getByLabelText` throws "render function has not been called" even for a bare `<Text>`. Component tests here would assert nothing. Test pure logic in `lib/` and verify rendered output in the browser.
-- **react-native-web drops two things you would expect to pass through:** `accessibilityValue` on a plain `View` (so a progressbar needs explicit `aria-valuemin/now/max`), and `aria-disabled` on `Pressable`. A reanimated-animated `flexGrow`/percentage width also never applied on web, which is why the progress fill is a plain stepped width.
+**Console was completely clean** — zero errors, zero warnings — on every screen, both themes, both viewports.
 
-**Test data left behind by this session:** room `E2DQBP` with two members, from the browser verification runs.
+### Gotchas learned this batch
+
+- **`@testing-library/react-native` does not work in this repo.** `render` returns an empty object under the current React/jest-expo versions; `screen.getByLabelText` throws "render function has not been called" even for a bare `<Text>`. Component tests here assert nothing. Test pure logic in `lib/`, verify rendering in the browser.
+- **react-native-web silently drops `accessibilityValue` on a plain `View`**, so a progressbar needs explicit `aria-valuemin/now/max`. It *does* map `disabled` → `aria-disabled`, but ignores an explicitly passed `aria-disabled` on `Pressable`.
+- **A reanimated-animated width never applied on web** (percentage string and `flexGrow` both stayed at 0), which is why the progress fill is a plain stepped width.
+- **expo-router keeps prior screens mounted as `display:none; aria-hidden="true"` siblings**, and accessibility-tree tooling returns refs pointing at those hidden copies — acting on one fires its handler and navigates. An agent lost real time to what looked like the app navigating itself. Use direct DOM reads and `offsetParent`-filtered clicks.
+- **Do not run two agents against the same browser tab.** Two of ours shared one and saw each other's synthetic clicks and location edits.
+
+### Test data left behind (deletion needs SQL or `delete-account`; clients hold no DELETE grant)
+
+Rooms `E2DQBP` (2 members), `7ZFAUC` (member `9f7a50e8-3f60-436c-83fa-787986277171` "QA Bot", 5 swipe rows, locations `Seattle, WA` + `New York, NY`), and `WY5WFU` (uuid `e1a17f52-b1e6-4370-ae52-cb0c0fa7a927`, 2 members, 1 swipe row). All locations used were already cached, so **no Places lookups were spent** by any agent.
 
 ## Both P2s shipped and QA-verified live (2026-08-03, later the same day)
 
