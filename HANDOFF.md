@@ -1,6 +1,21 @@
 # HANDOFF — matchpoint
 
-Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-03.
+Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-08.
+
+## The 2026-08-08 QA batch — four PRs open, nothing merged yet
+
+Everything below is in review. Nothing here is deployed; `main` is unchanged.
+
+- **[#68](https://github.com/rchhatwal3/matchpoint/pull/68) — `.trim()` the Supabase URL and anon key.** The Actions secrets carry a trailing newline and the deployed bundle carries it too, so the key reaches the realtime socket's query parameter as `%0A` and the socket reconnect-loops. That socket is the asynchronous half of match detection. **The other half of this fix is yours:** re-save both repo secrets without the newline, then confirm the loop is gone.
+- **[#69](https://github.com/rchhatwal3/matchpoint/pull/69) — a swipe can be lost.** `recordSwipe` was only reachable from the two `withSpring` completion callbacks, so a swipe made just before the tab is backgrounded or the phone is locked was deferred, and lost outright if the page went away. Persistence now happens at the commit points; the spring only advances the deck. The commit policy is pure in `lib/swipe.ts`, so the zero-frames case is tested directly.
+- **[#70](https://github.com/rchhatwal3/matchpoint/pull/70) — the city field announces its suggestions.** Combobox roles on the input, the region hint as a polite live region wired by `aria-describedby`, `autocomplete="off"`. One part is only partly closed: the disabled Add still has `tabindex="-1"` because react-native-web will not forward `aria-disabled` from `Pressable` — details on the PR.
+- **[#71](https://github.com/rchhatwal3/matchpoint/pull/71) — the city on the card, and loading feedback.** **Stacked on #69** (both edit `SwipeCard.tsx` and the deck screen), so merge #69 first. Your decision was recorded: skeleton **and** a determinate progress bar, which `DESIGN.md` now carries as a dated amendment rather than a quiet exception.
+
+**Two verification lessons from this batch, both found by driving the real browser:**
+- **`@testing-library/react-native` does not work in this repo right now.** `render` returns an empty object under the current React/jest-expo versions — `screen.getByLabelText` throws "render function has not been called" even for a bare `<Text>`. Component tests here would assert nothing. Test pure logic in `lib/` and verify rendered output in the browser.
+- **react-native-web drops two things you would expect to pass through:** `accessibilityValue` on a plain `View` (so a progressbar needs explicit `aria-valuemin/now/max`), and `aria-disabled` on `Pressable`. A reanimated-animated `flexGrow`/percentage width also never applied on web, which is why the progress fill is a plain stepped width.
+
+**Test data left behind by this session:** room `E2DQBP` with two members, from the browser verification runs.
 
 ## Both P2s shipped and QA-verified live (2026-08-03, later the same day)
 
