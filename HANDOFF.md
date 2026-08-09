@@ -2,6 +2,11 @@
 
 Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-09.
 
+## Open right now — two PRs, both from 2026-08-09
+
+- **[#75](https://github.com/rchhatwal3/matchpoint/pull/75) — the restaurants deck served one city at a time.** User-reported. `getItems` concatenated the per-location results in request order, so a two-city room dealt every card from the first city before the first card of the second. `mixByLocation` (`lib/deck.ts`) shuffles each city's results and draws round-robin. Shuffling alone was rejected — with 60 + 60 results a plain shuffle still produces long same-city runs — and interleaving alone deals the same order every session; together you get randomness plus a guaranteed spread. Uneven cities tail off rather than truncating the deck, and a restaurant returned for two nearby cities is deduped. **Verified live:** ten consecutive cards alternated `New York, NY` / `Seattle, WA` perfectly. Six unit tests with a seeded rng. Deck order is per device, so match detection is unaffected.
+- **[#76](https://github.com/rchhatwal3/matchpoint/pull/76) — backlog cleanup.** `TODO.md` was overstating open work: five entries claimed PRs were open that merged in July, and two more (the seven-finding P3 cluster, the billing P1) were partly closed but written as wholly open. Open item count drops 18 → 13.
+
 ## The 2026-08-08 batch — MERGED, DEPLOYED, QA-VERIFIED LIVE 2026-08-09
 
 PRs #68–#73 merged; both deploy runs green; the user re-saved the two `EXPO_PUBLIC_SUPABASE_*` Actions secrets. **No migrations, no RPC changes, no edge-function changes in this batch** — nothing to apply or redeploy on Supabase. Three agents then tested production.
