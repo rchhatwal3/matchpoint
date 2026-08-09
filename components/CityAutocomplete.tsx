@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { TOUCH_TARGET, useTheme } from '@/lib/theme';
 import { searchCities } from '@/lib/city-search';
+import { comboboxAria } from '@/lib/combobox-aria';
 import { hasRegion, locationRegionHint, normalizeLocation } from '@/lib/location';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
@@ -42,6 +43,16 @@ export function CityAutocomplete({
   const hint = locationRegionHint(draft);
   const suggestions = searchCities(draft);
 
+  const base = useId();
+  const listId = `${base}-suggestions`;
+  const hintId = `${base}-hint`;
+  const aria = comboboxAria({
+    listId,
+    hintId,
+    suggestionCount: suggestions.length,
+    hasHint: !!hint,
+  });
+
   const add = (city: string) => {
     setDraft('');
     if (alreadyAdded.has(city)) return;
@@ -58,12 +69,16 @@ export function CityAutocomplete({
       <Text variant="label">Add a city</Text>
       <View style={[styles.addRow, { gap: spacing.sm }]}>
         <TextInput
+          accessibilityRole="combobox"
           accessibilityLabel="Add a city"
           accessibilityHint="Type a city, then pick a suggestion or add what you typed"
+          {...aria}
           value={draft}
           onChangeText={setDraft}
           onSubmitEditing={addTyped}
           autoCorrect={false}
+          // The browser's own autofill overlay would cover the app's suggestions.
+          autoComplete="off"
           returnKeyType="done"
           placeholder="e.g. Brooklyn, NY"
           placeholderTextColor={colors.inkMuted}
@@ -78,12 +93,19 @@ export function CityAutocomplete({
             },
           ]}
         />
-        <Button label="Add" variant="tonal" onPress={addTyped} disabled={!hasRegion(value)} />
+        <Button
+          label="Add"
+          variant="tonal"
+          onPress={addTyped}
+          disabled={!hasRegion(value)}
+          disabledReasonId={hint ? hintId : undefined}
+        />
       </View>
 
       {suggestions.length > 0 ? (
         <View
           accessibilityRole="list"
+          id={listId}
           style={[
             styles.panel,
             {
@@ -126,7 +148,7 @@ export function CityAutocomplete({
       ) : null}
 
       {hint ? (
-        <Text variant="body" color={colors.primary}>
+        <Text variant="body" color={colors.primary} id={hintId} aria-live="polite">
           {hint}
         </Text>
       ) : null}
