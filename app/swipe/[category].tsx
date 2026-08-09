@@ -6,7 +6,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
-import { deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
+import { cardLocationLabel, deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
 import { nextPriceTiers, normalizePriceTiers } from '@/lib/price-filter';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -14,6 +14,8 @@ import { Header } from '@/components/Header';
 import { EmptyState } from '@/components/EmptyState';
 import { PriceFilter } from '@/components/PriceFilter';
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard';
+import { DeckProgressBar } from '@/components/DeckProgressBar';
+import type { FetchProgress } from '@/lib/progress';
 
 // Pre-render one static HTML file per category so a hard load / refresh of a
 // deep route (e.g. /swipe/restaurants) resolves on GitHub Pages, which has no
@@ -32,6 +34,7 @@ export default function SwipeDeck() {
     useSession();
 
   const [deck, setDeck] = useState<Item[] | null>(null);
+  const [progress, setProgress] = useState<FetchProgress | null>(null);
   // Ids swiped this session — items drop out of the deck view once swiped, so a
   // price-filter toggle never resurfaces them (an index cursor couldn't do that).
   const [swiped, setSwiped] = useState<Set<string>>(new Set());
@@ -63,10 +66,17 @@ export default function SwipeDeck() {
       if (loadedKey.current === key) return;
       loadedKey.current = key;
       let cancelled = false;
+      // Clear the deck so the skeleton covers a refetch too, not just the first
+      // load — editing locations used to leave the old cards sitting there with
+      // no sign anything was happening.
+      setDeck(null);
+      setProgress(null);
       (async () => {
         try {
           const [items, alreadySwiped] = await Promise.all([
-            getItems(category),
+            getItems(category, (p) => {
+              if (!cancelled) setProgress(p);
+            }),
             getMySwipedItemIds(),
           ]);
           if (cancelled) return;
@@ -161,11 +171,15 @@ export default function SwipeDeck() {
       {showPriceFilter ? <PriceFilter selected={priceLevels} onToggle={togglePrice} /> : null}
 
       {visible === null ? (
-        // Card-shaped skeleton, never a spinner (DESIGN.md).
-        <View style={[styles.deckArea, { padding: spacing['2xl'] }]}>
+        // Card-shaped skeleton, never a spinner (DESIGN.md). The bar underneath
+        // reports which location the fan-out is on — see the DESIGN.md amendment.
+        <View style={[styles.deckArea, { padding: spacing['2xl'], gap: spacing.lg }]}>
           <View
             style={[styles.skeletonCard, { backgroundColor: colors.skeleton, borderRadius: radii.xl }]}
           />
+          {isRestaurants && progress && progress.total > 1 ? (
+            <DeckProgressBar progress={progress} />
+          ) : null}
         </View>
       ) : current ? (
         <>
@@ -178,6 +192,7 @@ export default function SwipeDeck() {
                   item={next}
                   isTop={false}
                   translateX={translateX}
+                  locationLabel={cardLocationLabel(next.location, locationCount)}
                   onSwipeCommitted={() => {}}
                   onSwiped={() => {}}
                   reducedMotion={reducedMotion}
@@ -189,6 +204,7 @@ export default function SwipeDeck() {
                 item={current}
                 isTop
                 translateX={translateX}
+                locationLabel={cardLocationLabel(current.location, locationCount)}
                 onSwipeCommitted={handleSwipeCommitted(current)}
                 onSwiped={handleSwiped(current)}
                 reducedMotion={reducedMotion}

@@ -34,6 +34,18 @@ export function deckLoadKey(category: string, locations: string[]): string {
 }
 
 /**
+ * The city to print under a card's title, or null to print nothing. Orienting
+ * information only: with one location saved every card carries the same string,
+ * so it is noise and stays off. `items.location` is canonical and region-bearing
+ * since migrations 028/031/032, so it renders raw. Pure.
+ */
+export function cardLocationLabel(location: string | null, locationCount: number): string | null {
+  if (locationCount < 2) return null;
+  const trimmed = location?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
  * Up to `count` non-null image_urls starting at `startIndex` — the photos to
  * prefetch so cards paint from cache by the time they reach the top. Pure.
  */

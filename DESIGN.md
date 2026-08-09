@@ -234,6 +234,28 @@ the swipe deck rises to Level 2. If everything is elevated, nothing is.
 - Empty / waiting states: crimson-container icon badge + title + one sentence + optional
   CTA. "Waiting on partner" states use teal. Skeletons shaped like real cards, never spinners.
 
+#### Amendment, 2026-08-08 — determinate progress alongside a skeleton
+
+"Never spinners" stands and is not weakened: an indeterminate wheel says only "something
+is happening", which is exactly what a skeleton already says, better. What a skeleton
+cannot say is *how far along* a fetch is, and the restaurants deck has a fetch that knows:
+a cache-missing load makes one edge-function call per saved city, so a four-city room has
+four real steps to report and they can take seconds each.
+
+**Permitted:** a determinate bar, underneath the skeleton, when the work has countable
+steps and reports them — the skeleton still carries the load. 4px track on
+`surfaceVariant`, `primary` fill, `radii.full`, no elevation (Calm-Surface), width capped
+to the card column. It must expose `accessibilityRole="progressbar"` with real min/max/now
+(as explicit `aria-valuemin/now/max` — react-native-web does not map `accessibilityValue`
+onto a plain `View`). The fill steps once per unit of work that lands, with no easing
+between steps: each step is a real event, so there is no motion to gate on reduced motion.
+
+**Still prohibited:** any indeterminate spinner, wheel, or bar; a determinate bar standing
+in *place* of the skeleton; a bar whose progress is faked or time-based rather than
+reported by the work itself.
+
+Implementation: `components/DeckProgressBar.tsx`, fed per location by `getItems`.
+
 ## 6. Do's and Don'ts
 
 ### Do:
