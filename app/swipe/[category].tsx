@@ -102,12 +102,20 @@ export default function SwipeDeck() {
     if (urls.length) void Image.prefetch(urls).catch(() => {});
   }, [visible, current?.id]);
 
-  const handleSwiped = useCallback(
+  // Persist on commit; advance the deck only when the card has animated away,
+  // so the next card still scales up under the outgoing one.
+  const handleSwipeCommitted = useCallback(
     (item: Item) => (liked: boolean) => {
       recordSwipe(item, liked).catch((e) => console.warn('swipe save failed', e));
-      setSwiped((prev) => new Set(prev).add(item.id));
     },
     [recordSwipe],
+  );
+
+  const handleSwiped = useCallback(
+    (item: Item) => () => {
+      setSwiped((prev) => new Set(prev).add(item.id));
+    },
+    [],
   );
 
   if (!valid) return <Redirect href="/lobby" />;
@@ -170,6 +178,7 @@ export default function SwipeDeck() {
                   item={next}
                   isTop={false}
                   translateX={translateX}
+                  onSwipeCommitted={() => {}}
                   onSwiped={() => {}}
                   reducedMotion={reducedMotion}
                 />
@@ -180,6 +189,7 @@ export default function SwipeDeck() {
                 item={current}
                 isTop
                 translateX={translateX}
+                onSwipeCommitted={handleSwipeCommitted(current)}
                 onSwiped={handleSwiped(current)}
                 reducedMotion={reducedMotion}
               />

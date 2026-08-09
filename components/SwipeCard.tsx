@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -10,6 +10,7 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/lib/theme';
+import { SWIPE_THRESHOLD, createSwipeHandlers, type SwipeHandlers } from '@/lib/swipe';
 import { CATEGORY_EMOJI, type Item } from '@/lib/types';
 import { Text } from '@/components/Text';
 
@@ -24,11 +25,13 @@ export type SwipeCardProps = {
   isTop: boolean;
   /** Drag x of the TOP card — the next card scales 0.95 -> 1 from it. */
   translateX: SharedValue<number>;
+  /** Persist the swipe. Fires the moment it is committed, before any frame. */
+  onSwipeCommitted: (liked: boolean) => void;
+  /** Advance the deck. Fires when the exit animation settles. */
   onSwiped: (liked: boolean) => void;
   reducedMotion: boolean;
 };
 
-const SWIPE_THRESHOLD = 110;
 const SPRING = { damping: 18, stiffness: 160, mass: 0.6 };
 
 /**
@@ -39,7 +42,7 @@ const SPRING = { damping: 18, stiffness: 160, mass: 0.6 };
  * Level 2 elevation (Calm-Surface Rule).
  */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { item, isTop, translateX, onSwiped, reducedMotion },
+  { item, isTop, translateX, onSwipeCommitted, onSwiped, reducedMotion },
   ref,
 ) {
   const { colors, radii, spacing, elevation } = useTheme();
@@ -48,37 +51,37 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
   const [imgFailed, setImgFailed] = useState(false);
   const showImage = !!item.image_url && !imgFailed;
 
-  const finish = (liked: boolean) => onSwiped(liked);
+  // Props are read through a ref so the handlers can be built once per mounted
+  // card: their once-per-swipe guard must not be reset by a re-render.
+  const live = useRef({ onSwipeCommitted, onSwiped, reducedMotion, offscreen });
+  live.current = { onSwipeCommitted, onSwiped, reducedMotion, offscreen };
 
-  const exitTo = (liked: boolean) => {
-    'worklet';
-    if (reducedMotion) {
-      translateX.value = 0;
-      runOnJS(finish)(liked);
-      return;
-    }
-    translateX.value = withSpring(liked ? offscreen : -offscreen, SPRING, (done) => {
-      if (done) {
-        translateX.value = 0;
-        runOnJS(finish)(liked);
-      }
-    });
-  };
-
-  useImperativeHandle(ref, () => ({
-    swipe: (liked: boolean) => {
-      if (reducedMotion) {
-        finish(liked);
-        return;
-      }
-      translateX.value = withSpring(liked ? offscreen : -offscreen, SPRING, (done) => {
-        if (done) {
+  const handlers = useRef<SwipeHandlers | null>(null);
+  if (handlers.current === null) {
+    handlers.current = createSwipeHandlers({
+      record: (liked) => live.current.onSwipeCommitted(liked),
+      exit: (liked) => {
+        const { reducedMotion: reduced, offscreen: exitX, onSwiped: advance } = live.current;
+        if (reduced) {
           translateX.value = 0;
-          runOnJS(finish)(liked);
+          advance(liked);
+          return;
         }
-      });
-    },
-  }));
+        translateX.value = withSpring(liked ? exitX : -exitX, SPRING, (done) => {
+          if (done) {
+            translateX.value = 0;
+            runOnJS(advance)(liked);
+          }
+        });
+      },
+      returnToCentre: () => {
+        translateX.value = live.current.reducedMotion ? 0 : withSpring(0, SPRING);
+      },
+    });
+  }
+  const { endDrag, press } = handlers.current;
+
+  useImperativeHandle(ref, () => ({ swipe: press }), [press]);
 
   const pan = Gesture.Pan()
     .enabled(isTop)
@@ -86,13 +89,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
       translateX.value = e.translationX;
     })
     .onEnd((e) => {
-      const byDistance = Math.abs(e.translationX) > SWIPE_THRESHOLD;
-      const byFling = Math.abs(e.velocityX) > 900;
-      if (byDistance || byFling) {
-        exitTo(byDistance ? e.translationX > 0 : e.velocityX > 0);
-      } else {
-        translateX.value = reducedMotion ? 0 : withSpring(0, SPRING);
-      }
+      runOnJS(endDrag)(e.translationX, e.velocityX);
     });
 
   const topStyle = useAnimatedStyle(() => {
