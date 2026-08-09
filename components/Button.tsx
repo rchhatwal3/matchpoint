@@ -10,6 +10,12 @@ export type ButtonProps = {
   onPress?: () => void;
   variant?: Variant;
   disabled?: boolean;
+  /**
+   * id of the element saying why the button is disabled. A disabled button is
+   * out of the tab order, but a screen reader's virtual cursor still reaches
+   * it, and this is what it reads there instead of an unexplained dead control.
+   */
+  disabledReasonId?: string;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -18,7 +24,14 @@ export type ButtonProps = {
  * Filled raspberry / tonal container / outlined neutral. Press scales to 0.97
  * (gated on reduced motion); disabled 50% opacity.
  */
-export function Button({ label, onPress, variant = 'filled', disabled, style }: ButtonProps) {
+export function Button({
+  label,
+  onPress,
+  variant = 'filled',
+  disabled,
+  disabledReasonId,
+  style,
+}: ButtonProps) {
   const { colors, radii, spacing } = useTheme();
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
@@ -36,6 +49,7 @@ export function Button({ label, onPress, variant = 'filled', disabled, style }: 
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={label}
+        aria-describedby={disabledReasonId}
         disabled={disabled}
         onPress={onPress}
         onPressIn={() => {
