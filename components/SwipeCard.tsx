@@ -25,6 +25,8 @@ export type SwipeCardProps = {
   isTop: boolean;
   /** Drag x of the TOP card — the next card scales 0.95 -> 1 from it. */
   translateX: SharedValue<number>;
+  /** City under the title, when the deck mixes several. null prints nothing. */
+  locationLabel?: string | null;
   /** Persist the swipe. Fires the moment it is committed, before any frame. */
   onSwipeCommitted: (liked: boolean) => void;
   /** Advance the deck. Fires when the exit animation settles. */
@@ -42,7 +44,7 @@ const SPRING = { damping: 18, stiffness: 160, mass: 0.6 };
  * Level 2 elevation (Calm-Surface Rule).
  */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { item, isTop, translateX, onSwipeCommitted, onSwiped, reducedMotion },
+  { item, isTop, translateX, locationLabel, onSwipeCommitted, onSwiped, reducedMotion },
   ref,
 ) {
   const { colors, radii, spacing, elevation } = useTheme();
@@ -163,6 +165,11 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
         {item.subtitle ? (
           <Text variant="body" color={showImage ? colors.onScrim : colors.inkMuted}>
             {item.subtitle}
+          </Text>
+        ) : null}
+        {locationLabel ? (
+          <Text variant="label" color={showImage ? colors.onScrim : colors.inkMuted}>
+            {locationLabel}
           </Text>
         ) : null}
       </View>

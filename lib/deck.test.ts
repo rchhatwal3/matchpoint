@@ -1,4 +1,4 @@
-import { deckLoadKey, filterDeck, upcomingImageUrls } from './deck';
+import { cardLocationLabel, deckLoadKey, filterDeck, upcomingImageUrls } from './deck';
 import type { Item } from './types';
 
 function item(id: string, price_level: number | null = null, image_url: string | null = null): Item {
@@ -92,5 +92,21 @@ describe('upcomingImageUrls', () => {
 
   it('returns [] when startIndex is past the end', () => {
     expect(upcomingImageUrls([withImg('a'), withImg('b')], 5, 3)).toEqual([]);
+  });
+});
+
+describe('cardLocationLabel', () => {
+  it('prints the city when the room mixes several', () => {
+    expect(cardLocationLabel('Seattle, WA', 3)).toBe('Seattle, WA');
+  });
+
+  it('prints nothing when one location is saved, since every card would match', () => {
+    expect(cardLocationLabel('Seattle, WA', 1)).toBeNull();
+    expect(cardLocationLabel('Seattle, WA', 0)).toBeNull();
+  });
+
+  it('prints nothing for an item that carries no location', () => {
+    expect(cardLocationLabel(null, 3)).toBeNull();
+    expect(cardLocationLabel('   ', 3)).toBeNull();
   });
 });

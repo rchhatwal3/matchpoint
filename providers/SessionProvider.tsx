@@ -13,6 +13,7 @@ import type { Category, Item, MatchRow, Member, Room } from '@/lib/types';
 import { mapSeedToItems, isNewMatch, type SeedRow } from '@/lib/session-logic';
 import { POLICY_VERSION } from '@/lib/legal/policy-meta';
 import { JOIN_FAILED } from '@/lib/room-errors';
+import type { FetchProgress } from '@/lib/progress';
 import {
   REGION_REQUIRED_HINT,
   newLocationsMissingRegion,
@@ -81,7 +82,7 @@ type SessionValue = {
   updateLocations: (locations: string[]) => Promise<void>;
   /** Update the pair's shared restaurant price-tier filter; syncs in realtime. */
   updatePriceTiers: (tiers: number[]) => Promise<void>;
-  getItems: (category: Category) => Promise<Item[]>;
+  getItems: (category: Category, onProgress?: (p: FetchProgress) => void) => Promise<Item[]>;
   getMySwipedItemIds: () => Promise<Set<string>>;
   recordSwipe: (item: Item, liked: boolean) => Promise<void>;
   getMatches: () => Promise<MatchRow[]>;
@@ -395,27 +396,45 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const getItems = useCallback(
-    async (category: Category): Promise<Item[]> => {
-      if (!supabase) return OFFLINE_ITEMS.filter((i) => i.category === category);
+    async (category: Category, onProgress?: (p: FetchProgress) => void): Promise<Item[]> => {
+      // onProgress reports per location as each one lands, so the deck can show
+      // a determinate bar instead of waiting on the whole fan-out in silence.
+      // Everything else is one step: a single query, reported once it returns.
+      if (!supabase) {
+        onProgress?.({ done: 1, total: 1 });
+        return OFFLINE_ITEMS.filter((i) => i.category === category);
+      }
 
       if (category === 'restaurants') {
         // Location-catered: source from the edge function per selected location,
         // then merge + dedupe. No locations set -> empty deck (settings CTA).
         const locations = room?.locations ?? [];
-        if (locations.length === 0) return [];
+        if (locations.length === 0) {
+          onProgress?.({ done: 0, total: 0 });
+          return [];
+        }
+        let done = 0;
+        onProgress?.({ done, total: locations.length });
         const perLocation = await Promise.all(
-          locations.map((loc) => getRestaurantsForLocation(loc)),
+          locations.map((loc) =>
+            getRestaurantsForLocation(loc).finally(() => {
+              done += 1;
+              onProgress?.({ done, total: locations.length });
+            }),
+          ),
         );
         const byId = new Map<string, Item>();
         for (const item of perLocation.flat()) byId.set(item.id, item);
         return [...byId.values()];
       }
 
+      onProgress?.({ done: 0, total: 1 });
       const { data, error } = await supabase
         .from('items')
         .select('id, category, title, subtitle, emoji, image_url, location, source, price_level')
         .eq('category', category);
       if (error) throw error;
+      onProgress?.({ done: 1, total: 1 });
       return (data ?? []) as Item[];
     },
     [room],
