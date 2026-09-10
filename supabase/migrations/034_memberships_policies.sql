@@ -27,7 +27,11 @@ AS $$
   );
 $$;
 
+-- anon and authenticated are additionally revoked BY NAME, same reasoning as
+-- 026:83-85 and 030:161-163: an explicit grant from ALTER DEFAULT PRIVILEGES is
+-- not removed by a REVOKE FROM PUBLIC.
 REVOKE ALL ON FUNCTION private.is_room_member(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.is_room_member(uuid, uuid) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.is_room_member(uuid, uuid) TO authenticated;
 
 -- Gains the room argument: a person now has one joined_at per room, and the
@@ -42,7 +46,11 @@ AS $$
   SELECT joined_at FROM members WHERE user_id = p_user AND room_id = p_room;
 $$;
 
+-- anon and authenticated are additionally revoked BY NAME, same reasoning as
+-- 026:83-85 and 030:161-163: an explicit grant from ALTER DEFAULT PRIVILEGES is
+-- not removed by a REVOKE FROM PUBLIC.
 REVOKE ALL ON FUNCTION private.member_joined_at(uuid, uuid) FROM PUBLIC;
+REVOKE ALL ON FUNCTION private.member_joined_at(uuid, uuid) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION private.member_joined_at(uuid, uuid) TO authenticated;
 
 -- ---- policies ----

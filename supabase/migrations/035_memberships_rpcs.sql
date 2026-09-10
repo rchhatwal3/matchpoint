@@ -51,6 +51,12 @@ BEGIN
     RAISE EXCEPTION 'not_authenticated';
   END IF;
 
+  -- Same salt as join_room's lock, deliberately: the 20-room ceiling counts
+  -- rooms created by either entry path, so a create_room and a join_room
+  -- racing for the same caller must serialise against each other, not just
+  -- against calls of their own kind.
+  PERFORM pg_advisory_xact_lock(hashtextextended(v_uid::text, 2));
+
   SELECT count(*) INTO v_rooms FROM members WHERE user_id = v_uid;
   IF v_rooms >= 20 THEN
     RAISE EXCEPTION 'too_many_rooms';
