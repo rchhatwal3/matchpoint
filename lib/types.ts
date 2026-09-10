@@ -59,7 +59,7 @@ export type Room = {
 };
 
 export type Member = {
-  id: string;
+  user_id: string;
   room_id: string;
   display_name: string;
   joined_at?: string;
