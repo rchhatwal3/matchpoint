@@ -69,4 +69,19 @@ describe('parentRoute', () => {
     expect(parentRoute('/matchpoint', false)).toBe('/');
     expect(parentRoute('/matchpoint/', true)).toBe('/lobby');
   });
+
+  it('the lobby goes up to the rooms list', () => {
+    expect(parentRoute('/lobby', true)).toBe('/rooms');
+    expect(parentRoute('/matchpoint/lobby', true)).toBe('/rooms');
+  });
+
+  it('the rooms list goes up to the entry screen', () => {
+    expect(parentRoute('/rooms', true)).toBe('/');
+    expect(parentRoute('/matchpoint/rooms', true)).toBe('/');
+  });
+
+  it('settings still goes to the lobby with a room, and now to rooms without one', () => {
+    expect(parentRoute('/settings', true)).toBe('/lobby');
+    expect(parentRoute('/settings', false)).toBe('/');
+  });
 });
