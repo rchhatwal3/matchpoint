@@ -382,17 +382,26 @@ BEGIN;
 
 -- ---- create_room ----
 
+-- PRESERVE THE CODE GENERATION EXACTLY. The alphabet, the gen_random_bytes
+-- draw, the modulo-bias comment and `SET search_path TO 'public', 'extensions'`
+-- are migration 016's invite-code hardening: 32 unambiguous symbols with I, O,
+-- 0 and 1 removed, drawn uniformly because 256 is an exact multiple of 32.
+-- `extensions` is on the search_path because gen_random_bytes and get_byte live
+-- there. Only two things change in this function: the members INSERT column
+-- names, and the ceiling.
 CREATE OR REPLACE FUNCTION public.create_room(p_name text, p_policy_version text)
 RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public'
+SET search_path TO 'public', 'extensions'
 AS $$
 DECLARE
   v_uid   uuid := auth.uid();
+  v_chars text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  v_bytes bytea;
   v_code  text;
-  v_room  uuid;
   v_rooms int;
+  i       int;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'not_authenticated';
@@ -403,19 +412,24 @@ BEGIN
     RAISE EXCEPTION 'too_many_rooms';
   END IF;
 
-  -- Retry on the 1-in-2-billion code collision rather than surfacing it.
   LOOP
-    v_code := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 6));
+    v_code := '';
+    v_bytes := gen_random_bytes(6);
+    FOR i IN 1..6 LOOP
+      -- 256 is an exact multiple of the 32-symbol alphabet, so `byte % 32` is
+      -- a uniform draw — no modulo bias to correct for.
+      v_code := v_code || substr(v_chars, (get_byte(v_bytes, i - 1) % 32) + 1, 1);
+    END LOOP;
     BEGIN
-      INSERT INTO rooms (code) VALUES (v_code) RETURNING id INTO v_room;
-      EXIT;
+      INSERT INTO rooms (code) VALUES (v_code);
+      EXIT;  -- inserted cleanly; code is unique
     EXCEPTION WHEN unique_violation THEN
-      NULL;
+      -- collision, loop and try another code
     END;
   END LOOP;
 
   INSERT INTO members (user_id, room_id, display_name, consent_version, consented_at)
-    VALUES (v_uid, v_room, p_name, p_policy_version, now());
+    SELECT v_uid, r.id, p_name, p_policy_version, now() FROM rooms r WHERE r.code = v_code;
 
   RETURN v_code;
 END;
