@@ -12,7 +12,7 @@ import type { RoomSummary } from '@/lib/rooms';
 export default function Rooms() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
-  const { rooms, setActiveRoom, leaveRoom } = useSession();
+  const { rooms, loading, setActiveRoom, leaveRoom } = useSession();
   const [confirmLeave, setConfirmLeave] = useState<string | null>(null);
 
   const open = async (summary: RoomSummary) => {
@@ -25,7 +25,7 @@ export default function Rooms() {
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['2xl'] }}>
         <Text variant="headline">Your rooms</Text>
 
-        {rooms.length === 0 ? (
+        {!loading && rooms.length === 0 ? (
           <View style={{ gap: spacing.md }}>
             <Text variant="body" color={colors.inkMuted}>
               You&apos;re not in a room yet. Create one and share the code, or join with a code
@@ -35,7 +35,7 @@ export default function Rooms() {
           </View>
         ) : null}
 
-        {rooms.map((summary) => (
+        {!loading && rooms.map((summary) => (
           <View
             key={summary.room.id}
             style={{

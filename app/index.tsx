@@ -30,6 +30,7 @@ export default function Home() {
       ? codeParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
       : '';
   const prefilledCode = invitedCode.length === 6 ? invitedCode : '';
+  const hasInviteCode = prefilledCode.length === 6;
 
   const [name, setName] = useState('');
   const [code, setCode] = useState(prefilledCode);
@@ -42,7 +43,10 @@ export default function Home() {
   // Has at least one room from a previous session -> the rooms list, not the
   // create/join form. Gate on rooms.length, not room: a returning user with
   // rooms but no active one yet still has room === null and must land here.
-  if (!loading && rooms.length > 0 && !createdCode && !openedDeliberately) {
+  // An invite-code deep link is also exempt: joining a second room is the
+  // point of this feature, so a code in the URL must always reach the join
+  // form instead of being swallowed by the redirect.
+  if (!loading && rooms.length > 0 && !createdCode && !openedDeliberately && !hasInviteCode) {
     return <Redirect href="/rooms" />;
   }
 

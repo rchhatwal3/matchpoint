@@ -193,7 +193,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const leaveRoom = useCallback(
     async (roomId: string) => {
-      if (!supabase) return;
+      if (!supabase) {
+        // Offline: no backend to leave — drop the room from the in-memory
+        // list, and if it was the active one, clear it the same way
+        // deleteMyData's offline branch resets room/member/partner.
+        setRooms((prev) => prev.filter((s) => s.room.id !== roomId));
+        if (activeRoomId === roomId) {
+          await writeActiveRoom(null);
+          setActiveRoomId(null);
+          setRoom(null);
+          setMember(null);
+          setPartner(null);
+        }
+        return;
+      }
       const { error } = await supabase.rpc('leave_room', { p_room: roomId });
       if (error) throw error;
       if (activeRoomId === roomId) await writeActiveRoom(null);
