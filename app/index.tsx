@@ -16,12 +16,15 @@ import { LegalFooter } from '@/components/LegalFooter';
 export default function Home() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
-  const { loading, room, offline, createRoom, joinRoom } = useSession();
+  const { loading, rooms, offline, createRoom, joinRoom } = useSession();
 
   // Arrived via a shared invite link (?code=ABC123, web query param or deep link):
   // sanitize like CodeInput and, when valid, seed the join code + reveal the join
   // section. Never auto-submits — the user still taps Join and supplies their name.
-  const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
+  // ?new=1 marks a deliberate visit (the rooms list's "New room" button) so a
+  // returning user with rooms isn't bounced straight back to /rooms.
+  const { code: codeParam, new: newParam } = useLocalSearchParams<{ code?: string; new?: string }>();
+  const openedDeliberately = newParam === '1';
   const invitedCode =
     typeof codeParam === 'string'
       ? codeParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
@@ -36,9 +39,11 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [consent, setConsent] = useState<ConsentState>({ tosAccepted: false });
 
-  // Already paired from a previous session -> straight to the lobby.
-  if (!loading && room && !createdCode) {
-    return <Redirect href="/lobby" />;
+  // Has at least one room from a previous session -> the rooms list, not the
+  // create/join form. Gate on rooms.length, not room: a returning user with
+  // rooms but no active one yet still has room === null and must land here.
+  if (!loading && rooms.length > 0 && !createdCode && !openedDeliberately) {
+    return <Redirect href="/rooms" />;
   }
 
   const canSubmit = name.trim().length > 0 && canEnterApp(consent) && !busy;
