@@ -177,10 +177,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // seenMatchIds is per-room: a match already announced in one room must not
       // suppress the same item's match in another.
       seenMatchIds.current.clear();
+      if (!supabase) {
+        // Offline: no backend to reload from — apply straight from the
+        // in-memory rooms list createRoom/joinRoom already populated.
+        setActiveRoomId(roomId);
+        const summary = rooms.find((s) => s.room.id === roomId) ?? null;
+        setRoom(summary ? summary.room : null);
+        return;
+      }
       if (!userId) return;
       await loadForUser(userId);
     },
-    [userId, loadForUser],
+    [rooms, userId, loadForUser],
   );
 
   const leaveRoom = useCallback(
@@ -267,7 +275,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       client.removeChannel(channel);
     };
-  }, [room, member, partner]);
+  }, [room?.id, member?.user_id, partner?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Realtime: room edits (shared locations) sync from either partner ----
   useEffect(() => {
@@ -326,7 +334,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       client.removeChannel(channel);
     };
-  }, [partner, member, room, announceMatch]);
+  }, [partner?.user_id, member?.user_id, room?.id, announceMatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Actions ----
   const createRoom = useCallback(
