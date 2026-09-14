@@ -211,6 +211,7 @@ SET search_path TO 'public'
 AS $$
 DECLARE
   v_room  record;
+  v_rooms uuid[];
   v_email text;
 BEGIN
   IF auth.uid() IS NULL THEN
@@ -225,12 +226,18 @@ BEGIN
       ON CONFLICT DO NOTHING;
   END LOOP;
 
+  -- Captured before the delete: afterwards nothing records which rooms were ours.
+  SELECT array_agg(room_id) INTO v_rooms FROM members WHERE user_id = auth.uid();
+
   DELETE FROM members WHERE user_id = auth.uid(); -- cascades swipes
 
-  -- Any room this emptied goes too. Restricted to rooms that now have no
-  -- members at all, so a room where the partner remains is untouched.
+  -- Any of the caller's rooms this emptied goes too. Scoped to v_rooms, as 021
+  -- scoped it to the caller's room, so an unrelated empty room is never touched;
+  -- a room where the partner remains is untouched. NULL v_rooms (no rooms)
+  -- makes = ANY match nothing.
   DELETE FROM rooms r
-   WHERE NOT EXISTS (SELECT 1 FROM members m WHERE m.room_id = r.id);
+   WHERE r.id = ANY (v_rooms)
+     AND NOT EXISTS (SELECT 1 FROM members m WHERE m.room_id = r.id);
 
   -- The recovery half is unconditional. 014 returned early when the caller had
   -- no room, which meant an upgraded user who had left their room erased

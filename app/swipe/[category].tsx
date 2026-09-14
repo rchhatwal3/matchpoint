@@ -62,7 +62,7 @@ export default function SwipeDeck() {
   useFocusEffect(
     useCallback(() => {
       if (!valid || loading || !room) return;
-      const key = deckLoadKey(category, room.locations);
+      const key = `${room.id}:${deckLoadKey(category, room.locations)}`;
       if (loadedKey.current === key) return;
       loadedKey.current = key;
       let cancelled = false;

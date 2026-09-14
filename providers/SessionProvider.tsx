@@ -112,6 +112,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const offlineSwipes = useRef<Map<string, boolean>>(new Map());
   // Items already announced as matches, so realtime + local checks never double-fire.
   const seenMatchIds = useRef<Set<string>>(new Set());
+  // The active room, readable synchronously by realtime handlers. removeChannel
+  // waits for the server's ack, so a torn-down channel can still deliver one
+  // late event from the previous room; handlers drop anything not for this id.
+  const activeRoomIdRef = useRef<string | null>(null);
 
   const announceMatch = useCallback((item: Item) => {
     if (!isNewMatch(seenMatchIds.current, item.id)) return;
@@ -122,6 +126,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // ---- Set the triple from an already-loaded rooms list, no round trip ----
   const applyActiveRoom = useCallback(
     (roomId: string | null, summaries: RoomSummary[], members: Member[], myUserId: string) => {
+      activeRoomIdRef.current = roomId;
       setActiveRoomId(roomId);
       if (!roomId) {
         setRoom(null);
@@ -177,6 +182,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // seenMatchIds is per-room: a match already announced in one room must not
       // suppress the same item's match in another.
       seenMatchIds.current.clear();
+      setPendingMatch(null);
+      // Set before the reload so the previous room's late events are dropped
+      // during it; applyActiveRoom settles the final value.
+      activeRoomIdRef.current = roomId;
       if (!supabase) {
         // Offline: no backend to reload from — apply straight from the
         // in-memory rooms list createRoom/joinRoom already populated.
@@ -200,6 +209,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setRooms((prev) => prev.filter((s) => s.room.id !== roomId));
         if (activeRoomId === roomId) {
           await writeActiveRoom(null);
+          activeRoomIdRef.current = null;
           setActiveRoomId(null);
           setRoom(null);
           setMember(null);
@@ -209,6 +219,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const { error } = await supabase.rpc('leave_room', { p_room: roomId });
       if (error) throw error;
+      // After the RPC, not before: once the membership is gone no late event can
+      // re-announce a match from that room.
+      seenMatchIds.current.clear();
+      setPendingMatch(null);
       if (activeRoomId === roomId) await writeActiveRoom(null);
       if (userId) await loadForUser(userId);
     },
@@ -280,6 +294,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'members', filter: `room_id=eq.${room.id}` },
         (payload) => {
+          if (activeRoomIdRef.current !== room.id) return;
           const row = payload.new as Member;
           if (row.user_id !== member.user_id) setPartner(row);
         },
@@ -301,8 +316,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
         (payload) => {
+          if (activeRoomIdRef.current !== roomId) return;
           const row = payload.new as Room;
-          setRoom((prev) => (prev ? { ...prev, ...row } : row));
+          // Merging a different room's row would repoint `room` while member and
+          // partner stay put.
+          setRoom((prev) => (prev && prev.id === row.id ? { ...prev, ...row } : prev));
         },
       )
       .subscribe();
@@ -324,6 +342,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // '*' not INSERT: a pass->like change arrives as UPDATE via upsert.
         { event: '*', schema: 'public', table: 'swipes', filter: `room_id=eq.${roomId}` },
         async (payload) => {
+          if (activeRoomIdRef.current !== roomId) return;
           const row = payload.new as { user_id: string; item_id: string; liked: boolean };
           if (row.user_id === myUserId || !row.liked) return;
           // Partner just liked item — did I like it too?
@@ -340,7 +359,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             .select('id, category, title, subtitle, emoji, image_url, location, source, price_level')
             .eq('id', row.item_id)
             .maybeSingle();
-          if (item) announceMatch(item as Item);
+          // Re-checked: the room can change during the two reads above.
+          if (item && activeRoomIdRef.current === roomId) announceMatch(item as Item);
         },
       )
       .subscribe();
@@ -360,6 +380,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setRoom(OFFLINE_ROOM);
         setMember({ user_id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
         setRooms([{ room: OFFLINE_ROOM, displayName: name, partnerName: null, matchCount: 0 }]);
+        activeRoomIdRef.current = OFFLINE_ROOM.id;
         setActiveRoomId(OFFLINE_ROOM.id);
         return OFFLINE_ROOM.code;
       }
@@ -389,6 +410,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setRoom(offlineRoom);
         setMember({ user_id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
         setRooms([{ room: offlineRoom, displayName: name, partnerName: null, matchCount: 0 }]);
+        activeRoomIdRef.current = offlineRoom.id;
         setActiveRoomId(offlineRoom.id);
         return;
       }
@@ -552,6 +574,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setMember(null);
       setPartner(null);
       setRooms([]);
+      activeRoomIdRef.current = null;
       setActiveRoomId(null);
       return;
     }
@@ -571,6 +594,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMember(null);
     setPartner(null);
     setRooms([]);
+    activeRoomIdRef.current = null;
     setActiveRoomId(null);
     seenMatchIds.current.clear();
   }, []);

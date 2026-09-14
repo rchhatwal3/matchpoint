@@ -54,10 +54,14 @@ REVOKE ALL ON FUNCTION private.member_joined_at(uuid, uuid) FROM anon, authentic
 GRANT EXECUTE ON FUNCTION private.member_joined_at(uuid, uuid) TO authenticated;
 
 -- ---- policies ----
+--
+-- 033 already dropped members_select_same_room and the three swipes policies,
+-- because they read the columns it removes. Those four use IF EXISTS so this
+-- file re-creates them either way.
 
 -- One expression covers both of the old halves: your own rows are in rooms you
 -- belong to, and a partner's rows share a room_id you belong to.
-DROP POLICY members_select_same_room ON public.members;
+DROP POLICY IF EXISTS members_select_same_room ON public.members;
 CREATE POLICY members_select_same_room ON public.members
   FOR SELECT USING (private.is_room_member(auth.uid(), room_id));
 
@@ -74,19 +78,19 @@ CREATE POLICY rooms_update_members ON public.rooms
 -- Was private.member_room_id(member_id) = private.member_room_id(auth.uid()):
 -- two resolutions of two different rows. Now one call, because the row carries
 -- its own room.
-DROP POLICY swipes_select_same_room ON public.swipes;
+DROP POLICY IF EXISTS swipes_select_same_room ON public.swipes;
 CREATE POLICY swipes_select_same_room ON public.swipes
   FOR SELECT USING (private.is_room_member(auth.uid(), room_id));
 
 -- The is_room_member half is belt-and-braces: swipes_membership_fkey already
 -- makes a swipe naming a room you are not in unstorable. It is kept because a
 -- policy that states its own intent is worth one call.
-DROP POLICY swipes_insert_own ON public.swipes;
+DROP POLICY IF EXISTS swipes_insert_own ON public.swipes;
 CREATE POLICY swipes_insert_own ON public.swipes
   FOR INSERT
   WITH CHECK (user_id = auth.uid() AND private.is_room_member(auth.uid(), room_id));
 
-DROP POLICY swipes_update_own ON public.swipes;
+DROP POLICY IF EXISTS swipes_update_own ON public.swipes;
 CREATE POLICY swipes_update_own ON public.swipes
   FOR UPDATE
   USING (user_id = auth.uid())
@@ -102,23 +106,8 @@ CREATE POLICY matches_select_same_room ON public.matches
     AND matched_at >= private.member_joined_at(auth.uid(), room_id)
   );
 
--- ---- the view loses its join ----
---
--- It no longer has to reach through members to discover a swipe's room, so the
--- mutual-like half groups on swipes.room_id directly. security_invoker stays
--- true: the caller's own policies must apply.
-CREATE OR REPLACE VIEW public.room_matches
-WITH (security_invoker = true) AS
-  SELECT s.room_id, s.item_id, i.category, i.title, i.subtitle, i.image_url
-    FROM swipes s
-    JOIN items i ON i.id = s.item_id
-   WHERE s.liked = true
-   GROUP BY s.room_id, s.item_id, i.category, i.title, i.subtitle, i.image_url
-  HAVING count(DISTINCT s.user_id) >= 2
-  UNION
-  SELECT ms.room_id, ms.item_id, i.category, i.title, i.subtitle, i.image_url
-    FROM matches ms
-    JOIN items i ON i.id = ms.item_id;
+-- room_matches is not re-created here: 033 had to re-point it at swipes.room_id
+-- before dropping swipes.member_id, and that is its one definition.
 
 DROP FUNCTION private.member_room_id(uuid);
 DROP FUNCTION private.member_joined_at(uuid);

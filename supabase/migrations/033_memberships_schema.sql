@@ -46,11 +46,7 @@ ALTER TABLE public.members
   ADD CONSTRAINT members_user_id_auth_users_fkey
   FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE NOT VALID;
 
-ALTER TABLE public.members DROP COLUMN id;
-
--- members_consent_recorded stays NOT VALID. 27 rows legitimately predate the
--- consent_version column and validating would require fabricating consent for
--- all of them. DROP COLUMN id does not revalidate it.
+-- members.id itself is dropped further down, once nothing still reads it.
 
 -- ---- swipes: member_id -> (user_id, room_id) ----
 
@@ -80,6 +76,55 @@ END $$;
 
 ALTER TABLE public.swipes ALTER COLUMN user_id SET NOT NULL;
 ALTER TABLE public.swipes ALTER COLUMN room_id SET NOT NULL;
+
+-- ---- detach everything that still reads members.id or swipes.member_id ----
+--
+-- Postgres refuses DROP COLUMN while a view or policy references the column.
+-- Read from production's pg_depend, exactly five objects do besides the
+-- constraints handled above: four policies and the room_matches view. No
+-- CASCADE anywhere: it would drop room_matches and silently take the
+-- GRANT SELECT from 004_grants.sql:15 with it.
+--
+-- THE WINDOW. The four policies are re-created in 034, not here. From this
+-- transaction's commit until 034's, members has no SELECT policy and swipes no
+-- SELECT, INSERT or UPDATE policy; with row-level security on, that denies
+-- every client read and write of them. rooms and matches policies still call
+-- private.member_room_id, whose body reads the dropped members.id, so their
+-- reads error instead. Every path fails closed, nothing is exposed, and 033,
+-- 034 and 035 are pushed as one batch, so the window is the gap between them.
+DROP POLICY members_select_same_room ON public.members;
+DROP POLICY swipes_select_same_room ON public.swipes;
+DROP POLICY swipes_insert_own ON public.swipes;
+DROP POLICY swipes_update_own ON public.swipes;
+
+-- The view loses its join. It no longer has to reach through members to
+-- discover a swipe's room, so the mutual-like half groups on swipes.room_id
+-- directly. security_invoker stays true: the caller's own policies must apply.
+-- CREATE OR REPLACE requires the output columns to match 022:98-122 exactly —
+-- room_id, item_id, category, title, subtitle, image_url, in that order and
+-- with the same types (s.room_id is uuid, as m.room_id was) — and replacing
+-- rather than dropping is what keeps 004's grant. This is the view's only
+-- definition in the T13 migrations.
+CREATE OR REPLACE VIEW public.room_matches
+WITH (security_invoker = true) AS
+  SELECT s.room_id, s.item_id, i.category, i.title, i.subtitle, i.image_url
+    FROM swipes s
+    JOIN items i ON i.id = s.item_id
+   WHERE s.liked = true
+   GROUP BY s.room_id, s.item_id, i.category, i.title, i.subtitle, i.image_url
+  HAVING count(DISTINCT s.user_id) >= 2
+  UNION
+  SELECT ms.room_id, ms.item_id, i.category, i.title, i.subtitle, i.image_url
+    FROM matches ms
+    JOIN items i ON i.id = ms.item_id;
+
+-- ---- drop the old key columns ----
+
+ALTER TABLE public.members DROP COLUMN id;
+
+-- members_consent_recorded stays NOT VALID. 27 rows legitimately predate the
+-- consent_version column and validating would require fabricating consent for
+-- all of them. DROP COLUMN id does not revalidate it.
 
 ALTER TABLE public.swipes DROP CONSTRAINT swipes_pkey;
 ALTER TABLE public.swipes DROP COLUMN member_id;
@@ -113,6 +158,9 @@ BEGIN
   IF tg_op = 'UPDATE' AND new.room_id = old.room_id THEN
     RETURN new;
   END IF;
+
+  -- 022's per-room lock (salt 0, 030's registry): without it two concurrent joins both pass the count.
+  PERFORM pg_advisory_xact_lock(hashtextextended(NEW.room_id::text, 0));
 
   -- In a BEFORE trigger the moving row still belongs to its old room, so this
   -- count excludes it and >= 2 correctly refuses a full target.

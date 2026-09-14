@@ -10,12 +10,12 @@ switch-room anywhere in the app: `app/settings.tsx:89` offers only "Delete my
 account" and `app/account.tsx:149` offers "Sign out", which returns the same uid
 and therefore changes nothing.
 
-This is not theoretical. On 2026-09-09 room `room A` was reported as showing no
+This is not theoretical. On 2026-09-09 room A was reported as showing no
 matches. It held one member, who had accumulated 80 swipes and 69 likes over six
 weeks. `room_matches` requires `count(DISTINCT member_id) >= 2`, so a
 single-member room can never produce a match no matter how much you swipe. Her
-partner was in a different room, `room B`, which had 26 matches. Neither person
-could reach the other's room from inside the app — `room B` was full, and the
+partner was in a different room, room B, which had 26 matches. Neither person
+could reach the other's room from inside the app — room B was full, and the
 identity holding its second seat was an anonymous account whose session had been
 lost, so nobody could operate or erase it. The situation was only resolvable with
 direct database writes.
