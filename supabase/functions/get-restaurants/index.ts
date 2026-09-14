@@ -43,7 +43,7 @@ type ItemRow = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { location } = await req.json().catch(() => ({ location: undefined }));
+    const { location, room_id: roomId } = await req.json().catch(() => ({ location: undefined, room_id: undefined }));
     if (!location || typeof location !== 'string') {
       return json({ error: 'Missing location' }, 400);
     }
@@ -117,22 +117,30 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) {
       return json({ error: 'Unauthorized' }, 401);
     }
+    // The caller now names the room, because a caller may be in several and
+    // the deck must be filtered against the cities of the one they are actually
+    // looking at. Membership in THAT room is what authorises the lookup.
+    //
     // Both reads are logged on error but still fall through to the same
     // refusals: under RLS a denied row is an empty result, not an error, so
     // "no rows" and "not allowed to see the rows" are indistinguishable here
-    // and both correctly refuse the lookup. The log is what tells a missing
-    // grant apart from a genuinely roomless caller.
+    // and both correctly refuse. The log is what tells a missing grant apart
+    // from a genuinely roomless caller.
+    if (typeof roomId !== 'string' || roomId.length === 0) {
+      return json({ error: 'No room' }, 400);
+    }
     const { data: member, error: memberErr } = await caller
       .from('members')
       .select('room_id')
-      .eq('id', userData.user.id)
+      .eq('user_id', userData.user.id)
+      .eq('room_id', roomId)
       .maybeSingle();
     if (memberErr) console.error('members read failed', memberErr);
     if (!member) return json({ error: 'No room' }, 403);
     const { data: room, error: roomErr } = await caller
       .from('rooms')
       .select('locations')
-      .eq('id', member.room_id)
+      .eq('id', roomId)
       .maybeSingle();
     if (roomErr) console.error('rooms read failed', roomErr);
     const allowed = (room?.locations ?? []) as string[];

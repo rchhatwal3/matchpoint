@@ -47,11 +47,11 @@ const RESTAURANT_COLUMNS =
  * key, or errors, falls back to any restaurant rows already in the DB for that
  * location. Either path may legitimately return [] (nothing sourced yet).
  */
-async function getRestaurantsForLocation(location: string): Promise<Item[]> {
+async function getRestaurantsForLocation(location: string, roomId: string): Promise<Item[]> {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.functions.invoke('get-restaurants', {
-      body: { location },
+      body: { location, room_id: roomId },
     });
     if (error) throw error;
     const items = (data?.items ?? []) as Item[];
@@ -468,7 +468,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Location-catered: source from the edge function per selected location,
         // then merge + dedupe. No locations set -> empty deck (settings CTA).
         const locations = room?.locations ?? [];
-        if (locations.length === 0) {
+        if (!room || locations.length === 0) {
           onProgress?.({ done: 0, total: 0 });
           return [];
         }
@@ -476,7 +476,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         onProgress?.({ done, total: locations.length });
         const perLocation = await Promise.all(
           locations.map((loc) =>
-            getRestaurantsForLocation(loc).finally(() => {
+            getRestaurantsForLocation(loc, room.id).finally(() => {
               done += 1;
               onProgress?.({ done, total: locations.length });
             }),
