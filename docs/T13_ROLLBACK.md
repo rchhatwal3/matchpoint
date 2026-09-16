@@ -216,6 +216,10 @@ SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args, p.proacl
 -- join_room(text, text, text)          authenticated=X
 -- leave_room(uuid)                     authenticated=X   <- new in 035
 -- There must be no second overload of any of them.
+-- NOTE: create_room, join_room and delete_my_data also carry PUBLIC EXECUTE
+-- (shown as a bare `=X/postgres` entry) in the live database — pre-existing
+-- state that CREATE OR REPLACE preserves. Only leave_room revokes it. Seeing
+-- that extra entry is correct, not a mismatch.
 
 -- 2. Counts still untouched by the RPC rewrite.
 SELECT (SELECT count(*) FROM public.members) AS members,
@@ -294,9 +298,12 @@ SELECT
   (SELECT count(*) FROM public.rooms)        AS rooms,
   (SELECT count(*) FROM public.matches)      AS matches,
   (SELECT count(*) FROM public.room_matches) AS room_matches;
--- expect: 43 | 398 | 34 | 26 | 56 — identical to the pre-change table above.
--- Any number short means data was destroyed. Stop, and restore from the
--- snapshot.
+-- expect: at least 43 | 398 | 34 | 26 | 56, the pre-change table above.
+-- HIGHER is normal and expected if anyone used the app during the T13 window:
+-- rooms created, swipes recorded, and snapshot rows written into `matches` by
+-- leave_room or delete_my_data all push these up. Higher is not a problem.
+-- LOWER is the alarm: any number short of the pre-change figure means data was
+-- destroyed. Stop, and restore from the snapshot.
 
 -- 5. The helpers are back to their one-argument form, with the right grants.
 SELECT p.proname, pg_get_function_identity_arguments(p.oid) AS args, p.proacl

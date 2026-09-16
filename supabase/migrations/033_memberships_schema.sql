@@ -32,8 +32,26 @@ ALTER TABLE public.swipes DROP CONSTRAINT swipes_member_id_fkey;
 -- ---- members: id -> (user_id, room_id) ----
 
 ALTER TABLE public.members ADD COLUMN user_id uuid;
+
+-- THE BACKFILL TRIPS THE CONSENT CHECK, AND THIS IS NOT OPTIONAL BOOKKEEPING.
+-- members_consent_recorded is NOT VALID, which grandfathers the rows that
+-- predate consent_version. NOT VALID only exempts rows at the moment the
+-- constraint is added: any later UPDATE of a row re-checks it. The backfill
+-- below updates every row, so each grandfathered row raises 23514 and the whole
+-- migration rolls back. Found by applying this to a real database; no test in
+-- this project could have caught it.
+--
+-- Dropping it for the backfill and re-adding it NOT VALID afterwards restores
+-- exactly the same state: the same predicate, still unvalidated, still
+-- grandfathering the same rows. The alternative — writing a consent_version
+-- into rows whose owners never gave one — would falsify a compliance record.
+ALTER TABLE public.members DROP CONSTRAINT members_consent_recorded;
+
 UPDATE public.members SET user_id = id;
 ALTER TABLE public.members ALTER COLUMN user_id SET NOT NULL;
+
+ALTER TABLE public.members ADD CONSTRAINT members_consent_recorded
+  CHECK (consent_version IS NOT NULL AND btrim(consent_version) <> '') NOT VALID;
 
 ALTER TABLE public.members DROP CONSTRAINT members_pkey;
 ALTER TABLE public.members ADD CONSTRAINT members_pkey PRIMARY KEY (user_id, room_id);

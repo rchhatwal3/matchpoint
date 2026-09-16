@@ -133,8 +133,20 @@ END $$;
 -- the file reads in dependency order rather than in "what happens to work" order.
 
 ALTER TABLE public.members ADD COLUMN id uuid;
+
+-- Same hazard as the forward migration, and it would bite exactly when this
+-- script is needed most. members_consent_recorded is NOT VALID, which exempts
+-- the grandfathered rows only at the moment it was added; any UPDATE of such a
+-- row re-checks it and raises 23514. The backfill below updates every row.
+-- Drop it, backfill, re-add it NOT VALID — same predicate, same unvalidated
+-- state, same grandfathering.
+ALTER TABLE public.members DROP CONSTRAINT members_consent_recorded;
+
 UPDATE public.members SET id = user_id;
 ALTER TABLE public.members ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE public.members ADD CONSTRAINT members_consent_recorded
+  CHECK (consent_version IS NOT NULL AND btrim(consent_version) <> '') NOT VALID;
 
 ALTER TABLE public.swipes ADD COLUMN member_id uuid;
 UPDATE public.swipes SET member_id = user_id;
