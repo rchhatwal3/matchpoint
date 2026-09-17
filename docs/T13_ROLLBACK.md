@@ -37,25 +37,33 @@ no SELECT policy and swipes has none at all. Every path in that window fails
 closed, so nothing is exposed; it is just more downtime. Do not stop in the
 middle to check something.
 
-**3. The pre-change data snapshot is in a scratch directory that will not
-survive. Copy it somewhere durable and private, now.**
+**3. The data backup lives outside the repository, and it was taken AFTER the
+change — the pre-change snapshot was lost.**
 
 ```
-/private/tmp/claude-501/-Users-ramneekchhatwal/3c62d4b4-4ffa-4b9c-be4b-8eae4344bfb7/scratchpad/t13-prod-snapshot/
+~/Documents/Code_Projects/matchpoint-backups/2026-09-16-post-t13/
     members.json
     swipes.json
     rooms.json
     matches.json
 ```
 
+A snapshot of these four tables was taken immediately before `033`, but it was
+kept in an agent session's scratch directory under `/private/tmp`, which was
+cleared between sessions. It is gone. No data was lost as a result: the
+migrations were verified to keep every row (43 members, 398 swipes, 34 rooms,
+26 matches), and the rollback script moves data back from the existing columns
+rather than from any backup. But it left no independent copy, so a fresh export
+was taken straight after `033`–`035` were applied, to the path above, in a
+directory readable only by its owner and confirmed to be outside every git
+repository. Because it was taken after the change, it is in the **new** shape
+(`members.user_id`, `swipes.user_id` and `swipes.room_id`).
+
 This is **not** in the repository and must never be committed to it. The
 repository is public — GitHub Pages serves the live site from it — and these
 four files are real user data: display names, consent records, join timestamps
-and every swipe every user has made. The path above is a session scratchpad
-under `/private/tmp`. It is not backed up, it is not durable, and it can be
-cleaned up at any time. If any part of your rollback plan depends on it — and
-the lossy case at the bottom of this document does — copy the directory to
-private, durable storage **before** applying `033`.
+and every swipe every user has made. **Lesson for next time: never keep a
+backup you might need in a temporary or session directory.**
 
 ---
 
@@ -417,12 +425,16 @@ file. Note that the counts in the verification section will now legitimately be
 *lower* than 43 / 398 / 34 by whatever you removed — record what you removed, or
 the "nothing was lost" check becomes meaningless.
 
-**Option B — restore from the pre-change snapshot** in
-`/private/tmp/claude-501/-Users-ramneekchhatwal/3c62d4b4-4ffa-4b9c-be4b-8eae4344bfb7/scratchpad/t13-prod-snapshot/`
-(or wherever you copied it to, per the warning at the top of this document).
-This discards everything that happened after the change — every room joined,
-every swipe taken, every match made since `033` — and returns the database to
-the exact state the counts above describe. It is the blunt option, and it is the
+**Option B — restore from the data backup** in
+`~/Documents/Code_Projects/matchpoint-backups/2026-09-16-post-t13/`.
+That export was taken immediately *after* `033`–`035` were applied, because the
+original pre-change snapshot was lost (see the note at the top of this
+document). It is therefore in the **new** shape — `members` with `user_id`,
+`swipes` with `user_id` and `room_id` — so restore its rows while the schema is
+still new, and only then run the rollback script, which carries the data back
+into the old columns. This discards everything that happened after the export —
+every room joined, every swipe taken, every match made since — and returns the
+rows to the state the counts above describe. It is the blunt option, and it is the
 right one when the second-room memberships are numerous or when you do not have
 the standing to decide which room somebody loses.
 

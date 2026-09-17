@@ -93,13 +93,14 @@ Either path sets `pendingMatch`, rendered once by the root-level `MatchOverlay` 
 
 ### Backend (supabase/)
 
-Migrations are ordered and all must be applied (SQL editor or `supabase db push`): schema → RLS → RPCs → grants → realtime publication. Three non-obvious constraints learned the hard way:
+Migrations are ordered and all must be applied **by hand in the SQL editor**: schema → RLS → RPCs → grants → realtime publication. **Do not use `supabase db push` on this project** — `supabase_migrations.schema_migrations` is empty because every migration was applied through the editor, so a push would try to replay all of them from `001`. Four non-obvious constraints learned the hard way:
 
 - New Supabase projects grant nothing to `authenticated` on public tables — RLS alone is not enough; see `004_grants.sql`.
 - The `supabase_realtime` publication ships empty — tables must be added or `postgres_changes` silently never fires; see `005_realtime.sql`.
-- RLS policies that subquery `members` recurse; the `member_room_id()` SECURITY DEFINER helper exists to break that loop. Every SECURITY DEFINER function must set `search_path`.
+- RLS policies that subquery `members` recurse; the `private.is_room_member(user, room)` SECURITY DEFINER helper, in the unexposed `private` schema, exists to break that loop. Every SECURITY DEFINER function must set `search_path`.
+- `members_consent_recorded` is `NOT VALID`, which exempts old rows only when it was added. Any `UPDATE` re-checks a row, so a migration that updates every `members` row must drop the constraint and re-add it `NOT VALID` around that update; see `033_memberships_schema.sql`.
 
-Room membership: `members.id` = `auth.uid()` (one user, one room). `create_room`/`join_room` are SECURITY DEFINER RPCs; `join_room` is idempotent. `room_matches` view uses `security_invoker = true` so RLS applies to callers.
+Room membership: `members` is keyed `(user_id, room_id)` — one person can be in many rooms, each room holds at most two members, and a person holds at most 20 rooms. `swipes` carry their own `room_id`, so swipes and matches are isolated per room. `create_room`/`join_room`/`leave_room` are SECURITY DEFINER RPCs; `join_room` is idempotent. `room_matches` view uses `security_invoker = true` so RLS applies to callers. Rollback for this model: `supabase/rollback/036_rollback_t13.sql` via `docs/T13_ROLLBACK.md`.
 
 ### Theme system
 

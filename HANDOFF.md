@@ -1,8 +1,29 @@
 # HANDOFF — matchpoint
 
-Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-08-09.
+Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-09-16.
 
-## Open right now — two PRs, both from 2026-08-09
+## T13 multiple rooms per person — DATABASE + FUNCTION LIVE 2026-09-16, CLIENT PENDING THE PR
+
+**The live site is intentionally broken until the `feat/multiple-rooms` PR merges.** Production's database has the new membership shape, but the deployed web bundle still reads `members.id` and `swipes.member_id`, which no longer exist. The owner confirmed nobody is using the service, so the window is accepted — but merge soon.
+
+- **Design:** one person can be in many rooms. `members` is keyed `(user_id, room_id)` rather than `id = auth.uid()`; `swipes` carry their own `room_id` with a composite foreign key, so swipes and matches are isolated per room. Every RLS policy goes through `private.is_room_member(user, room)`. New `leave_room` RPC, a 20-rooms-per-person cap, and a rooms list as the home screen. Spec: `docs/superpowers/specs/2026-09-10-multiple-rooms-per-person-design.md`. Plan: `docs/superpowers/plans/2026-09-10-multiple-rooms-per-person.md`.
+- **Migrations `033`, `034`, `035` were applied by hand in the SQL editor, in that order.** A one-row verification query passed: new keys and composite FK, all 8 policies on the new helper with none referencing `member_room_id`, the old helper gone, the new helper callable by `authenticated` and not `anon`, `leave_room` present, the member-limit trigger firing on INSERT OR UPDATE with 022's advisory lock, 016's invite-code alphabet intact, `room_matches` still `security_invoker` with its grant, and row counts unchanged at 43 members / 398 swipes / 34 rooms / 26 matches / 56 visible matches.
+- **`get-restaurants` redeployed (version 30).** The deployed source was downloaded and is byte-identical to the branch's `index.ts`; the OPTIONS preflight returns 200. It now requires `room_id` in the request body and checks membership in that specific room.
+- **NEVER run `supabase db push` on this project.** `supabase_migrations.schema_migrations` is empty — every migration was applied through the SQL editor — so a push would try to replay all 35 migrations from `001`.
+- **Rollback:** `supabase/rollback/036_rollback_t13.sql`, following `docs/T13_ROLLBACK.md`. It was reviewed object by object against a dump of the live catalog taken immediately before the change. It aborts on its own if any user already holds more than one membership, which the old model cannot represent.
+- **The first apply attempt failed safely, and taught something worth keeping:** `033` raised `23514` on `members_consent_recorded`. `NOT VALID` exempts existing rows only at the moment a constraint is added — any later `UPDATE` re-checks the row — and the backfill updated every row, so the grandfathered null-consent rows failed and the transaction rolled back. `033` and the rollback both now drop and re-add that constraint `NOT VALID` around their backfills. **Any future migration that updates every `members` row needs the same treatment.**
+- **Remaining:** merge the PR (deploys the client), then run the live cross-room isolation checks in the plan's Task 9: one person in two rooms must never see one room's swipes, matches or deck filtering in the other.
+
+### Gotchas learned this batch
+
+- **macOS 27 removed Rosetta,** which killed the Intel Homebrew toolchain at `/usr/local` — `node` and the Supabase CLI both failed with `bad CPU type in executable`. `softwareupdate --install-rosetta --agree-to-license` restored them. Native Homebrew at `/opt/homebrew` is the durable fix on this Apple Silicon machine.
+- **`~/.claude/launch.json`'s `matchpoint-web` entry runs the main checkout with its `.env` — that is production.** A preview started from it signs in anonymously on page load and creates a real auth user. To preview a worktree, run its dev server with `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` unset, so it runs in offline demo mode.
+- **Agent session scratchpads do not persist between sessions.** A pre-change data snapshot kept in one was lost. Backups belong in a durable private location outside every repo.
+- **A dev server writes `.expo/types/router.d.ts`**, which switches on typed routes and makes `npm run typecheck` fail on plain-string `router.replace` calls in `app/lobby.tsx` and `components/Header.tsx`. Delete `.expo/types` (git-ignored) with the server stopped.
+- **Supabase preview branches need the Pro plan** — `branches create` returns `402 entitlement_required` on Free.
+- **No test in this repo executes SQL.** Three reviews and the migration-atomicity suite all missed two real migration bugs (a column-dependency failure and the consent-check failure); only reading the live catalog and running against the real database found them.
+
+## Merged 2026-08-09 — two PRs (open at the previous update)
 
 - **[#75](https://github.com/rchhatwal3/matchpoint/pull/75) — the restaurants deck served one city at a time.** User-reported. `getItems` concatenated the per-location results in request order, so a two-city room dealt every card from the first city before the first card of the second. `mixByLocation` (`lib/deck.ts`) shuffles each city's results and draws round-robin. Shuffling alone was rejected — with 60 + 60 results a plain shuffle still produces long same-city runs — and interleaving alone deals the same order every session; together you get randomness plus a guaranteed spread. Uneven cities tail off rather than truncating the deck, and a restaurant returned for two nearby cities is deduped. **Verified live:** ten consecutive cards alternated `New York, NY` / `Seattle, WA` perfectly. Six unit tests with a seeded rng. Deck order is per device, so match detection is unaffected.
 - **[#76](https://github.com/rchhatwal3/matchpoint/pull/76) — backlog cleanup.** `TODO.md` was overstating open work: five entries claimed PRs were open that merged in July, and two more (the seven-finding P3 cluster, the billing P1) were partly closed but written as wholly open. Open item count drops 18 → 13.
