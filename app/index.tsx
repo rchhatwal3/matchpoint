@@ -5,6 +5,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { canEnterApp, type ConsentState } from '@/lib/consent/consent-logic';
 import { friendlyRoomError } from '@/lib/room-errors';
+import { shouldRedirectToRooms } from '@/lib/rooms';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
@@ -16,17 +17,21 @@ import { LegalFooter } from '@/components/LegalFooter';
 export default function Home() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
-  const { loading, room, offline, createRoom, joinRoom } = useSession();
+  const { loading, rooms, offline, createRoom, joinRoom } = useSession();
 
   // Arrived via a shared invite link (?code=ABC123, web query param or deep link):
   // sanitize like CodeInput and, when valid, seed the join code + reveal the join
   // section. Never auto-submits — the user still taps Join and supplies their name.
-  const { code: codeParam } = useLocalSearchParams<{ code?: string }>();
+  // ?new=1 marks a deliberate visit (the rooms list's "New room" button) so a
+  // returning user with rooms isn't bounced straight back to /rooms.
+  const { code: codeParam, new: newParam } = useLocalSearchParams<{ code?: string; new?: string }>();
+  const openedDeliberately = newParam === '1';
   const invitedCode =
     typeof codeParam === 'string'
       ? codeParam.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
       : '';
   const prefilledCode = invitedCode.length === 6 ? invitedCode : '';
+  const hasInviteCode = prefilledCode.length === 6;
 
   const [name, setName] = useState('');
   const [code, setCode] = useState(prefilledCode);
@@ -35,21 +40,43 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consent, setConsent] = useState<ConsentState>({ tosAccepted: false });
+  // Set in the same synchronous batch as the submit's first state change, before
+  // any await: createRoom/joinRoom re-render this screen with a filled rooms list
+  // long before they return. Not `busy` — that clears in `finally`, while a join
+  // is still navigating away. Resets only on failure so the form works again.
+  const [submitting, setSubmitting] = useState(false);
 
-  // Already paired from a previous session -> straight to the lobby.
-  if (!loading && room && !createdCode) {
-    return <Redirect href="/lobby" />;
+  // Has at least one room from a previous session -> the rooms list, not the
+  // create/join form. Gate on rooms.length, not room: a returning user with
+  // rooms but no active one yet still has room === null and must land here.
+  // An invite-code deep link is also exempt: joining a second room is the
+  // point of this feature, so a code in the URL must always reach the join
+  // form instead of being swallowed by the redirect.
+  // A create or join in flight is exempt too (see `submitting`).
+  if (
+    shouldRedirectToRooms({
+      loading,
+      roomCount: rooms.length,
+      createdCode,
+      openedDeliberately,
+      hasInviteCode,
+      submitting,
+    })
+  ) {
+    return <Redirect href="/rooms" />;
   }
 
   const canSubmit = name.trim().length > 0 && canEnterApp(consent) && !busy;
 
   const handleCreate = async () => {
+    setSubmitting(true);
     setError(null);
     setBusy(true);
     try {
       const c = await createRoom(name.trim(), consent);
       setCreatedCode(c);
     } catch (e) {
+      setSubmitting(false);
       setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
@@ -70,11 +97,13 @@ export default function Home() {
       setError("Enter your partner's 6-character code.");
       return;
     }
+    setSubmitting(true);
     setBusy(true);
     try {
       await joinRoom(code, name.trim(), consent);
       router.replace('/lobby');
     } catch (e) {
+      setSubmitting(false);
       setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);

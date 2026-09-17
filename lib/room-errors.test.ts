@@ -13,6 +13,13 @@ describe('friendlyRoomError', () => {
     );
   });
 
+  it('says the room ceiling was hit and how to get under it', () => {
+    const copy =
+      "You're in 20 rooms, the most you can have — leave one to create or join another.";
+    expect(friendlyRoomError('too_many_rooms')).toBe(copy);
+    expect(friendlyRoomError('P0001: too_many_rooms')).toBe(copy);
+  });
+
   it('points back at the consent checklist when it blocks entry', () => {
     expect(friendlyRoomError('consent_required')).toBe(
       'Please accept the terms first.',

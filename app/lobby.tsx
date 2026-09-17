@@ -1,7 +1,8 @@
-import { Redirect, useRouter } from 'expo-router';
+import { Redirect, usePathname, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { TOUCH_TARGET, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
+import { parentRoute } from '@/lib/nav';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS } from '@/lib/types';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -11,6 +12,7 @@ import { CodeDisplay } from '@/components/CodeDisplay';
 export default function Lobby() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const { loading, room, member, partner, offline } = useSession();
 
   if (!loading && !room) {
@@ -21,6 +23,23 @@ export default function Lobby() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
         <View style={[styles.header, { gap: spacing.md }]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to your rooms"
+            onPress={() => router.replace(parentRoute(pathname, Boolean(room)))}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              {
+                backgroundColor: pressed ? colors.surfaceVariant : colors.surface,
+                borderColor: colors.outline,
+                borderRadius: radii.full,
+              },
+            ]}
+          >
+            <Text style={styles.chevron} color={colors.primary} accessibilityElementsHidden>
+              {'‹'}
+            </Text>
+          </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Settings"
@@ -41,6 +60,11 @@ export default function Lobby() {
           <View style={{ gap: spacing.xs, flex: 1 }}>
             <Text variant="headline">
               {member ? `Hey, ${member.display_name}` : 'Lobby'}
+            </Text>
+            {/* Visible room label: a person can have several rooms now, so the
+                lobby needs to say which one is open without scrolling. */}
+            <Text variant="label" color={colors.inkMuted}>
+              {partner ? `Room with ${partner.display_name}` : 'Room waiting for a partner'}
             </Text>
             {offline ? (
               <Text variant="overline" color={colors.inkMuted}>
@@ -153,6 +177,7 @@ const styles = StyleSheet.create({
   },
   waiting: { alignItems: 'stretch' },
   dot: { width: 12, height: 12 },
+  chevron: { fontSize: 34, lineHeight: 38, fontFamily: 'Figtree_600SemiBold' },
   grid: { flexDirection: 'row', flexWrap: 'wrap' },
   tile: {
     flexGrow: 1,

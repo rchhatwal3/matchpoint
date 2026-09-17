@@ -28,6 +28,8 @@ export function parentRoute(pathname: string, hasRoom: boolean): string {
   if (path.startsWith('/swipe/')) return '/lobby';
   if (path === '/matches') return '/lobby';
   if (path === '/date-night') return '/lobby';
+  if (path === '/lobby') return '/rooms';
+  if (path === '/rooms') return '/';
 
   return hasRoom ? '/lobby' : '/';
 }

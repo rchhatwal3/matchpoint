@@ -16,6 +16,9 @@ export function friendlyRoomError(message: string): string {
   if (message.includes('too_many_attempts')) {
     return 'Too many tries — take a short break, then try again.';
   }
+  if (message.includes('too_many_rooms')) {
+    return "You're in 20 rooms, the most you can have — leave one to create or join another.";
+  }
   if (message.includes('consent_required')) {
     return 'Please accept the terms first.';
   }

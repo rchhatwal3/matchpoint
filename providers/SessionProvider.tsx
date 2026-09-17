@@ -21,6 +21,8 @@ import {
   normalizeLocations,
 } from '@/lib/location';
 import { consentRpcArgs, type ConsentState } from '@/lib/consent/consent-logic';
+import { summarizeRooms, pickActiveRoom, type RoomSummary } from '@/lib/rooms';
+import { readActiveRoom, writeActiveRoom } from '@/lib/active-room-storage';
 import seedData from '@/data/seed.json';
 
 /**
@@ -45,11 +47,11 @@ const RESTAURANT_COLUMNS =
  * key, or errors, falls back to any restaurant rows already in the DB for that
  * location. Either path may legitimately return [] (nothing sourced yet).
  */
-async function getRestaurantsForLocation(location: string): Promise<Item[]> {
+async function getRestaurantsForLocation(location: string, roomId: string): Promise<Item[]> {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.functions.invoke('get-restaurants', {
-      body: { location },
+      body: { location, room_id: roomId },
     });
     if (error) throw error;
     const items = (data?.items ?? []) as Item[];
@@ -65,6 +67,32 @@ async function getRestaurantsForLocation(location: string): Promise<Item[]> {
   return (data ?? []) as Item[];
 }
 
+/**
+ * Every room the caller belongs to, summarized, plus the member rows the active
+ * room's triple is picked from. `error` is the first failed read, if any; the
+ * summaries are then built from whatever did come back.
+ */
+async function fetchRoomSummaries(userId: string) {
+  const client = supabase!;
+  // Two queries, not N+1: `members_select_same_room` already limits members to
+  // rooms this caller belongs to, so one read returns me AND every partner
+  // across all of them. Grouping happens in summarizeRooms.
+  const [roomsRes, membersRes, matchesRes] = await Promise.all([
+    client.from('rooms').select('id, code, locations, price_tiers, created_at'),
+    client.from('members').select('user_id, room_id, display_name, joined_at'),
+    client.from('room_matches').select('room_id'),
+  ]);
+
+  const counts = new Map<string, number>();
+  for (const row of (matchesRes.data ?? []) as { room_id: string }[]) {
+    counts.set(row.room_id, (counts.get(row.room_id) ?? 0) + 1);
+  }
+
+  const members = (membersRes.data ?? []) as Member[];
+  const summaries = summarizeRooms((roomsRes.data ?? []) as Room[], members, userId, counts);
+  return { summaries, members, error: roomsRes.error ?? membersRes.error ?? matchesRes.error };
+}
+
 type SessionValue = {
   loading: boolean;
   /** True when running without Supabase env vars (seed data, in-memory swipes). */
@@ -73,6 +101,12 @@ type SessionValue = {
   room: Room | null;
   member: Member | null;
   partner: Member | null;
+  rooms: RoomSummary[];
+  activeRoomId: string | null;
+  setActiveRoom: (roomId: string | null) => Promise<void>;
+  /** Re-reads the rooms list only: the active room, realtime, and matches are untouched. */
+  refreshRooms: () => Promise<void>;
+  leaveRoom: (roomId: string) => Promise<void>;
   /** Mutual like detected — MatchOverlay renders it wherever it happens. */
   pendingMatch: Item | null;
   dismissMatch: () => void;
@@ -98,12 +132,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [room, setRoom] = useState<Room | null>(null);
   const [member, setMember] = useState<Member | null>(null);
   const [partner, setPartner] = useState<Member | null>(null);
+  const [rooms, setRooms] = useState<RoomSummary[]>([]);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [pendingMatch, setPendingMatch] = useState<Item | null>(null);
 
   // Offline state — in-memory swipes for the session.
   const offlineSwipes = useRef<Map<string, boolean>>(new Map());
   // Items already announced as matches, so realtime + local checks never double-fire.
   const seenMatchIds = useRef<Set<string>>(new Set());
+  // The active room, readable synchronously by realtime handlers. removeChannel
+  // waits for the server's ack, so a torn-down channel can still deliver one
+  // late event from the previous room; handlers drop anything not for this id.
+  const activeRoomIdRef = useRef<string | null>(null);
+  // Bumped by every rooms load, so a refresh that started before a newer load
+  // (e.g. leaveRoom's) cannot land after it and put back a room just left.
+  const roomsLoadSeq = useRef(0);
 
   const announceMatch = useCallback((item: Item) => {
     if (!isNewMatch(seenMatchIds.current, item.id)) return;
@@ -111,38 +154,107 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setPendingMatch(item);
   }, []);
 
-  // ---- Load member/room/partner for a signed-in user id ----
-  const loadForUser = useCallback(async (userId: string) => {
-    const client = supabase!;
-    setUserId(userId);
-    const { data: me } = await client
-      .from('members')
-      .select('id, room_id, display_name, joined_at')
-      .eq('id', userId)
-      .maybeSingle();
-    if (!me) {
-      setMember(null);
-      setRoom(null);
-      setPartner(null);
-      return;
-    }
-    setMember(me as Member);
-    const [{ data: r }, { data: others }] = await Promise.all([
-      client
-        .from('rooms')
-        .select('id, code, locations, price_tiers, created_at')
-        .eq('id', me.room_id)
-        .maybeSingle(),
-      client
-        .from('members')
-        .select('id, room_id, display_name, joined_at')
-        .eq('room_id', me.room_id)
-        .neq('id', userId),
-    ]);
-    if (r) setRoom(r as Room);
-    else setRoom(null);
-    setPartner(others && others.length > 0 ? (others[0] as Member) : null);
-  }, []);
+  // ---- Set the triple from an already-loaded rooms list, no round trip ----
+  const applyActiveRoom = useCallback(
+    (roomId: string | null, summaries: RoomSummary[], members: Member[], myUserId: string) => {
+      activeRoomIdRef.current = roomId;
+      setActiveRoomId(roomId);
+      if (!roomId) {
+        setRoom(null);
+        setMember(null);
+        setPartner(null);
+        return;
+      }
+      const summary = summaries.find((s) => s.room.id === roomId) ?? null;
+      setRoom(summary ? summary.room : null);
+      setMember(members.find((m) => m.room_id === roomId && m.user_id === myUserId) ?? null);
+      setPartner(members.find((m) => m.room_id === roomId && m.user_id !== myUserId) ?? null);
+    },
+    [],
+  );
+
+  // ---- Load every room I belong to, then the active room's triple ----
+  const loadForUser = useCallback(
+    async (userId: string) => {
+      setUserId(userId);
+      roomsLoadSeq.current += 1;
+      const { summaries, members } = await fetchRoomSummaries(userId);
+      setRooms(summaries);
+
+      const stored = pickActiveRoom(await readActiveRoom(), summaries);
+      applyActiveRoom(stored, summaries, members, userId);
+    },
+    [applyActiveRoom],
+  );
+
+  // ---- Refresh the rooms list alone (partner joined, edits, new matches) ----
+  // Realtime only updates the active room's triple, so the list goes stale; the
+  // rooms screen calls this on focus. It deliberately leaves the active room,
+  // the channels, pendingMatch and seenMatchIds alone.
+  const refreshRooms = useCallback(async (): Promise<void> => {
+    // Offline: no backend — the in-memory list createRoom/joinRoom built is
+    // already the whole truth.
+    if (!supabase || !userId) return;
+    const seq = ++roomsLoadSeq.current;
+    const { summaries, error } = await fetchRoomSummaries(userId);
+    if (seq !== roomsLoadSeq.current) return;
+    // A failed read keeps the list on screen rather than blanking it to empty.
+    if (error) throw error;
+    setRooms(summaries);
+  }, [userId]);
+
+  const setActiveRoom = useCallback(
+    async (roomId: string | null) => {
+      await writeActiveRoom(roomId);
+      // seenMatchIds is per-room: a match already announced in one room must not
+      // suppress the same item's match in another.
+      seenMatchIds.current.clear();
+      setPendingMatch(null);
+      // Set before the reload so the previous room's late events are dropped
+      // during it; applyActiveRoom settles the final value.
+      activeRoomIdRef.current = roomId;
+      if (!supabase) {
+        // Offline: no backend to reload from — apply straight from the
+        // in-memory rooms list createRoom/joinRoom already populated.
+        setActiveRoomId(roomId);
+        const summary = rooms.find((s) => s.room.id === roomId) ?? null;
+        setRoom(summary ? summary.room : null);
+        return;
+      }
+      if (!userId) return;
+      await loadForUser(userId);
+    },
+    [rooms, userId, loadForUser],
+  );
+
+  const leaveRoom = useCallback(
+    async (roomId: string) => {
+      if (!supabase) {
+        // Offline: no backend to leave — drop the room from the in-memory
+        // list, and if it was the active one, clear it the same way
+        // deleteMyData's offline branch resets room/member/partner.
+        setRooms((prev) => prev.filter((s) => s.room.id !== roomId));
+        if (activeRoomId === roomId) {
+          await writeActiveRoom(null);
+          activeRoomIdRef.current = null;
+          setActiveRoomId(null);
+          setRoom(null);
+          setMember(null);
+          setPartner(null);
+        }
+        return;
+      }
+      const { error } = await supabase.rpc('leave_room', { p_room: roomId });
+      if (error) throw error;
+      // After the RPC, not before: once the membership is gone no late event can
+      // re-announce a match from that room.
+      seenMatchIds.current.clear();
+      setPendingMatch(null);
+      if (activeRoomId === roomId) await writeActiveRoom(null);
+      if (userId) await loadForUser(userId);
+    },
+    [activeRoomId, userId, loadForUser],
+  );
 
   // ---- Bootstrap: anonymous session + existing member/room/partner ----
   useEffect(() => {
@@ -209,15 +321,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'members', filter: `room_id=eq.${room.id}` },
         (payload) => {
+          if (activeRoomIdRef.current !== room.id) return;
           const row = payload.new as Member;
-          if (row.id !== member.id) setPartner(row);
+          if (row.user_id !== member.user_id) setPartner(row);
         },
       )
       .subscribe();
     return () => {
       client.removeChannel(channel);
     };
-  }, [room, member, partner]);
+  }, [room?.id, member?.user_id, partner?.user_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Realtime: room edits (shared locations) sync from either partner ----
   useEffect(() => {
@@ -230,8 +343,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` },
         (payload) => {
+          if (activeRoomIdRef.current !== roomId) return;
           const row = payload.new as Room;
-          setRoom((prev) => (prev ? { ...prev, ...row } : row));
+          // Merging a different room's row would repoint `room` while member and
+          // partner stay put.
+          setRoom((prev) => (prev && prev.id === row.id ? { ...prev, ...row } : prev));
         },
       )
       .subscribe();
@@ -242,23 +358,26 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // ---- Realtime: partner swipes -> mutual-like match detection ----
   useEffect(() => {
-    if (!supabase || !partner || !member) return;
+    if (!supabase || !partner || !member || !room) return;
     const client = supabase;
-    const myId = member.id;
+    const myUserId = member.user_id;
+    const roomId = room.id;
     const channel = client
-      .channel(`swipes-${partner.id}`)
+      .channel(`swipes-${roomId}`)
       .on(
         'postgres_changes',
         // '*' not INSERT: a pass->like change arrives as UPDATE via upsert.
-        { event: '*', schema: 'public', table: 'swipes', filter: `member_id=eq.${partner.id}` },
+        { event: '*', schema: 'public', table: 'swipes', filter: `room_id=eq.${roomId}` },
         async (payload) => {
-          const row = payload.new as { item_id: string; liked: boolean };
-          if (!row.liked) return;
+          if (activeRoomIdRef.current !== roomId) return;
+          const row = payload.new as { user_id: string; item_id: string; liked: boolean };
+          if (row.user_id === myUserId || !row.liked) return;
           // Partner just liked item — did I like it too?
           const { data: mine } = await client
             .from('swipes')
             .select('liked')
-            .eq('member_id', myId)
+            .eq('user_id', myUserId)
+            .eq('room_id', roomId)
             .eq('item_id', row.item_id)
             .maybeSingle();
           if (!mine?.liked) return;
@@ -267,14 +386,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             .select('id, category, title, subtitle, emoji, image_url, location, source, price_level')
             .eq('id', row.item_id)
             .maybeSingle();
-          if (item) announceMatch(item as Item);
+          // Re-checked: the room can change during the two reads above.
+          if (item && activeRoomIdRef.current === roomId) announceMatch(item as Item);
         },
       )
       .subscribe();
     return () => {
       client.removeChannel(channel);
     };
-  }, [partner, member, announceMatch]);
+  }, [partner?.user_id, member?.user_id, room?.id, announceMatch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- Actions ----
   const createRoom = useCallback(
@@ -285,7 +405,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!supabase) {
         // Offline: fake room, you are the only member.
         setRoom(OFFLINE_ROOM);
-        setMember({ id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
+        setMember({ user_id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
+        setRooms([{ room: OFFLINE_ROOM, displayName: name, partnerName: null, matchCount: 0 }]);
+        activeRoomIdRef.current = OFFLINE_ROOM.id;
+        setActiveRoomId(OFFLINE_ROOM.id);
         return OFFLINE_ROOM.code;
       }
       if (!userId) throw new Error('session not ready');
@@ -294,31 +417,28 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         ...consentArgs,
       });
       if (error) throw error;
-      const { data: me } = await supabase
-        .from('members')
-        .select('id, room_id, display_name, joined_at')
-        .eq('id', userId)
+      const { data: r } = await supabase
+        .from('rooms')
+        .select('id')
+        .eq('code', (code as string).toUpperCase())
         .maybeSingle();
-      if (me) {
-        setMember(me as Member);
-        const { data: r } = await supabase
-          .from('rooms')
-          .select('id, code, locations, price_tiers, created_at')
-          .eq('id', me.room_id)
-          .maybeSingle();
-        if (r) setRoom(r as Room);
-      }
+      await loadForUser(userId);
+      if (r) await setActiveRoom(r.id as string);
       return code as string;
     },
-    [userId],
+    [userId, loadForUser, setActiveRoom],
   );
 
   const joinRoom = useCallback(
     async (code: string, name: string, consent: ConsentState): Promise<void> => {
       const consentArgs = consentRpcArgs(consent, POLICY_VERSION);
       if (!supabase) {
-        setRoom({ ...OFFLINE_ROOM, code: code.toUpperCase() });
-        setMember({ id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
+        const offlineRoom = { ...OFFLINE_ROOM, code: code.toUpperCase() };
+        setRoom(offlineRoom);
+        setMember({ user_id: 'offline-user', room_id: OFFLINE_ROOM.id, display_name: name });
+        setRooms([{ room: offlineRoom, displayName: name, partnerName: null, matchCount: 0 }]);
+        activeRoomIdRef.current = offlineRoom.id;
+        setActiveRoomId(offlineRoom.id);
         return;
       }
       const { data: roomId, error } = await supabase.rpc('join_room', {
@@ -331,24 +451,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // room, lost race) so the caller cannot tell them apart — see
       // 016_invite_code_hardening.sql.
       if (!roomId) throw new Error(JOIN_FAILED);
-      const [{ data: r }, { data: allMembers }] = await Promise.all([
-        supabase
-          .from('rooms')
-          .select('id, code, locations, price_tiers, created_at')
-          .eq('id', roomId as string)
-          .maybeSingle(),
-        supabase
-          .from('members')
-          .select('id, room_id, display_name, joined_at')
-          .eq('room_id', roomId as string),
-      ]);
-      if (r) setRoom(r as Room);
-      for (const m of (allMembers ?? []) as Member[]) {
-        if (m.id === userId) setMember(m);
-        else setPartner(m);
-      }
+      if (!userId) throw new Error('session not ready');
+      await loadForUser(userId);
+      await setActiveRoom(roomId as string);
     },
-    [userId],
+    [userId, loadForUser, setActiveRoom],
   );
 
   const updateLocations = useCallback(
@@ -410,7 +517,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         // Location-catered: source from the edge function per selected location,
         // then merge + dedupe. No locations set -> empty deck (settings CTA).
         const locations = room?.locations ?? [];
-        if (locations.length === 0) {
+        if (!room || locations.length === 0) {
           onProgress?.({ done: 0, total: 0 });
           return [];
         }
@@ -418,7 +525,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         onProgress?.({ done, total: locations.length });
         const perLocation = await Promise.all(
           locations.map((loc) =>
-            getRestaurantsForLocation(loc).finally(() => {
+            getRestaurantsForLocation(loc, room.id).finally(() => {
               done += 1;
               onProgress?.({ done, total: locations.length });
             }),
@@ -444,7 +551,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const getMySwipedItemIds = useCallback(async (): Promise<Set<string>> => {
     if (!supabase) return new Set(offlineSwipes.current.keys());
     if (!member) return new Set();
-    const { data } = await supabase.from('swipes').select('item_id').eq('member_id', member.id);
+    const { data } = await supabase
+      .from('swipes')
+      .select('item_id')
+      .eq('user_id', member.user_id)
+      .eq('room_id', member.room_id);
     return new Set(((data ?? []) as { item_id: string }[]).map((s) => s.item_id));
   }, [member]);
 
@@ -457,14 +568,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!member) return;
       const { error } = await supabase
         .from('swipes')
-        .upsert({ member_id: member.id, item_id: item.id, liked });
+        .upsert({ user_id: member.user_id, room_id: member.room_id, item_id: item.id, liked });
       if (error) throw error;
       if (!liked || !partner) return;
       // I just liked it — had my partner already?
       const { data: theirs } = await supabase
         .from('swipes')
         .select('liked')
-        .eq('member_id', partner.id)
+        .eq('user_id', partner.user_id)
+        .eq('room_id', member.room_id)
         .eq('item_id', item.id)
         .maybeSingle();
       if (theirs?.liked) announceMatch(item);
@@ -488,6 +600,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setRoom(null);
       setMember(null);
       setPartner(null);
+      setRooms([]);
+      activeRoomIdRef.current = null;
+      setActiveRoomId(null);
       return;
     }
     // delete-account is the account half of erasure (room data + the auth.users
@@ -505,6 +620,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setRoom(null);
     setMember(null);
     setPartner(null);
+    setRooms([]);
+    activeRoomIdRef.current = null;
+    setActiveRoomId(null);
     seenMatchIds.current.clear();
   }, []);
 
@@ -518,6 +636,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       room,
       member,
       partner,
+      rooms,
+      activeRoomId,
+      setActiveRoom,
+      refreshRooms,
+      leaveRoom,
       pendingMatch,
       dismissMatch,
       createRoom,
@@ -536,6 +659,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       room,
       member,
       partner,
+      rooms,
+      activeRoomId,
+      setActiveRoom,
+      refreshRooms,
+      leaveRoom,
       pendingMatch,
       dismissMatch,
       createRoom,
