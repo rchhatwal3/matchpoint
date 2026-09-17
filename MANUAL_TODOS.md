@@ -2,14 +2,16 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
-## T13 multiple rooms — finish going live (2026-09-16)
+## T13 multiple rooms — shipped 2026-09-17; follow-ups
 
 - [x] Apply migrations `033`, `034`, `035` by hand in the SQL editor, in order. Done and verified 2026-09-16.
 - [x] Redeploy `get-restaurants` from the `feat/multiple-rooms` checkout — not the main folder, which has the old `index.ts`. Done 2026-09-16 (version 30).
-- [ ] **Merge the `feat/multiple-rooms` PR.** The live site stays broken until this deploys the new client.
+- [x] Merge the `feat/multiple-rooms` PR. Done 2026-09-17 (#77); deployed, and 18/18 live isolation checks passed.
+- [ ] **Two-device check of what the automated checks could not reach.** With a phone and a second device: (1) create a first room on a fresh session and confirm it lands on the share-code screen, not the rooms list; (2) join from the second device and confirm the first device's rooms list stops saying "Waiting for someone to join" when you return to it; (3) with both in the same room, like a card on one and confirm the match appears on the other in real time.
+- [ ] **Delete the two local branches that carry real invite codes:** `docs/t13-multiple-rooms-design` and `backup/pre-scrub-DO-NOT-PUSH`. Never push either.
 - [ ] **Never run `supabase db push` on this project.** Migration history is empty, so it would replay all 35 migrations from `001`. Keep applying by hand in the SQL editor.
 - [ ] **Keep the data backup private and durable.** `~/Documents/Code_Projects/matchpoint-backups/2026-09-16-post-t13/` holds a full export of `members`, `swipes`, `rooms` and `matches`, taken after the migrations. It is real user data: never copy it into this repo, which is public.
-- [ ] Decide whether to delete the one stray anonymous auth user a mis-targeted preview created in production on 2026-09-14. It has no room and no data. Its id is in the private build notes, deliberately not here.
+- [ ] Decide whether to delete four leftover anonymous auth records in production: one created by a mis-targeted preview on 2026-09-14, and three created by the live isolation checks on 2026-09-17. None has a room, swipe or match. Deleting auth records needs the Supabase dashboard (Authentication → Users). Ids are in the private build notes, deliberately not here.
 - [ ] Optional: install native Homebrew at `/opt/homebrew` so the toolchain stops depending on Rosetta, which the macOS 27 upgrade removed once already.
 
 ## Secret API keys — DONE 2026-08-03 (kept for the gotcha)
