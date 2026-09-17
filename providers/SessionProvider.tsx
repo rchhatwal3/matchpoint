@@ -67,6 +67,32 @@ async function getRestaurantsForLocation(location: string, roomId: string): Prom
   return (data ?? []) as Item[];
 }
 
+/**
+ * Every room the caller belongs to, summarized, plus the member rows the active
+ * room's triple is picked from. `error` is the first failed read, if any; the
+ * summaries are then built from whatever did come back.
+ */
+async function fetchRoomSummaries(userId: string) {
+  const client = supabase!;
+  // Two queries, not N+1: `members_select_same_room` already limits members to
+  // rooms this caller belongs to, so one read returns me AND every partner
+  // across all of them. Grouping happens in summarizeRooms.
+  const [roomsRes, membersRes, matchesRes] = await Promise.all([
+    client.from('rooms').select('id, code, locations, price_tiers, created_at'),
+    client.from('members').select('user_id, room_id, display_name, joined_at'),
+    client.from('room_matches').select('room_id'),
+  ]);
+
+  const counts = new Map<string, number>();
+  for (const row of (matchesRes.data ?? []) as { room_id: string }[]) {
+    counts.set(row.room_id, (counts.get(row.room_id) ?? 0) + 1);
+  }
+
+  const members = (membersRes.data ?? []) as Member[];
+  const summaries = summarizeRooms((roomsRes.data ?? []) as Room[], members, userId, counts);
+  return { summaries, members, error: roomsRes.error ?? membersRes.error ?? matchesRes.error };
+}
+
 type SessionValue = {
   loading: boolean;
   /** True when running without Supabase env vars (seed data, in-memory swipes). */
@@ -78,6 +104,8 @@ type SessionValue = {
   rooms: RoomSummary[];
   activeRoomId: string | null;
   setActiveRoom: (roomId: string | null) => Promise<void>;
+  /** Re-reads the rooms list only: the active room, realtime, and matches are untouched. */
+  refreshRooms: () => Promise<void>;
   leaveRoom: (roomId: string) => Promise<void>;
   /** Mutual like detected — MatchOverlay renders it wherever it happens. */
   pendingMatch: Item | null;
@@ -116,6 +144,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // waits for the server's ack, so a torn-down channel can still deliver one
   // late event from the previous room; handlers drop anything not for this id.
   const activeRoomIdRef = useRef<string | null>(null);
+  // Bumped by every rooms load, so a refresh that started before a newer load
+  // (e.g. leaveRoom's) cannot land after it and put back a room just left.
+  const roomsLoadSeq = useRef(0);
 
   const announceMatch = useCallback((item: Item) => {
     if (!isNewMatch(seenMatchIds.current, item.id)) return;
@@ -145,36 +176,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // ---- Load every room I belong to, then the active room's triple ----
   const loadForUser = useCallback(
     async (userId: string) => {
-      const client = supabase!;
       setUserId(userId);
-
-      // Two queries, not N+1: `members_select_same_room` already limits members to
-      // rooms this caller belongs to, so one read returns me AND every partner
-      // across all of them. Grouping happens in summarizeRooms.
-      const [{ data: myRooms }, { data: allMembers }, { data: matchRows }] = await Promise.all([
-        client.from('rooms').select('id, code, locations, price_tiers, created_at'),
-        client.from('members').select('user_id, room_id, display_name, joined_at'),
-        client.from('room_matches').select('room_id'),
-      ]);
-
-      const counts = new Map<string, number>();
-      for (const row of (matchRows ?? []) as { room_id: string }[]) {
-        counts.set(row.room_id, (counts.get(row.room_id) ?? 0) + 1);
-      }
-
-      const summaries = summarizeRooms(
-        (myRooms ?? []) as Room[],
-        (allMembers ?? []) as Member[],
-        userId,
-        counts,
-      );
+      roomsLoadSeq.current += 1;
+      const { summaries, members } = await fetchRoomSummaries(userId);
       setRooms(summaries);
 
       const stored = pickActiveRoom(await readActiveRoom(), summaries);
-      applyActiveRoom(stored, summaries, (allMembers ?? []) as Member[], userId);
+      applyActiveRoom(stored, summaries, members, userId);
     },
     [applyActiveRoom],
   );
+
+  // ---- Refresh the rooms list alone (partner joined, edits, new matches) ----
+  // Realtime only updates the active room's triple, so the list goes stale; the
+  // rooms screen calls this on focus. It deliberately leaves the active room,
+  // the channels, pendingMatch and seenMatchIds alone.
+  const refreshRooms = useCallback(async (): Promise<void> => {
+    // Offline: no backend — the in-memory list createRoom/joinRoom built is
+    // already the whole truth.
+    if (!supabase || !userId) return;
+    const seq = ++roomsLoadSeq.current;
+    const { summaries, error } = await fetchRoomSummaries(userId);
+    if (seq !== roomsLoadSeq.current) return;
+    // A failed read keeps the list on screen rather than blanking it to empty.
+    if (error) throw error;
+    setRooms(summaries);
+  }, [userId]);
 
   const setActiveRoom = useCallback(
     async (roomId: string | null) => {
@@ -612,6 +639,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       rooms,
       activeRoomId,
       setActiveRoom,
+      refreshRooms,
       leaveRoom,
       pendingMatch,
       dismissMatch,
@@ -634,6 +662,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       rooms,
       activeRoomId,
       setActiveRoom,
+      refreshRooms,
       leaveRoom,
       pendingMatch,
       dismissMatch,

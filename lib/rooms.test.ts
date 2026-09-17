@@ -1,4 +1,4 @@
-import { summarizeRooms, pickActiveRoom } from './rooms';
+import { summarizeRooms, pickActiveRoom, shouldRedirectToRooms } from './rooms';
 import type { Member, Room } from './types';
 
 const room = (id: string, code: string): Room => ({
@@ -98,5 +98,44 @@ describe('pickActiveRoom', () => {
 
   it('returns null when I have no rooms at all', () => {
     expect(pickActiveRoom('r1', [])).toBeNull();
+  });
+});
+
+describe('shouldRedirectToRooms', () => {
+  const returning = {
+    loading: false,
+    roomCount: 2,
+    createdCode: null,
+    openedDeliberately: false,
+    hasInviteCode: false,
+    submitting: false,
+  };
+
+  it('sends a returning user with rooms to the list', () => {
+    expect(shouldRedirectToRooms(returning)).toBe(true);
+  });
+
+  it('waits while the session is still loading', () => {
+    expect(shouldRedirectToRooms({ ...returning, loading: true })).toBe(false);
+  });
+
+  it('keeps a first-time user with no rooms on the form', () => {
+    expect(shouldRedirectToRooms({ ...returning, roomCount: 0 })).toBe(false);
+  });
+
+  it('holds while a create or join is in flight, even once rooms have loaded', () => {
+    expect(shouldRedirectToRooms({ ...returning, roomCount: 1, submitting: true })).toBe(false);
+  });
+
+  it('shows the share-code screen after a create', () => {
+    expect(shouldRedirectToRooms({ ...returning, createdCode: 'ABC123' })).toBe(false);
+  });
+
+  it('honours a deliberate visit', () => {
+    expect(shouldRedirectToRooms({ ...returning, openedDeliberately: true })).toBe(false);
+  });
+
+  it('lets an invite-code link reach the join form', () => {
+    expect(shouldRedirectToRooms({ ...returning, hasInviteCode: true })).toBe(false);
   });
 });

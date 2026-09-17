@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
@@ -12,8 +12,18 @@ import type { RoomSummary } from '@/lib/rooms';
 export default function Rooms() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
-  const { rooms, loading, setActiveRoom, leaveRoom } = useSession();
+  const { rooms, loading, setActiveRoom, refreshRooms, leaveRoom } = useSession();
   const [confirmLeave, setConfirmLeave] = useState<string | null>(null);
+
+  // Realtime only keeps the active room current, so re-read the list each time
+  // this screen is shown: a partner may have joined, or matches landed, meanwhile.
+  // The list already on screen stays until the fresh one replaces it.
+  useFocusEffect(
+    useCallback(() => {
+      if (loading) return;
+      refreshRooms().catch((e) => console.warn('rooms refresh failed', e));
+    }, [loading, refreshRooms]),
+  );
 
   const open = async (summary: RoomSummary) => {
     await setActiveRoom(summary.room.id);

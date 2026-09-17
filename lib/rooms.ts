@@ -57,3 +57,31 @@ export function pickActiveRoom(storedId: string | null, summaries: RoomSummary[]
   if (!storedId) return null;
   return summaries.some((s) => s.room.id === storedId) ? storedId : null;
 }
+
+/**
+ * Whether the entry screen should send the caller to the rooms list instead of
+ * the create/join form. Anyone with rooms goes to the list, except:
+ * - a code was just created (the share-code screen must show first),
+ * - a deliberate visit (`?new=1`, the list's "New room" button),
+ * - an invite-code deep link (joining a second room is the point),
+ * - a create or join started on this screen is still in flight: createRoom and
+ *   joinRoom fill the rooms list several awaits before they return, so without
+ *   this the list would win the race against the screen they lead to.
+ */
+export function shouldRedirectToRooms(state: {
+  loading: boolean;
+  roomCount: number;
+  createdCode: string | null;
+  openedDeliberately: boolean;
+  hasInviteCode: boolean;
+  submitting: boolean;
+}): boolean {
+  return (
+    !state.loading &&
+    state.roomCount > 0 &&
+    !state.createdCode &&
+    !state.openedDeliberately &&
+    !state.hasInviteCode &&
+    !state.submitting
+  );
+}

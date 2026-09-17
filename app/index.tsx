@@ -5,6 +5,7 @@ import { useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { canEnterApp, type ConsentState } from '@/lib/consent/consent-logic';
 import { friendlyRoomError } from '@/lib/room-errors';
+import { shouldRedirectToRooms } from '@/lib/rooms';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
@@ -39,6 +40,11 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [consent, setConsent] = useState<ConsentState>({ tosAccepted: false });
+  // Set in the same synchronous batch as the submit's first state change, before
+  // any await: createRoom/joinRoom re-render this screen with a filled rooms list
+  // long before they return. Not `busy` — that clears in `finally`, while a join
+  // is still navigating away. Resets only on failure so the form works again.
+  const [submitting, setSubmitting] = useState(false);
 
   // Has at least one room from a previous session -> the rooms list, not the
   // create/join form. Gate on rooms.length, not room: a returning user with
@@ -46,19 +52,31 @@ export default function Home() {
   // An invite-code deep link is also exempt: joining a second room is the
   // point of this feature, so a code in the URL must always reach the join
   // form instead of being swallowed by the redirect.
-  if (!loading && rooms.length > 0 && !createdCode && !openedDeliberately && !hasInviteCode) {
+  // A create or join in flight is exempt too (see `submitting`).
+  if (
+    shouldRedirectToRooms({
+      loading,
+      roomCount: rooms.length,
+      createdCode,
+      openedDeliberately,
+      hasInviteCode,
+      submitting,
+    })
+  ) {
     return <Redirect href="/rooms" />;
   }
 
   const canSubmit = name.trim().length > 0 && canEnterApp(consent) && !busy;
 
   const handleCreate = async () => {
+    setSubmitting(true);
     setError(null);
     setBusy(true);
     try {
       const c = await createRoom(name.trim(), consent);
       setCreatedCode(c);
     } catch (e) {
+      setSubmitting(false);
       setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
@@ -79,11 +97,13 @@ export default function Home() {
       setError("Enter your partner's 6-character code.");
       return;
     }
+    setSubmitting(true);
     setBusy(true);
     try {
       await joinRoom(code, name.trim(), consent);
       router.replace('/lobby');
     } catch (e) {
+      setSubmitting(false);
       setError(friendlyRoomError(e instanceof Error ? e.message : String(e)));
     } finally {
       setBusy(false);
