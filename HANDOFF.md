@@ -13,6 +13,8 @@ Both are marked closed in `TODO.md` with a caveat: migrations here are applied b
 
 Still open in that cluster and being worked next: the `rooms.locations` per-entry length cap (migration `037`) and location enumeration through `items` (migration `038`). The `main` ruleset item is yours, in `MANUAL_TODOS.md`.
 
+**Gotcha: use Node 22 locally, not 20 and not 24.** The `pre-push` hook runs typecheck, lint and the coverage suite in one go, and on this machine each end of that range fails a different half. On Node 20, `lib/supabase.test.ts` fails 3 tests — `@supabase/realtime-js` wants a global `WebSocket`, which Node 20 does not have. On Node 24, `expo lint` dies with "Cannot find native binding" from `unrs-resolver`, and a clean `npm ci` under 24 does not fix it. Node 22 passes both: 256 tests, lint clean. CI runs Node 24 and is green, so this is local-only — but a push will be blocked until you switch.
+
 ## T13 multiple rooms per person — SHIPPED, DEPLOYED AND VERIFIED LIVE 2026-09-17 (PR #77)
 
 **Shipped.** [#77](https://github.com/rchhatwal3/matchpoint/pull/77) merged as `907a612`; the deploy run passed all four jobs (Edge Function Tests, Typecheck and Lint, Tests and Coverage, Build and Deploy to GitHub Pages) and Pages rebuilt from it. The live bundle was fetched and contains code that exists only in this change — the rooms list, `leave_room`, the `too_many_rooms` message — and `/matchpoint/rooms` returns 200. The intentional outage between the migrations (2026-09-16) and this deploy is over.
