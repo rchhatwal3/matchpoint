@@ -2,6 +2,11 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
+## Security P3 cluster — migrations to apply by hand (2026-09-29)
+
+- [ ] **Apply `037_locations_entry_length.sql` in the SQL editor.** Replaces the `rooms_normalize_locations()` trigger function with one that also refuses a location entry over 80 characters. Apply it *after* merging the PR, then run the probes at the bottom of the file: an 81-character entry must be refused, an 80-character one accepted, and the last query lists any rooms already holding an oversized entry (those are grandfathered, not broken — clean them up only if you want the column uniform).
+- [ ] **Re-running `028` or `031` after `037` reverts it.** Both carry their own full copy of that function. If the three are ever applied to a fresh database, apply them in file order.
+
 ## T13 multiple rooms — shipped 2026-09-17; follow-ups
 
 - [x] Apply migrations `033`, `034`, `035` by hand in the SQL editor, in order. Done and verified 2026-09-16.
