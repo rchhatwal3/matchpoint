@@ -4,7 +4,7 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 
 ## Security P3 cluster — migrations to apply by hand (2026-09-29)
 
-- [ ] **Apply `037_locations_entry_length.sql` in the SQL editor.** Replaces the `rooms_normalize_locations()` trigger function with one that also refuses a location entry over 80 characters. Apply it *after* merging the PR, then run the probes at the bottom of the file: an 81-character entry must be refused, an 80-character one accepted, and the last query lists any rooms already holding an oversized entry (those are grandfathered, not broken — clean them up only if you want the column uniform).
+- [x] **Apply `037_locations_entry_length.sql` in the SQL editor. DONE 2026-10-07.** Replaces the `rooms_normalize_locations()` trigger function with one that also refuses a location entry over 80 characters. Apply it *after* merging the PR, then run the probes at the bottom of the file: an 81-character entry must be refused, an 80-character one accepted, and the last query lists any rooms already holding an oversized entry (those are grandfathered, not broken — clean them up only if you want the column uniform).
 - [ ] **Re-running `028` or `031` after `037` reverts it.** Both carry their own full copy of that function. If the three are ever applied to a fresh database, apply them in file order.
 
 ## T13 multiple rooms — shipped 2026-09-17; follow-ups
@@ -31,6 +31,10 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 - [ ] **Keep the data backup private and durable.** `~/Documents/Code_Projects/matchpoint-backups/2026-09-16-post-t13/` holds a full export of `members`, `swipes`, `rooms` and `matches`, taken after the migrations. It is real user data: never copy it into this repo, which is public.
 - [ ] Decide whether to delete four leftover anonymous auth records in production: one created by a mis-targeted preview on 2026-09-14, and three created by the live isolation checks on 2026-09-17. None has a room, swipe or match. Deleting auth records needs the Supabase dashboard (Authentication → Users). Ids are in the private build notes, deliberately not here.
 - [ ] Optional: install native Homebrew at `/opt/homebrew` so the toolchain stops depending on Rosetta, which the macOS 27 upgrade removed once already.
+
+## Scoped `items` reads — migration to apply by hand (2026-09-29)
+
+- [x] **Apply `038_items_read_scope.sql` in the SQL editor. DONE 2026-10-07, ahead of the PR merging, and verified live the same day — nothing left to do here.** Replaces the blanket `items` read policy with a scoped one, so a session can no longer enumerate every location any room has ever searched. Apply after merging the PR, then run the probes at the bottom of the file — the decisive ones are live, as an anonymous caller, not in the editor (in the editor you are the owner and RLS does not apply to you). **If a deck or the Matches screen comes back empty afterwards, this file is the cause:** `DROP POLICY "items_select_scoped" ON items;` then re-create `002`'s `items_select_authenticated` to restore today's behaviour.
 
 ## Secret API keys — DONE 2026-08-03 (kept for the gotcha)
 
