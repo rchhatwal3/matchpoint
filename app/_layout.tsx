@@ -25,8 +25,20 @@ function ThemedApp() {
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
       document.documentElement.style.backgroundColor = colors.bg;
+      // Without this every input and button falls back to the browser's own
+      // ring, whose colour is the OS accent — amber on one machine, blue on the
+      // next. DESIGN.md makes the focus ring crimson. :focus-visible, so a mouse
+      // click on a button paints nothing while a text field always shows it.
+      document.documentElement.style.setProperty('--mp-focus', colors.primary);
+      if (!document.getElementById('mp-focus-ring')) {
+        const style = document.createElement('style');
+        style.id = 'mp-focus-ring';
+        style.textContent =
+          ':focus-visible { outline: 2px solid var(--mp-focus); outline-offset: 2px; }';
+        document.head.appendChild(style);
+      }
     }
-  }, [colors.bg]);
+  }, [colors.bg, colors.primary]);
   return (
     <>
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

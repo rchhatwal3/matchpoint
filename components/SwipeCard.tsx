@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -147,8 +148,12 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
             onError={() => setImgFailed(true)}
             accessibilityElementsHidden
           />
-          {/* Scrim band so title/meta stay legible over the photo */}
-          <View style={[styles.scrim, { backgroundColor: colors.scrim }]} />
+          {/* Scrim so title/meta stay legible over the photo */}
+          <LinearGradient
+            colors={colors.cardScrim}
+            locations={colors.cardScrimStops}
+            style={styles.panel}
+          />
         </>
       ) : (
         <View style={styles.panel}>
@@ -168,7 +173,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
           </Text>
         ) : null}
         {locationLabel ? (
-          <Text variant="label" color={showImage ? colors.onScrim : colors.inkMuted}>
+          <Text variant="label" color={showImage ? colors.onScrimMuted : colors.inkMuted}>
             {locationLabel}
           </Text>
         ) : null}
@@ -227,7 +232,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   glyph: { fontSize: 96, lineHeight: 120 },
-  scrim: { position: 'absolute', left: 0, right: 0, bottom: 0, top: '52%' },
   meta: {},
   stamp: {
     position: 'absolute',

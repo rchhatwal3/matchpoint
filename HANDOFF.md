@@ -2,6 +2,20 @@
 
 Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-09-29.
 
+## UI nits — fixed 2026-10-07 (`fix/ui-nits`)
+
+The three pre-existing DESIGN.md violations from the 2026-08-09 QA pass. Details and measurements are in `TODO.md`; what is worth knowing beyond them:
+
+- **The focus ring was a system gap, not a city-field bug.** No input or button in the app had a focus style, so all of them showed the browser's ring in the OS accent colour. The fix is one global `:focus-visible` rule in `app/_layout.tsx`, next to the existing document-background effect, reading `colors.primary` through `--mp-focus`. New inputs get it for free — do not add per-component focus styles.
+- **`colors.scrim` is still the `MatchOverlay` backdrop.** The card now uses its own `cardScrim` / `cardScrimStops` tokens, so changing one does not move the other.
+- **New dependency: `expo-linear-gradient` (~57.0.2).** Installed with Node 24's npm on purpose: Node 22's npm 10 rewrites the lockfile and strips every `libc` field npm 11 wrote, which is 40-odd lines of unrelated churn.
+
+### Gotchas learned this batch
+
+- **The browser preview launched an Intel `node`.** `/usr/local/bin/node` (x64, the old Homebrew toolchain) is first on the preview's PATH, while `node_modules` was installed by nvm's arm64 Node, so Metro died on `Cannot find module '../lightningcss.darwin-x64.node'`. There is now a `matchpoint-web-offline` entry in the user-level `~/.claude/launch.json` that pins nvm's Node 22 on PATH **and** sets `EXPO_NO_DOTENV=1`, so it runs in offline demo mode and cannot create production users. The preview tool reads the user-level file, not this repo's `.claude/launch.json`.
+- **Offline mode cannot show a city line.** `mapSeedToItems` (`lib/session-logic.ts`) hardcodes `location: null`, and only vacations have photos. Verifying the city line meant a temporary one-line fixture there, reverted before commit.
+- **Synthetic drags do not move swipe cards** in the test browser — neither the pane's drag action nor dispatched pointer sequences with intermediate moves, even on a card with no overlay. Use the ✕ / ♥ buttons for automated checks, and treat drag behaviour as needing a real device.
+
 ## Security P3 cluster — in progress 2026-09-29
 
 Working the four open items of the 2026-07-28 P3 cluster (`TODO.md`). Two of them turned out to be closed already, by T13 rather than by work aimed at them:
