@@ -20,6 +20,19 @@ The other two are fixed, applied and verified live on 2026-10-07.
 
 The `main` ruleset item is the one piece of this cluster still open, and it is yours — a repository setting, in `MANUAL_TODOS.md`.
 
+### The erasure cut-off is tested now, not just reviewed (2026-10-07)
+
+PR #81 merged, and with it the cluster. The remaining `[~]` entry — the erasure snapshot cut-off, shipped in PR #63 and never exercised because it needs three identities and a real erasure — was run against production with four anonymous sessions and two real `delete-account` calls. **Six checks, all passed:**
+
+1. A and B mutually liked a food item (location NULL, so no Places spend) and both read it from `room_matches`.
+2. A erased for real. A's own token then returned `403 user_not_found`.
+3. B, in the room before the erasure, still read the match — the promise at `app/settings.tsx` and in the published privacy policy.
+4. C joined *after* the erasure and read nothing: empty through `room_matches`, empty through a direct `GET /rest/v1/matches?room_id=eq.<room>` (030's point a — the reason the gate is in the policy and not the view), and `matched_at` itself came back `42501`.
+5. **The load-bearing subtlety from `030`:** C then erased, which re-snapshots from `room_matches`. A fourth session D joined afterwards and still read nothing, so the re-snapshot did not refresh `matched_at`. Had it refreshed, every later joiner would have inherited the older member's matches and the gate would leak by design.
+6. When the last member erased, the room and its snapshot went with it, and a fresh session reads `*/0` for both.
+
+Test accounts, rooms and swipes are all erased — this run left nothing behind, unlike earlier batches. It also incidentally exercised the deleted-user foreign key: a deleted user's token is refused at the API before it can reach a write.
+
 **Gotcha: use Node 22 locally, not 20 and not 24.** The `pre-push` hook runs typecheck, lint and the coverage suite in one go, and on this machine each end of that range fails a different half. On Node 20, `lib/supabase.test.ts` fails 3 tests — `@supabase/realtime-js` wants a global `WebSocket`, which Node 20 does not have. On Node 24, `expo lint` dies with "Cannot find native binding" from `unrs-resolver`, and a clean `npm ci` under 24 does not fix it. Node 22 passes both: 256 tests, lint clean. CI runs Node 24 and is green, so this is local-only — but a push will be blocked until you switch.
 
 ## T13 multiple rooms per person — SHIPPED, DEPLOYED AND VERIFIED LIVE 2026-09-17 (PR #77)
