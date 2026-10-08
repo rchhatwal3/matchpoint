@@ -34,7 +34,7 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 
 ## Scoped `items` reads — migration to apply by hand (2026-09-29)
 
-- [x] **Apply `038_items_read_scope.sql` in the SQL editor. DONE 2026-10-07, ahead of the PR merging.** Replaces the blanket `items` read policy with a scoped one, so a session can no longer enumerate every location any room has ever searched. Apply after merging the PR, then run the probes at the bottom of the file — the decisive ones are live, as an anonymous caller, not in the editor (in the editor you are the owner and RLS does not apply to you). **If a deck or the Matches screen comes back empty afterwards, this file is the cause:** `DROP POLICY "items_select_scoped" ON items;` then re-create `002`'s `items_select_authenticated` to restore today's behaviour.
+- [x] **Apply `038_items_read_scope.sql` in the SQL editor. DONE 2026-10-07, ahead of the PR merging, and verified live the same day — nothing left to do here.** Replaces the blanket `items` read policy with a scoped one, so a session can no longer enumerate every location any room has ever searched. Apply after merging the PR, then run the probes at the bottom of the file — the decisive ones are live, as an anonymous caller, not in the editor (in the editor you are the owner and RLS does not apply to you). **If a deck or the Matches screen comes back empty afterwards, this file is the cause:** `DROP POLICY "items_select_scoped" ON items;` then re-create `002`'s `items_select_authenticated` to restore today's behaviour.
 
 ## Secret API keys — DONE 2026-08-03 (kept for the gotcha)
 

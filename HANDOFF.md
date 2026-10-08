@@ -11,7 +11,14 @@ Working the four open items of the 2026-07-28 P3 cluster (`TODO.md`). Two of the
 
 Both are marked closed in `TODO.md` with a caveat: migrations here are applied by hand, so the live catalogue is the authority. `MANUAL_TODOS.md` carries the two read-only queries that confirm it. **If either query disagrees, both findings go back to open.**
 
-Still open in that cluster and being worked next: the `rooms.locations` per-entry length cap (migration `037`) and location enumeration through `items` (migration `038`). The `main` ruleset item is yours, in `MANUAL_TODOS.md`.
+The other two are fixed, applied and verified live on 2026-10-07.
+
+- **`rooms.locations` had no per-entry length bound** — PR #80, migration `037`. An 81-character regioned entry now comes back `23514 A location may be at most 80 characters (got 81)`; 80 returns 204. The bound lives in `rooms_normalize_locations()` rather than a table CHECK (a CHECK cannot hold the `unnest` an array scan needs), and runs *before* `031`'s region pass so the branch that interpolates the offending value never sees an oversized one.
+- **`items` was world-readable, so every location ever searched was enumerable** — PR #81 (open; the migration was applied ahead of the merge), migration `038`. `items_select_authenticated` is replaced by `private.can_read_item(id, location)`. **Verified live as two ordinary anonymous callers:** a session in no rooms reads 0 restaurant rows; the location-free catalogue is untouched at 45 food rows; a room with `Seattle, WA` saved reads all 60 of that city's rows and 0 for any other city; a matched restaurant still returns from `room_matches` with title and image **after the city is removed from the room** (the regression the swipe/match arms exist to prevent); and the partner can still read that item by id with the city gone, which is the realtime announce path. Test data erased with `delete_my_data`; the probe room is gone and the caller holds no memberships.
+
+**Re-running `028` or `031` reverts `037`**, and all three carry their own full copy of `rooms_normalize_locations()`. On a fresh database, apply them in file order.
+
+The `main` ruleset item is the one piece of this cluster still open, and it is yours — a repository setting, in `MANUAL_TODOS.md`.
 
 **Gotcha: use Node 22 locally, not 20 and not 24.** The `pre-push` hook runs typecheck, lint and the coverage suite in one go, and on this machine each end of that range fails a different half. On Node 20, `lib/supabase.test.ts` fails 3 tests — `@supabase/realtime-js` wants a global `WebSocket`, which Node 20 does not have. On Node 24, `expo lint` dies with "Cannot find native binding" from `unrs-resolver`, and a clean `npm ci` under 24 does not fix it. Node 22 passes both: 256 tests, lint clean. CI runs Node 24 and is green, so this is local-only — but a push will be blocked until you switch.
 
