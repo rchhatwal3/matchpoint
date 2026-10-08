@@ -54,6 +54,18 @@ export type ColorTokens = {
   scrim: string;
   /** Text/icon over a photo scrim — always light, both themes. */
   onScrim: string;
+  /**
+   * Quieter text over a photo scrim: `onScrim` at reduced alpha, never a grey —
+   * grey on an image reads washed out. Verified >= 4.5:1 where the city line sits.
+   */
+  onScrimMuted: string;
+  /**
+   * Swipe-card photo scrim: transparent high on the card, darkest under the text.
+   * A gradient, not a band — a flat band's top edge reads as a seam across the
+   * photo. `cardScrimStops` are the matching positions (0 = card top).
+   */
+  cardScrim: readonly [string, string, ...string[]];
+  cardScrimStops: readonly [number, number, ...number[]];
   skeleton: string;
 };
 
@@ -84,6 +96,9 @@ export const lightColors: ColorTokens = {
   onDangerContainer: '#410100',
   scrim: 'rgba(0,0,0,0.45)',
   onScrim: '#FFFFFF',
+  onScrimMuted: 'rgba(255,255,255,0.8)',
+  cardScrim: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.45)', 'rgba(0,0,0,0.68)', 'rgba(0,0,0,0.78)'],
+  cardScrimStops: [0.35, 0.62, 0.8, 1],
   skeleton: '#ECECEC',
 };
 
@@ -114,6 +129,9 @@ export const darkColors: ColorTokens = {
   onDangerContainer: '#FFDAD5',
   scrim: 'rgba(0,0,0,0.6)',
   onScrim: '#FFFFFF',
+  onScrimMuted: 'rgba(255,255,255,0.8)',
+  cardScrim: ['rgba(0,0,0,0)', 'rgba(0,0,0,0.5)', 'rgba(0,0,0,0.72)', 'rgba(0,0,0,0.82)'],
+  cardScrimStops: [0.35, 0.62, 0.8, 1],
   skeleton: '#2A2C32',
 };
 

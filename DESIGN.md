@@ -156,7 +156,9 @@ tightest is crimson/white at 5.46:1.
 - **Crimson** (light `#C2314F`, dark `#FF8FA3`): brand color and every primary
   action — the like button, filled CTAs, active category, focus ring, the
   swipe-right glow on a card. In dark mode it lifts to a rose so it stays legible
-  on the cool charcoal ground.
+  on the cool charcoal ground. On web the focus ring is one global `:focus-visible`
+  rule (`app/_layout.tsx`), fed from the resolved theme so it follows the toggle —
+  never the browser default, whose colour is the OS accent.
 - **Crimson Container** (`#FFD9DF` / dark `#7A1230`): soft accent fills — invite-code
   badge, empty-state icon badges, tonal buttons, match-card halo.
 
@@ -217,6 +219,14 @@ the swipe deck rises to Level 2. If everything is elevated, nothing is.
   radius, title + meta pinned bottom over a scrim. Drag physics: rotation follows
   drag x, crimson "LIKE" / neutral "PASS" stamp fades in with drag distance. Buttons
   (✕ / ♥, both ≥ 56px) mirror the gesture for accessibility.
+- **The scrim is a gradient, never a band** (`cardScrim` / `cardScrimStops` in
+  `lib/theme/tokens.ts`): transparent at 35% of the card, darkest under the text. A
+  flat band's top edge reads as a seam across the photo. The stops are set so that
+  over a pure-white photo the title clears 3:1 and the subtitle and city line clear
+  4.5:1 at the height each actually sits.
+- **Three text tiers over a photo:** title in white Fraunces, subtitle in white body,
+  and the city line (shown only when a room has two or more cities) in `onScrimMuted`
+  — white at reduced alpha, never a grey, which reads washed out on an image.
 
 ### Match Reveal (signature)
 - When both swipe right: card pauses, crimson-container halo, both avatars
