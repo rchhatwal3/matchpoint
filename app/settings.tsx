@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/lib/theme';
 import { POPULAR_METROS } from '@/lib/cities';
@@ -28,6 +28,8 @@ export default function Settings() {
   const router = useRouter();
   const { loading, room, updateLocations, deleteMyData } = useSession();
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // Opened from the rooms list: back returns there, not to the active room's lobby.
+  const { from } = useLocalSearchParams<{ from?: string }>();
 
   const selected = room?.locations ?? [];
   const selectedKeys = new Set(selected.map((l) => l.toLowerCase()));
@@ -55,7 +57,10 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Header title="Settings" />
+      <Header
+        title="Settings"
+        onBack={from === 'rooms' ? () => router.replace('/rooms') : undefined}
+      />
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['3xl'] }}>
         <SettingsSection title="Appearance">
           <ThemeControl />

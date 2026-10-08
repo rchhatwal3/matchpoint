@@ -1,7 +1,7 @@
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useTheme } from '@/lib/theme';
+import { TOUCH_TARGET, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -12,7 +12,7 @@ import type { RoomSummary } from '@/lib/rooms';
 export default function Rooms() {
   const { colors, spacing, radii } = useTheme();
   const router = useRouter();
-  const { rooms, loading, setActiveRoom, refreshRooms, leaveRoom } = useSession();
+  const { rooms, loading, offline, setActiveRoom, refreshRooms, leaveRoom } = useSession();
   const [confirmLeave, setConfirmLeave] = useState<string | null>(null);
 
   // Realtime only keeps the active room current, so re-read the list each time
@@ -33,6 +33,39 @@ export default function Rooms() {
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: spacing['2xl'], gap: spacing['2xl'] }}>
+        <View style={[styles.row, styles.banner, { gap: spacing.md }]}>
+          <View style={{ gap: spacing.sm, flex: 1 }}>
+            <Text variant="display" color={colors.primary}>
+              matchpoint
+            </Text>
+            <Text variant="body" color={colors.inkMuted}>
+              Swipe together, match on what you both want.
+            </Text>
+            {offline ? (
+              <Text variant="overline" color={colors.inkMuted}>
+                OFFLINE DEMO MODE
+              </Text>
+            ) : null}
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Settings"
+            onPress={() => router.push('/settings?from=rooms')}
+            style={({ pressed }) => [
+              styles.settingsButton,
+              {
+                backgroundColor: pressed ? colors.surfaceVariant : colors.surface,
+                borderColor: colors.outline,
+                borderRadius: radii.full,
+              },
+            ]}
+          >
+            <Text variant="title" color={colors.ink} accessibilityElementsHidden>
+              {'⚙︎'}
+            </Text>
+          </Pressable>
+        </View>
+
         <Text variant="headline">Your rooms</Text>
 
         {!loading && rooms.length === 0 ? (
@@ -147,5 +180,13 @@ export default function Rooms() {
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
+  banner: { alignItems: 'flex-start' },
   dot: { width: 12, height: 12 },
+  settingsButton: {
+    width: TOUCH_TARGET,
+    height: TOUCH_TARGET,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
 });
