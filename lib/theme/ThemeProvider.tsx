@@ -14,7 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 export type ThemePreference = 'system' | 'light' | 'dark';
 export type Scheme = 'light' | 'dark';
 
-const STORAGE_KEY = 'matchpoint-theme-preference';
+export const STORAGE_KEY = 'matchpoint-theme-preference';
 
 const isPreference = (v: unknown): v is ThemePreference =>
   v === 'system' || v === 'light' || v === 'dark';
@@ -46,6 +46,8 @@ export type ThemeContextValue = {
   /** User's stored preference. */
   preference: ThemePreference;
   setPreference: (p: ThemePreference) => void;
+  /** True once the stored preference has been read (or failed to be). */
+  hydrated: boolean;
 };
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -53,13 +55,22 @@ export const ThemeContext = createContext<ThemeContextValue | null>(null);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const systemScheme: Scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
+  const [hydrated, setHydrated] = useState(false);
 
   // Hydrate the persisted preference once on mount.
   useEffect(() => {
     let mounted = true;
-    preferenceStore.get().then((v) => {
-      if (mounted && isPreference(v)) setPreferenceState(v);
-    });
+    // Through a promise so a synchronous throw (blocked localStorage) still
+    // reaches .finally — the web render stays forced light until hydrated.
+    Promise.resolve()
+      .then(() => preferenceStore.get())
+      .then((v) => {
+        if (mounted && isPreference(v)) setPreferenceState(v);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (mounted) setHydrated(true);
+      });
     return () => {
       mounted = false;
     };
@@ -70,11 +81,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     preferenceStore.set(p);
   }, []);
 
-  const scheme: Scheme = preference === 'system' ? systemScheme : preference;
+  const resolved: Scheme = preference === 'system' ? systemScheme : preference;
+  // Web pages are pre-rendered light at build time. Hydration must render the
+  // same, or React keeps the server's light inline styles under dark ones and
+  // the page sticks half-themed. The real scheme follows once hydrated, while
+  // the +html.tsx boot script keeps a dark visitor's page hidden.
+  const scheme: Scheme = Platform.OS === 'web' && !hydrated ? 'light' : resolved;
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ scheme, preference, setPreference }),
-    [scheme, preference, setPreference],
+    () => ({ scheme, preference, setPreference, hydrated }),
+    [scheme, preference, setPreference, hydrated],
   );
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
