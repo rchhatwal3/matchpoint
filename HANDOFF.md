@@ -1,6 +1,19 @@
 # HANDOFF — matchpoint
 
-Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-09-17.
+Read this first when resuming. Snapshot of state, decisions, and what's next. Last updated 2026-09-29.
+
+## Security P3 cluster — in progress 2026-09-29
+
+Working the four open items of the 2026-07-28 P3 cluster (`TODO.md`). Two of them turned out to be closed already, by T13 rather than by work aimed at them:
+
+- **`join_room`'s throttle TOCTOU** — `035_memberships_rpcs.sql:110` serialises the count-check-record sequence under a per-caller advisory lock (salt 2, shared with `create_room` on purpose).
+- **A deleted user's token can still write** — `033_memberships_schema.sql:63-65` adds the `auth.users` foreign key with `ON DELETE CASCADE`, which is the fix the review specified.
+
+Both are marked closed in `TODO.md` with a caveat: migrations here are applied by hand, so the live catalogue is the authority. `MANUAL_TODOS.md` carries the two read-only queries that confirm it. **If either query disagrees, both findings go back to open.**
+
+Still open in that cluster and being worked next: the `rooms.locations` per-entry length cap (migration `037`) and location enumeration through `items` (migration `038`). The `main` ruleset item is yours, in `MANUAL_TODOS.md`.
+
+**Gotcha: use Node 22 locally, not 20 and not 24.** The `pre-push` hook runs typecheck, lint and the coverage suite in one go, and on this machine each end of that range fails a different half. On Node 20, `lib/supabase.test.ts` fails 3 tests — `@supabase/realtime-js` wants a global `WebSocket`, which Node 20 does not have. On Node 24, `expo lint` dies with "Cannot find native binding" from `unrs-resolver`, and a clean `npm ci` under 24 does not fix it. Node 22 passes both: 256 tests, lint clean. CI runs Node 24 and is green, so this is local-only — but a push will be blocked until you switch.
 
 ## T13 multiple rooms per person — SHIPPED, DEPLOYED AND VERIFIED LIVE 2026-09-17 (PR #77)
 

@@ -8,6 +8,19 @@ Steps only a human can do. Ordered by priority. Check off as completed.
 - [x] Redeploy `get-restaurants` from the `feat/multiple-rooms` checkout — not the main folder, which has the old `index.ts`. Done 2026-09-16 (version 30).
 - [x] Merge the `feat/multiple-rooms` PR. Done 2026-09-17 (#77); deployed, and 18/18 live isolation checks passed.
 - [ ] **Two-device check of what the automated checks could not reach.** With a phone and a second device: (1) create a first room on a fresh session and confirm it lands on the share-code screen, not the rooms list; (2) join from the second device and confirm the first device's rooms list stops saying "Waiting for someone to join" when you return to it; (3) with both in the same room, like a card on one and confirm the match appears on the other in real time.
+- [ ] **Confirm two security findings really are closed, in the SQL editor.** Both were closed by T13 as a side effect rather than by work aimed at them, and the live catalogue is the only authority on what was applied. Read-only, two statements:
+
+  ```sql
+  SELECT pg_get_functiondef(p.oid) ILIKE '%pg_advisory_xact_lock%' AS join_room_locked
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+   WHERE n.nspname = 'public' AND p.proname = 'join_room';
+
+  SELECT conname, confrelid::regclass, confdeltype
+    FROM pg_constraint
+   WHERE conrelid = 'public.members'::regclass AND contype = 'f';
+  ```
+
+  Expect `join_room_locked = true`, and a row named `members_user_id_auth_users_fkey` pointing at `auth.users` with `confdeltype = 'c'` (cascade). Anything else means the live function or table does not match `035`/`033` and both findings go back to open in `TODO.md`.
 - [ ] **Delete the two local branches that carry real invite codes:** `docs/t13-multiple-rooms-design` and `backup/pre-scrub-DO-NOT-PUSH`. Never push either.
 - [ ] **Never run `supabase db push` on this project.** Migration history is empty, so it would replay all 35 migrations from `001`. Keep applying by hand in the SQL editor.
 - [ ] **Keep the data backup private and durable.** `~/Documents/Code_Projects/matchpoint-backups/2026-09-16-post-t13/` holds a full export of `members`, `swipes`, `rooms` and `matches`, taken after the migrations. It is real user data: never copy it into this repo, which is public.
