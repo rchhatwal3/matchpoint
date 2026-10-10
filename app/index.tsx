@@ -7,6 +7,7 @@ import { canEnterApp, type ConsentState } from '@/lib/consent/consent-logic';
 import { friendlyRoomError } from '@/lib/room-errors';
 import { shouldRedirectToRooms } from '@/lib/rooms';
 import { Screen } from '@/components/Screen';
+import { Header } from '@/components/Header';
 import { Text } from '@/components/Text';
 import { Button } from '@/components/Button';
 import { CodeDisplay } from '@/components/CodeDisplay';
@@ -141,8 +142,13 @@ export default function Home() {
     );
   }
 
+  // Reached from the rooms list ("New room") or an invite link while already in
+  // a room: give a way back to that list instead of a dead end.
+  const hasRooms = rooms.length > 0;
+
   return (
     <Screen>
+      {hasRooms ? <Header title="New room" onBack={() => router.replace('/rooms')} /> : null}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.body}
@@ -151,7 +157,7 @@ export default function Home() {
           contentContainerStyle={{ padding: spacing['2xl'] }}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={{ gap: spacing.sm, marginTop: spacing['4xl'] }}>
+          <View style={{ gap: spacing.sm, marginTop: hasRooms ? 0 : spacing['4xl'] }}>
             <Text variant="display" color={colors.primary}>
               matchpoint
             </Text>
