@@ -96,3 +96,17 @@ export function upcomingImageUrls(items: Item[], startIndex: number, count: numb
   }
   return urls;
 }
+
+/**
+ * Swap refreshed photo links into the deck by id, after get-restaurants
+ * re-fetched a city whose stored Google links had lapsed. Order, swipe state
+ * and every other field stay as they are, so the deck does not jump; a
+ * refreshed row with no photo never blanks one the card still has.
+ */
+export function applyFreshImages(deck: Item[], fresh: Item[]): Item[] {
+  const urls = new Map(fresh.map((f) => [f.id, f.image_url]));
+  return deck.map((i) => {
+    const url = urls.get(i.id);
+    return url ? { ...i, image_url: url } : i;
+  });
+}

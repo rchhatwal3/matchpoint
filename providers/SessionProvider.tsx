@@ -47,11 +47,15 @@ const RESTAURANT_COLUMNS =
  * key, or errors, falls back to any restaurant rows already in the DB for that
  * location. Either path may legitimately return [] (nothing sourced yet).
  */
-async function getRestaurantsForLocation(location: string, roomId: string): Promise<Item[]> {
+async function getRestaurantsForLocation(
+  location: string,
+  roomId: string,
+  refreshPhotos = false,
+): Promise<Item[]> {
   if (!supabase) return [];
   try {
     const { data, error } = await supabase.functions.invoke('get-restaurants', {
-      body: { location, room_id: roomId },
+      body: { location, room_id: roomId, refresh_photos: refreshPhotos },
     });
     if (error) throw error;
     const items = (data?.items ?? []) as Item[];
@@ -117,7 +121,13 @@ type SessionValue = {
   updateLocations: (locations: string[]) => Promise<void>;
   /** Update the pair's shared restaurant price-tier filter; syncs in realtime. */
   updatePriceTiers: (tiers: number[]) => Promise<void>;
-  getItems: (category: Category, onProgress?: (p: FetchProgress) => void) => Promise<Item[]>;
+  /** `refreshPhotos`: restaurants only — ask for this room's cities to be
+   * re-fetched because their stored photo links failed (rate-limited server-side). */
+  getItems: (
+    category: Category,
+    onProgress?: (p: FetchProgress) => void,
+    opts?: { refreshPhotos?: boolean },
+  ) => Promise<Item[]>;
   getMySwipedItemIds: () => Promise<Set<string>>;
   recordSwipe: (item: Item, liked: boolean) => Promise<void>;
   getMatches: () => Promise<MatchRow[]>;
@@ -504,7 +514,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   );
 
   const getItems = useCallback(
-    async (category: Category, onProgress?: (p: FetchProgress) => void): Promise<Item[]> => {
+    async (
+      category: Category,
+      onProgress?: (p: FetchProgress) => void,
+      opts?: { refreshPhotos?: boolean },
+    ): Promise<Item[]> => {
       // onProgress reports per location as each one lands, so the deck can show
       // a determinate bar instead of waiting on the whole fan-out in silence.
       // Everything else is one step: a single query, reported once it returns.
@@ -525,7 +539,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         onProgress?.({ done, total: locations.length });
         const perLocation = await Promise.all(
           locations.map((loc) =>
-            getRestaurantsForLocation(loc, room.id).finally(() => {
+            getRestaurantsForLocation(loc, room.id, opts?.refreshPhotos).finally(() => {
               done += 1;
               onProgress?.({ done, total: locations.length });
             }),
