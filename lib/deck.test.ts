@@ -1,4 +1,11 @@
-import { cardLocationLabel, deckLoadKey, filterDeck, mixByLocation, upcomingImageUrls } from './deck';
+import {
+  applyFreshImages,
+  cardLocationLabel,
+  deckLoadKey,
+  filterDeck,
+  mixByLocation,
+  upcomingImageUrls,
+} from './deck';
 import type { Item } from './types';
 
 function item(id: string, price_level: number | null = null, image_url: string | null = null): Item {
@@ -171,5 +178,26 @@ describe('mixByLocation', () => {
   it('handles no cities and empty cities', () => {
     expect(mixByLocation([])).toEqual([]);
     expect(mixByLocation([[], []])).toEqual([]);
+  });
+});
+
+describe('applyFreshImages', () => {
+  it('swaps in the refreshed photo by id, keeping order and every other field', () => {
+    const deck = [item('a', 2, 'dead-a'), item('b', 1, 'dead-b'), item('c', 3, 'dead-c')];
+    const fresh = [item('c', 4, 'live-c'), item('a', 4, 'live-a')];
+    const out = applyFreshImages(deck, fresh);
+    expect(out.map((i) => i.id)).toEqual(['a', 'b', 'c']);
+    expect(out.map((i) => i.image_url)).toEqual(['live-a', 'dead-b', 'live-c']);
+    expect(out[0].price_level).toBe(2);
+  });
+
+  it('ignores refreshed rows that are not in the deck (already swiped)', () => {
+    const out = applyFreshImages([item('a', null, 'dead-a')], [item('z', null, 'live-z')]);
+    expect(out).toEqual([item('a', null, 'dead-a')]);
+  });
+
+  it('does not blank a photo when the refresh came back without one', () => {
+    const out = applyFreshImages([item('a', null, 'dead-a')], [item('a', null, null)]);
+    expect(out[0].image_url).toBe('dead-a');
   });
 });

@@ -3,6 +3,7 @@ import {
   CACHE_TARGET,
   MAX_LOCATION_LEN,
   cacheVerdict,
+  shouldRefreshPhotos,
   hasRegion,
   lookupRefusal,
   isLocationAllowed,
@@ -474,4 +475,38 @@ Deno.test('foursquarePrice extracts a valid 1-4 integer, else null', () => {
   assertEquals(foursquarePrice({}), null);
   assertEquals(foursquarePrice(null), null);
   assertEquals(foursquarePrice(undefined), null);
+});
+
+// A photo refresh goes upstream past a full cache, so it is the one request a
+// caller can use to make a cached city cost money again. It only happens when
+// the caller asked, there is something to refresh, and the per-city slot was
+// won — and the slot is only claimed once the first two hold.
+Deno.test('shouldRefreshPhotos refreshes only when asked, with rows, and the slot is won', async () => {
+  const won = () => Promise.resolve({ data: true });
+  assertEquals(await shouldRefreshPhotos(true, 60, won), true);
+  assertEquals(await shouldRefreshPhotos(undefined, 60, won), false);
+  assertEquals(await shouldRefreshPhotos('true', 60, won), false);
+  assertEquals(await shouldRefreshPhotos(true, 0, won), false);
+});
+
+Deno.test('shouldRefreshPhotos does not claim the slot for a request that cannot refresh', async () => {
+  let claimed = 0;
+  const claim = () => {
+    claimed += 1;
+    return Promise.resolve({ data: true });
+  };
+  await shouldRefreshPhotos(false, 60, claim);
+  await shouldRefreshPhotos(true, 0, claim);
+  assertEquals(claimed, 0);
+});
+
+// Same direction as lookupRefusal: an unreadable slot has authorised nothing,
+// and the cost of guessing wrong is a paid lookup, so it serves the cache.
+Deno.test('shouldRefreshPhotos fails closed when the slot is held or unreadable', async () => {
+  assertEquals(await shouldRefreshPhotos(true, 60, () => Promise.resolve({ data: false })), false);
+  assertEquals(await shouldRefreshPhotos(true, 60, () => Promise.resolve({ data: null })), false);
+  assertEquals(
+    await shouldRefreshPhotos(true, 60, () => Promise.resolve({ data: true, error: { message: 'boom' } })),
+    false,
+  );
 });

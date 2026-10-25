@@ -33,6 +33,8 @@ export type SwipeCardProps = {
   /** Advance the deck. Fires when the exit animation settles. */
   onSwiped: (liked: boolean) => void;
   reducedMotion: boolean;
+  /** The photo failed to load (the card has already fallen back to its emoji). */
+  onImageError?: () => void;
 };
 
 const SPRING = { damping: 18, stiffness: 160, mass: 0.6 };
@@ -45,14 +47,15 @@ const SPRING = { damping: 18, stiffness: 160, mass: 0.6 };
  * Level 2 elevation (Calm-Surface Rule).
  */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { item, isTop, translateX, locationLabel, onSwipeCommitted, onSwiped, reducedMotion },
+  { item, isTop, translateX, locationLabel, onSwipeCommitted, onSwiped, reducedMotion, onImageError },
   ref,
 ) {
   const { colors, radii, spacing, elevation } = useTheme();
   const { width } = useWindowDimensions();
   const offscreen = width * 1.5;
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImage = !!item.image_url && !imgFailed;
+  // Keyed to the URL that failed, so a refreshed link for this card is tried.
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showImage = !!item.image_url && failedUrl !== item.image_url;
 
   // Props are read through a ref so the handlers can be built once per mounted
   // card: their once-per-swipe guard must not be reset by a re-render.
@@ -145,7 +148,10 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
             source={{ uri: item.image_url as string }}
             style={styles.panel}
             contentFit="cover"
-            onError={() => setImgFailed(true)}
+            onError={() => {
+              setFailedUrl(item.image_url);
+              onImageError?.();
+            }}
             accessibilityElementsHidden
           />
           {/* Scrim so title/meta stay legible over the photo */}

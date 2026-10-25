@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supa
 import {
   MAX_LOCATION_LEN,
   cacheVerdict,
+  shouldRefreshPhotos,
   hasRegion,
   lookupRefusal,
   isLocationAllowed,
@@ -43,7 +44,9 @@ type ItemRow = {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   try {
-    const { location, room_id: roomId } = await req.json().catch(() => ({ location: undefined, room_id: undefined }));
+    const { location, room_id: roomId, refresh_photos: refreshPhotos } = await req
+      .json()
+      .catch(() => ({ location: undefined, room_id: undefined, refresh_photos: undefined }));
     if (!location || typeof location !== 'string') {
       return json({ error: 'Missing location' }, 400);
     }
@@ -161,7 +164,12 @@ Deno.serve(async (req) => {
     // whole rule stays one expression in cacheVerdict; it is one local query
     // against a two-column primary key, on a handler that already makes four.
     const existing = await selectRestaurants(svc, loc);
-    if (cacheVerdict(existing.length, await readCacheMarker(svc, loc)) === 'serve') {
+    // A refresh (the app saw this city's stored photo links fail) skips the
+    // cache-serve; it still pays through the budget below like any fetch.
+    const refresh = await shouldRefreshPhotos(refreshPhotos, existing.length, () =>
+      claimPhotoRefresh(svc, loc, existing.length),
+    );
+    if (!refresh && cacheVerdict(existing.length, await readCacheMarker(svc, loc)) === 'serve') {
       return json({ items: existing, cached: true });
     }
 
@@ -180,18 +188,26 @@ Deno.serve(async (req) => {
 
     const { places: googlePlaces, complete } = await fetchPlaces(loc);
     const places = await enrichPricesWithFoursquare(googlePlaces, loc);
-    const existingTitles = new Set(existing.map((i) => i.title.toLowerCase()));
+    // A refresh rewrites existing rows too; the upsert keeps their id, so swipes
+    // and matches stay attached. Titles match case-insensitively and are written
+    // back in the stored spelling, or a Google re-capitalisation would insert a
+    // near-duplicate. A field this fetch came back without (a failed photo
+    // resolve, a Foursquare miss) keeps its stored value rather than blanking.
+    const existingByTitle = new Map(existing.map((i) => [i.title.toLowerCase(), i]));
     const toInsert = places
-      .filter((p) => p.title && !existingTitles.has(p.title.toLowerCase()))
-      .map((p) => ({
-        category: 'restaurants',
-        title: p.title,
-        subtitle: p.subtitle,
-        image_url: p.image_url,
-        location: loc,
-        source: 'Google Places',
-        price_level: p.price_level,
-      }));
+      .filter((p) => p.title && (refresh || !existingByTitle.has(p.title.toLowerCase())))
+      .map((p) => {
+        const stored = existingByTitle.get(p.title.toLowerCase());
+        return {
+          category: 'restaurants',
+          title: stored?.title ?? p.title,
+          subtitle: p.subtitle ?? stored?.subtitle ?? null,
+          image_url: p.image_url ?? stored?.image_url ?? null,
+          location: loc,
+          source: 'Google Places',
+          price_level: p.price_level ?? stored?.price_level ?? null,
+        };
+      });
 
     // Ignore-conflict, not plain insert: `existingTitles` was read before the
     // upstream call, so a concurrent request for this same location (both
@@ -202,7 +218,7 @@ Deno.serve(async (req) => {
     if (toInsert.length > 0) {
       const { error } = await svc
         .from('items')
-        .upsert(toInsert, { onConflict: 'category,title,location', ignoreDuplicates: true });
+        .upsert(toInsert, { onConflict: 'category,title,location', ignoreDuplicates: !refresh });
       if (error) {
         console.error('insert items failed', error);
         stored = false;
@@ -255,6 +271,18 @@ async function readCacheMarker(svc: SupabaseClient, loc: string) {
     p_location: loc,
   });
   if (error) console.error('places_cache_verdict failed', error);
+  return { data, error };
+}
+
+// Claim this location's photo-refresh slot (039). Returned raw: shouldRefreshPhotos
+// owns the decision, including that an error means no refresh.
+async function claimPhotoRefresh(svc: SupabaseClient, loc: string, count: number) {
+  const { data, error } = await svc.rpc('places_photo_refresh', {
+    p_category: 'restaurants',
+    p_location: loc,
+    p_count: count,
+  });
+  if (error) console.error('places_photo_refresh failed', error);
   return { data, error };
 }
 

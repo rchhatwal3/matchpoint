@@ -184,6 +184,24 @@ export function cacheVerdict(
   return marker.data === 'fresh' ? 'serve' : 'fetch';
 }
 
+// Whether a cached location goes upstream again because the caller reported its
+// stored Google photo links dead (they lapse, and `cacheVerdict` would otherwise
+// serve them forever). Bounded per city, not per caller: `claim` is the
+// places_photo_refresh RPC (039), which atomically takes a slot that opens at
+// most once every few hours however many sessions ask. It is only called once
+// the request could actually refresh, and an unreadable or lost slot serves the
+// cache — the same fail-closed direction as lookupRefusal, since guessing wrong
+// here is a paid lookup.
+export async function shouldRefreshPhotos(
+  requested: unknown,
+  existingCount: number,
+  claim: () => Promise<{ data?: unknown; error?: unknown }>,
+): Promise<boolean> {
+  if (requested !== true || existingCount === 0) return false;
+  const slot = await claim();
+  return !slot.error && slot.data === true;
+}
+
 export type PlacesApiPlace = {
   displayName?: { text?: string };
   rating?: number;

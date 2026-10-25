@@ -2,6 +2,15 @@
 
 Steps only a human can do. Ordered by priority. Check off as completed.
 
+## Restaurant photo refresh — apply, deploy, check (2026-10-24)
+
+Stored Google photo links lapse and cards fell back to emoji (403s from googleusercontent.com). The fix re-fetches a city when its photos fail, at most once per city every 6 hours. In this order:
+
+- [ ] **Apply `supabase/migrations/039_places_photo_refresh.sql`** in the SQL editor. Until it is applied, the new function treats the missing RPC as "no refresh" and serves the cache, which is today's behaviour.
+- [ ] **`supabase functions deploy get-restaurants`.**
+- [ ] **Merge the PR** (ships the app half).
+- [ ] **Check:** open the Restaurants deck. The first card may show its emoji for a moment, then photos appear. The Network tab shows 200s from `googleusercontent.com`. Each refresh costs about one search plus up to 60 photo lookups per city, inside the existing budgets.
+
 ## Security P3 cluster — migrations to apply by hand (2026-09-29)
 
 - [x] **Apply `037_locations_entry_length.sql` in the SQL editor. DONE 2026-10-07.** Replaces the `rooms_normalize_locations()` trigger function with one that also refuses a location entry over 80 characters. Apply it *after* merging the PR, then run the probes at the bottom of the file: an 81-character entry must be refused, an 80-character one accepted, and the last query lists any rooms already holding an oversized entry (those are grandfathered, not broken — clean them up only if you want the column uniform).

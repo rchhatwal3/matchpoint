@@ -6,7 +6,13 @@ import { useSharedValue } from 'react-native-reanimated';
 import { useReducedMotion, useTheme } from '@/lib/theme';
 import { useSession } from '@/providers/SessionProvider';
 import { CATEGORIES, CATEGORY_LABELS, isCategory, type Item } from '@/lib/types';
-import { cardLocationLabel, deckLoadKey, filterDeck, upcomingImageUrls } from '@/lib/deck';
+import {
+  applyFreshImages,
+  cardLocationLabel,
+  deckLoadKey,
+  filterDeck,
+  upcomingImageUrls,
+} from '@/lib/deck';
 import { nextPriceTiers, normalizePriceTiers } from '@/lib/price-filter';
 import { Screen } from '@/components/Screen';
 import { Text } from '@/components/Text';
@@ -121,6 +127,19 @@ export default function SwipeDeck() {
     [recordSwipe],
   );
 
+  // Stored Google photo links lapse. The first card whose photo fails asks for
+  // this room's cities to be re-fetched — once per deck load; the server also
+  // holds each city to one refresh every few hours — and the fresh links are
+  // swapped in without moving the deck.
+  const photoRefreshKey = useRef<string | null>(null);
+  const handleImageError = useCallback(() => {
+    if (!isRestaurants || photoRefreshKey.current === loadedKey.current) return;
+    photoRefreshKey.current = loadedKey.current;
+    getItems('restaurants', undefined, { refreshPhotos: true })
+      .then((fresh) => setDeck((prev) => (prev ? applyFreshImages(prev, fresh) : prev)))
+      .catch((e) => console.warn('photo refresh failed', e));
+  }, [isRestaurants, getItems]);
+
   const handleSwiped = useCallback(
     (item: Item) => () => {
       setSwiped((prev) => new Set(prev).add(item.id));
@@ -196,6 +215,7 @@ export default function SwipeDeck() {
                   onSwipeCommitted={() => {}}
                   onSwiped={() => {}}
                   reducedMotion={reducedMotion}
+                  onImageError={handleImageError}
                 />
               ) : null}
               <SwipeCard
@@ -208,6 +228,7 @@ export default function SwipeDeck() {
                 onSwipeCommitted={handleSwipeCommitted(current)}
                 onSwiped={handleSwiped(current)}
                 reducedMotion={reducedMotion}
+                onImageError={handleImageError}
               />
             </View>
           </View>
